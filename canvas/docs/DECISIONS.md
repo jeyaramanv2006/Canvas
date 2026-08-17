@@ -14,11 +14,11 @@
 - **Decision**: Implement two relational tables (`Users` and `Visits`) linked by `canvasser_id` foreign key.
 - **Rationale**: Simple, clean, and easily queryable for aggregate manager analytics.
 
-### DEC-003: JWT Authentication with Role-Based Scoping
+### DEC-003: JWT Authentication with Role-Based Scoping & Full CRUD
 - **Status**: CONFIRMED
-- **Context**: Data security requires strict isolation between canvassers and global access for managers.
-- **Decision**: Issue signed JWT tokens on login containing `userId` and `role`. Enforce server-side role middleware.
-- **Rationale**: Ensures canvassers cannot access manager dashboards or view peers' data, and managers cannot fabricate visit data.
+- **Context**: Canvassers manage their own field records (create, read, edit, delete). Managers require a high-level command center with full visibility, analytics, editing authority, and CSV export over all field records.
+- **Decision**: Issue signed JWT tokens on login. Canvassers are scoped to their own logs with edit/delete rights; Managers have global view and edit/delete permissions over all records.
+- **Rationale**: Empowers canvassers to maintain accurate logs while granting management full operational oversight.
 
 ---
 
