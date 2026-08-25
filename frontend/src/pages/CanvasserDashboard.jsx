@@ -2,17 +2,15 @@ import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
-  MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, Receipt, History,
-  Megaphone, ChevronRight, Sparkles, Target, Award, ArrowUpRight
+  MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, History,
+  ChevronRight, Sparkles, Target, Award, ArrowUpRight, Trophy
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { AuthContext } from '../App';
 import EditVisitModal from '../components/EditVisitModal';
 import EditHistoryModal from '../components/EditHistoryModal';
-import InvoicingModule from '../components/InvoicingModule';
-import InvoiceDocumentModal from '../components/InvoiceDocumentModal';
-import MarketingCampaignsModule from '../components/MarketingCampaignsModule';
 import DynamicKPISection from '../components/DynamicKPISection';
+import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
@@ -27,7 +25,7 @@ const OUTCOME_STATUSES = ["Open", "Sample Sent", "Quote Given", "Won", "Lost"];
 
 export default function CanvasserDashboard() {
   const { user, setUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'new', 'list', 'invoices', 'marketing'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'new', 'list', 'leaderboard'
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +39,6 @@ export default function CanvasserDashboard() {
 
   // Editing and Modal State
   const [editingVisit, setEditingVisit] = useState(null);
-  const [quoteVisitModal, setQuoteVisitModal] = useState(null);
   const [inspectHistoryVisit, setInspectHistoryVisit] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -189,11 +186,11 @@ export default function CanvasserDashboard() {
                       Log New Visit
                     </button>
                     <button
-                      onClick={() => setActiveTab('invoices')}
+                      onClick={() => setActiveTab('leaderboard')}
                       className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 transition-all"
                     >
-                      <Receipt className="w-4 h-4 text-murugan-accent" />
-                      Invoicing
+                      <Trophy className="w-4 h-4 text-murugan-accent" />
+                      Leaderboard
                     </button>
                   </div>
                 </div>
@@ -648,18 +645,11 @@ export default function CanvasserDashboard() {
                         
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => setQuoteVisitModal(visit)}
-                            className="px-2.5 py-1.5 bg-murugan-accent text-black font-extrabold rounded-xl text-xs hover:bg-yellow-400 transition-all flex items-center gap-1 shadow-md shadow-murugan-accent/10"
-                          >
-                            <Receipt className="w-3 h-3" />
-                            + Quote
-                          </button>
-                          <button
                             onClick={() => setEditingVisit(visit)}
-                            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl font-bold flex items-center gap-1 transition-all"
+                            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all text-xs"
                           >
-                            <Edit3 className="w-3 h-3 text-murugan-accent" />
-                            Edit
+                            <Edit3 className="w-3.5 h-3.5 text-murugan-accent" />
+                            Edit Visit
                           </button>
                         </div>
                       </div>
@@ -670,37 +660,24 @@ export default function CanvasserDashboard() {
             </motion.div>
           )}
 
-          {/* ================= TAB 4: INVOICING & QUOTATIONS WORKSPACE ================= */}
-          {activeTab === 'invoices' && (
+          {/* ================= TAB 4: CANVASSER PERFORMANCE LEADERBOARD ================= */}
+          {activeTab === 'leaderboard' && (
             <motion.div
-              key="invoices"
+              key="leaderboard"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.25 }}
             >
-              <InvoicingModule currentUser={user} />
-            </motion.div>
-          )}
-
-          {/* ================= TAB 5: MARKETING & CAMPAIGNS HUB ================= */}
-          {activeTab === 'marketing' && (
-            <motion.div
-              key="marketing"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-            >
-              <MarketingCampaignsModule currentUser={user} />
+              <CanvasserLeaderboard currentUser={user} />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
 
-      {/* Fixed Bottom Navigation with 5 clean tabs */}
+      {/* Fixed Bottom Navigation with 4 clean tabs */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-murugan-card/95 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
-        <div className="grid grid-cols-5 p-1.5">
+        <div className="grid grid-cols-4 p-1.5">
           <button 
             onClick={() => setActiveTab('dashboard')}
             className={cn(
@@ -735,25 +712,14 @@ export default function CanvasserDashboard() {
           </button>
 
           <button 
-            onClick={() => setActiveTab('invoices')}
+            onClick={() => setActiveTab('leaderboard')}
             className={cn(
               "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'invoices' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
+              activeTab === 'leaderboard' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
             )}
           >
-            <Receipt className="w-4 h-4" />
-            <span className="text-[10px]">Invoicing</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('marketing')}
-            className={cn(
-              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'marketing' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
-            )}
-          >
-            <Megaphone className="w-4 h-4" />
-            <span className="text-[10px]">Marketing</span>
+            <Trophy className="w-4 h-4" />
+            <span className="text-[10px]">Leaderboard</span>
           </button>
         </div>
       </nav>
@@ -773,20 +739,6 @@ export default function CanvasserDashboard() {
         isOpen={!!inspectHistoryVisit}
         onClose={() => setInspectHistoryVisit(null)}
         visit={inspectHistoryVisit}
-      />
-
-      {/* Direct Quote Modal from Visit */}
-      <InvoiceDocumentModal
-        isOpen={!!quoteVisitModal}
-        onClose={() => setQuoteVisitModal(null)}
-        type="quote"
-        mode="create"
-        visitData={quoteVisitModal}
-        currentUser={user}
-        onSaveSuccess={() => {
-          showToast("Quotation generated successfully!");
-          loadVisits();
-        }}
       />
 
       {/* Toast Notification */}

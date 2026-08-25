@@ -416,14 +416,82 @@ export const mockApi = {
     };
   },
 
+  async getCanvasserLeaderboard() {
+    await delay(250);
+    const visits = getStoredVisits();
+    const storedInvoices = localStorage.getItem('murugan_invoices_v1');
+    let invoices = [];
+    if (storedInvoices) {
+      try { invoices = JSON.parse(storedInvoices); } catch (e) {}
+    } else {
+      invoices = await mockApi.getInvoices();
+    }
+
+    const canvassers = mockUsers.filter(u => u.role === 'canvasser');
+    const leaderboard = canvassers.map(c => {
+      const cVisits = visits.filter(v => v.canvasser_id === c.id);
+      const cWon = cVisits.filter(v => v.outcome_status === 'Won').length;
+      const cHot = cVisits.filter(v => v.interest_level === 'Hot').length;
+      const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
+      const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
+      const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        roleTitle: c.roleTitle || 'Field Sales Executive',
+        totalVisits: cVisits.length,
+        wonOrders: cWon,
+        hotLeads: cHot,
+        totalInvoiced: totalInvoiced,
+        totalCollected: totalCollected,
+        invoicesCount: cInvoices.length,
+        formattedInvoiced: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
+        formattedInvoicedFull: `₹${totalInvoiced.toLocaleString('en-IN')}`
+      };
+    });
+
+    // Sort by totalInvoiced descending, then totalVisits descending
+    leaderboard.sort((a, b) => b.totalInvoiced - a.totalInvoiced || b.totalVisits - a.totalVisits);
+
+    // Assign ranks and badges
+    const ranked = leaderboard.map((item, idx) => {
+      let badge = '⚡ Field Executive';
+      if (idx === 0) badge = '🏆 #1 Top Earner';
+      else if (idx === 1) badge = '🥈 Top Closer';
+      else if (idx === 2) badge = '🥉 Active Canvasser';
+
+      return {
+        ...item,
+        rank: idx + 1,
+        badge
+      };
+    });
+
+    const totalTeamInvoiced = ranked.reduce((s, c) => s + c.totalInvoiced, 0);
+    const totalTeamVisits = ranked.reduce((s, c) => s + c.totalVisits, 0);
+    const totalTeamWon = ranked.reduce((s, c) => s + c.wonOrders, 0);
+
+    return {
+      rankings: ranked,
+      teamStats: {
+        totalTeamInvoiced,
+        formattedTeamInvoiced: `₹${(totalTeamInvoiced / 100000).toFixed(2)}L`,
+        totalTeamVisits,
+        totalTeamWon,
+        leaderName: ranked[0]?.name || 'None'
+      }
+    };
+  },
+
   async getRoleSpecificKPIs(user) {
     await delay(250);
     const visits = getStoredVisits();
-    const invoices = await mockApi.getInvoices(user?.id, user?.role);
-    const quotations = await mockApi.getQuotations(user?.id, user?.role);
+    const invoices = await mockApi.getInvoices();
+    const leaderboardData = await mockApi.getCanvasserLeaderboard();
 
     const totalInvoicedVal = invoices.reduce((sum, i) => sum + (i.grand_total || 0), 0);
-    const totalCollectedVal = invoices.reduce((sum, i) => sum + (i.paid_amount || 0), 0);
 
     if (isAdmin(user)) {
       return {
@@ -437,18 +505,19 @@ export const mockApi = {
     } else {
       const userVisits = visits.filter(v => v.canvasser_id === user?.id);
       const userWon = userVisits.filter(v => v.outcome_status === 'Won').length;
-      const userQuotes = quotations.filter(q => q.canvasser_id === user?.id);
-      const userOrderVal = invoices
-        .filter(i => i.canvasser_id === user?.id)
-        .reduce((s, i) => s + (i.grand_total || 0), 0);
+      const userInvoices = invoices.filter(i => i.canvasser_id === user?.id);
+      const userOrderVal = userInvoices.reduce((s, i) => s + (i.grand_total || 0), 0);
+
+      const userRankItem = leaderboardData.rankings.find(r => r.id === user?.id);
+      const userRankText = userRankItem ? `#${userRankItem.rank} in Team` : 'Rank #1';
 
       return {
-        school_visits: { formatted: `${userVisits.length || visits.length}`, raw: userVisits.length || visits.length },
-        leads_generated: { formatted: `${userVisits.length + 3}`, raw: userVisits.length + 3 },
-        quotations_issued: { formatted: `${userQuotes.length || 2}`, raw: userQuotes.length || 2 },
-        orders_won: { formatted: `${userWon || 1}`, raw: userWon || 1 },
-        order_value: { formatted: `₹${((userOrderVal || 1722800) / 100000).toFixed(2)}L`, raw: userOrderVal || 1722800 },
-        conversion_pct: { formatted: `${userVisits.length ? Math.round((userWon / userVisits.length) * 100) : 50}%`, raw: 50 }
+        school_visits: { formatted: `${userVisits.length}`, raw: userVisits.length },
+        leads_generated: { formatted: `${userVisits.length + 2}`, raw: userVisits.length + 2 },
+        orders_won: { formatted: `${userWon}`, raw: userWon },
+        invoices_credited: { formatted: `₹${(userOrderVal / 100000).toFixed(2)}L`, raw: userOrderVal },
+        team_rank: { formatted: userRankText, raw: userRankItem?.rank || 1 },
+        conversion_pct: { formatted: `${userVisits.length ? Math.round((userWon / userVisits.length) * 100) : 0}%`, raw: 0 }
       };
     }
   },
@@ -570,7 +639,7 @@ export const mockApi = {
           canvasser_name: "Rascals",
           date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
           valid_until: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0],
-          status: "Sent",
+          status: "Converted to Invoice",
           items: [
             { product: "Bags", description: "Custom College Backpacks", qty: 800, rate: 320, amount: 256000 },
             { product: "Ties", description: "Woven Crest Ties", qty: 800, rate: 55, amount: 44000 }
@@ -579,7 +648,7 @@ export const mockApi = {
           gst_percent: 18,
           tax_amount: 54000,
           grand_total: 354000,
-          notes: "Sample approved by purchasing committee. Awaiting formal PO."
+          notes: "Sample approved by purchasing committee. PO issued."
         }
       ];
       localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
@@ -599,11 +668,14 @@ export const mockApi = {
     const nextNum = quotations.length + 1;
     const qtnId = `QTN-2026-${String(nextNum).padStart(3, '0')}`;
 
+    const targetCanvasserId = quoteData.canvasser_id || userId;
+    const targetCanvasserName = quoteData.canvasser_name || userName || "Field Canvasser";
+
     const newQuotation = {
       ...quoteData,
       id: qtnId,
-      canvasser_id: userId,
-      canvasser_name: userName || "Field Canvasser",
+      canvasser_id: targetCanvasserId,
+      canvasser_name: targetCanvasserName,
       status: quoteData.status || "Draft",
       created_at: new Date().toISOString()
     };
@@ -690,6 +762,31 @@ export const mockApi = {
           pending_balance: 0,
           status: "Paid",
           notes: "Full payment received via UPI transaction."
+        },
+        {
+          id: "INV-2026-003",
+          quotation_id: "QTN-2026-002",
+          visit_id: 2,
+          school_name: "Vivekananda Arts & Science College",
+          contact_person: "Mrs. Priya (Admin Officer)",
+          phone: "9876543211",
+          district: "Madurai",
+          canvasser_id: 1,
+          canvasser_name: "Rascals",
+          date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+          due_date: new Date(Date.now() + 86400000 * 15).toISOString().split('T')[0],
+          items: [
+            { product: "Bags", description: "Custom College Backpacks", qty: 800, rate: 320, amount: 256000 },
+            { product: "Ties", description: "Woven Crest Ties", qty: 800, rate: 55, amount: 44000 }
+          ],
+          subtotal: 300000,
+          gst_percent: 18,
+          tax_amount: 54000,
+          grand_total: 354000,
+          paid_amount: 100000,
+          pending_balance: 254000,
+          status: "Partially Paid",
+          notes: "Advance of ₹1,00,000 received. Delivery in progress."
         }
       ];
       localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
@@ -717,11 +814,14 @@ export const mockApi = {
     if (paid >= grandTotal && grandTotal > 0) status = "Paid";
     else if (paid > 0) status = "Partially Paid";
 
+    const targetCanvasserId = invoiceData.canvasser_id || userId;
+    const targetCanvasserName = invoiceData.canvasser_name || userName || "Field Canvasser";
+
     const newInvoice = {
       ...invoiceData,
       id: invId,
-      canvasser_id: userId,
-      canvasser_name: userName || "Field Canvasser",
+      canvasser_id: targetCanvasserId,
+      canvasser_name: targetCanvasserName,
       paid_amount: paid,
       pending_balance: Math.max(0, pending),
       status: invoiceData.status || status,

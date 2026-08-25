@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   TrendingUp, DollarSign, Percent, Target, Briefcase, 
   Sparkles, Award, ArrowUpRight, BarChart3, 
-  CheckCircle, FileCheck
+  CheckCircle, FileCheck, Trophy, Receipt
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { isAdmin, getRoleConfig } from '../lib/rbac';
@@ -21,6 +21,8 @@ const KPI_ICONS = {
   quotations_issued: FileCheck,
   orders_won: Award,
   order_value: DollarSign,
+  invoices_credited: Receipt,
+  team_rank: Trophy,
   conversion_pct: Percent
 };
 
@@ -36,6 +38,8 @@ const KPI_COLORS = {
   quotations_issued: 'from-purple-500/20 to-pink-500/5 text-purple-400 border-purple-500/30',
   orders_won: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
   order_value: 'from-yellow-500/20 to-amber-500/5 text-yellow-400 border-yellow-500/30',
+  invoices_credited: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
+  team_rank: 'from-yellow-500/20 to-orange-500/5 text-yellow-400 border-yellow-500/30',
   conversion_pct: 'from-rose-500/20 to-red-500/5 text-rose-400 border-rose-500/30'
 };
 

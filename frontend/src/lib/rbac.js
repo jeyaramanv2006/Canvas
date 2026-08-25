@@ -12,11 +12,13 @@ export const ROLES = {
     id: 'admin',
     name: 'Executive Management',
     tagline: 'Company Overview & Strategy',
-    description: 'High-level business metrics, revenue, EBITDA, cash flow, and marketing ROI.',
+    description: 'High-level business metrics, revenue, EBITDA, cash flow, invoicing management, and marketing ROI.',
     canSeeCompanyFinancials: true,
     canSeeMarketing: true,
+    canSeeInvoicing: true,
     canSeeAllVisits: true,
     canManagePricing: true,
+    canSeeLeaderboard: true,
     primaryKPIs: [
       { key: 'revenue', label: 'Total Revenue', format: 'currency', trend: '+18.4% YoY' },
       { key: 'gross_profit', label: 'Gross Profit', format: 'currency', trend: '+14.2% YoY' },
@@ -29,18 +31,20 @@ export const ROLES = {
   CANVASSER: {
     id: 'canvasser',
     name: 'Field Sales & Canvassing',
-    tagline: 'Field Visits & Order Fulfillment',
-    description: 'Direct school visits, lead capture, sales quotations, and closed orders.',
+    tagline: 'Field Visits & Client Relationships',
+    description: 'Direct school visits, lead capture, follow-up logging, and competitive leaderboard.',
     canSeeCompanyFinancials: false,
-    canSeeMarketing: true,
+    canSeeMarketing: false,
+    canSeeInvoicing: false,
     canSeeAllVisits: false,
     canManagePricing: false,
+    canSeeLeaderboard: true,
     primaryKPIs: [
       { key: 'school_visits', label: 'School Visits Logged', format: 'number', trend: 'Field Visits' },
       { key: 'leads_generated', label: 'Active Leads', format: 'number', trend: 'Pipeline' },
-      { key: 'quotations_issued', label: 'Quotations Created', format: 'number', trend: 'Formal Pricing' },
       { key: 'orders_won', label: 'Orders Won', format: 'number', trend: 'Closed Deals' },
-      { key: 'order_value', label: 'Direct Order Value', format: 'currency', trend: 'Sales Booked' },
+      { key: 'invoices_credited', label: 'Invoiced Credited', format: 'currency', trend: 'Admin Verified' },
+      { key: 'team_rank', label: 'Leaderboard Rank', format: 'text', trend: 'Team Position' },
       { key: 'conversion_pct', label: 'Visit to Won Rate', format: 'percent', trend: 'Win Rate' }
     ]
   }
@@ -72,5 +76,9 @@ export function canAccessSensitiveFinancials(user) {
 }
 
 export function canAccessMarketingHub(user) {
-  return true;
+  return isAdmin(user);
+}
+
+export function canAccessInvoicing(user) {
+  return isAdmin(user);
 }

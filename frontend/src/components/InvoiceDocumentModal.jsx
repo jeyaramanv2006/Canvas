@@ -12,6 +12,7 @@ export default function InvoiceDocumentModal({
   onSaveSuccess
 }) {
   const [products, setProducts] = useState([]);
+  const [canvassers, setCanvassers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,6 +21,8 @@ export default function InvoiceDocumentModal({
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
   const [district, setDistrict] = useState('');
+  const [selectedCanvasserId, setSelectedCanvasserId] = useState(currentUser?.id || 1);
+  const [selectedCanvasserName, setSelectedCanvasserName] = useState(currentUser?.name || 'Field Canvasser');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(
     new Date(Date.now() + 86400000 * 14).toISOString().split('T')[0]
@@ -36,7 +39,7 @@ export default function InvoiceDocumentModal({
   const [docData, setDocData] = useState(null);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProductsAndCanvassers();
   }, []);
 
   useEffect(() => {
@@ -49,6 +52,10 @@ export default function InvoiceDocumentModal({
         setContactPerson(visitData.contact_person || '');
         setPhone(visitData.phone || '');
         setDistrict(visitData.district || '');
+        if (visitData.canvasser_id) {
+          setSelectedCanvasserId(visitData.canvasser_id);
+          setSelectedCanvasserName(visitData.canvasser_name || 'Field Canvasser');
+        }
 
         // Auto populate line items based on product_interests
         if (Array.isArray(visitData.product_interests) && visitData.product_interests.length > 0) {
@@ -73,6 +80,10 @@ export default function InvoiceDocumentModal({
         setContactPerson(initialData.contact_person || '');
         setPhone(initialData.phone || '');
         setDistrict(initialData.district || '');
+        if (initialData.canvasser_id) {
+          setSelectedCanvasserId(initialData.canvasser_id);
+          setSelectedCanvasserName(initialData.canvasser_name || 'Field Canvasser');
+        }
         if (initialData.items && initialData.items.length > 0) {
           setItems(initialData.items);
         }
@@ -89,10 +100,19 @@ export default function InvoiceDocumentModal({
     }
   }, [isOpen, mode, visitData, initialData, products]);
 
-  const fetchProducts = async () => {
+  const fetchProductsAndCanvassers = async () => {
     try {
-      const pList = await mockApi.getProducts();
+      const [pList, uList] = await Promise.all([
+        mockApi.getProducts(),
+        mockApi.getUsers()
+      ]);
       setProducts(pList);
+      const cList = uList.filter(u => u.role === 'canvasser');
+      setCanvassers(cList);
+      if (cList.length > 0 && !selectedCanvasserId) {
+        setSelectedCanvasserId(cList[0].id);
+        setSelectedCanvasserName(cList[0].name);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -167,6 +187,8 @@ export default function InvoiceDocumentModal({
         contact_person: contactPerson,
         phone: phone,
         district: district,
+        canvasser_id: selectedCanvasserId,
+        canvasser_name: selectedCanvasserName,
         date: date,
         items: items,
         subtotal: subtotal,
@@ -181,13 +203,13 @@ export default function InvoiceDocumentModal({
       if (type === 'quote') {
         payload.valid_until = dueDate;
         payload.status = 'Sent';
-        await mockApi.addQuotation(payload, currentUser?.id || 1, currentUser?.name || 'User');
+        await mockApi.addQuotation(payload, selectedCanvasserId, selectedCanvasserName);
       } else {
         payload.due_date = dueDate;
         payload.paid_amount = 0;
         payload.pending_balance = grand_total;
         payload.status = 'Unpaid';
-        await mockApi.addInvoice(payload, currentUser?.id || 1, currentUser?.name || 'User');
+        await mockApi.addInvoice(payload, selectedCanvasserId, selectedCanvasserName);
       }
 
       setLoading(false);
@@ -299,25 +321,47 @@ export default function InvoiceDocumentModal({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Document Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                <label className="block text-xs font-medium text-gray-300 mb-1">Credited Field Canvasser *</label>
+                <select
+                  value={selectedCanvasserId}
+                  onChange={(e) => {
+                    const cId = Number(e.target.value);
+                    setSelectedCanvasserId(cId);
+                    const found = canvassers.find(c => c.id === cId);
+                    if (found) setSelectedCanvasserName(found.name);
+                  }}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-murugan-accent"
-                />
+                >
+                  {canvassers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.roleTitle || 'Canvasser'})</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-amber-400/80 mt-1">
+                  ⭐ Invoiced amount will be credited to this canvasser's leaderboard score.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">
-                  {type === 'quote' ? 'Valid Until Date' : 'Payment Due Date'}
-                </label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-murugan-accent"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">Document Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-murugan-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    {type === 'quote' ? 'Valid Until' : 'Due Date'}
+                  </label>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-murugan-accent"
+                  />
+                </div>
               </div>
             </div>
 
