@@ -3,19 +3,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LogOut, Download, Users, TrendingUp, Target, Briefcase, 
   Search, Filter, Edit3, Trash2, Calendar, Phone, MapPin, 
-  Building2, CheckCircle2, ChevronRight, Eye, RefreshCw, Layers
+  Building2, CheckCircle2, ChevronRight, Eye, RefreshCw, Layers, Receipt, History,
+  Megaphone, Sparkles, ShieldCheck
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { mockApi } from '../mockApi';
 import { AuthContext } from '../App';
 import EditVisitModal from '../components/EditVisitModal';
+import EditHistoryModal from '../components/EditHistoryModal';
+import InvoicingModule from '../components/InvoicingModule';
+import DynamicKPISection from '../components/DynamicKPISection';
+import MarketingCampaignsModule from '../components/MarketingCampaignsModule';
+import { isAdmin, getRoleConfig, canAccessSensitiveFinancials } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
 const COLORS = ['#ef4444', '#f97316', '#3b82f6', '#6b7280']; // Hot, Warm, Cold, Not Interested
 
 export default function ManagerDashboard() {
   const { user, setUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'logs', 'team'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'invoicing', 'marketing', 'logs', 'team'
   const [stats, setStats] = useState(null);
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,12 +35,15 @@ export default function ManagerDashboard() {
 
   // Modal State
   const [editingVisit, setEditingVisit] = useState(null);
-  const [viewingVisit, setViewingVisit] = useState(null);
+  const [inspectHistoryVisit, setInspectHistoryVisit] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+
+  const roleConfig = getRoleConfig(user);
+  const canSeeFinances = canAccessSensitiveFinancials(user);
 
   useEffect(() => {
     loadAllData();
-  }, []);
+  }, [user]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -58,7 +67,7 @@ export default function ManagerDashboard() {
   };
 
   const handleUpdateVisit = async (id, updatedData) => {
-    await mockApi.updateVisit(id, updatedData);
+    await mockApi.updateVisit(id, updatedData, user);
     showToast("Visit updated successfully!");
     await loadAllData();
   };
@@ -94,30 +103,45 @@ export default function ManagerDashboard() {
   const uniqueDistricts = Array.from(new Set(visits.map(v => v.district).filter(Boolean)));
   const uniqueCanvassers = stats?.canvasserStats || [];
 
+  const navTabs = [
+    { id: 'overview', label: '📊 Executive Analytics', icon: TrendingUp },
+    { id: 'invoicing', label: '🧾 Invoicing & Financials', icon: Receipt },
+    { id: 'marketing', label: '📣 Marketing Hub', icon: Megaphone },
+    { id: 'logs', label: `📋 All Visit Logs (${visits.length})`, icon: Layers },
+    { id: 'team', label: '👥 Field Team Leaderboard', icon: Users }
+  ];
+
   if (loading && !stats) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-murugan-dark text-white">
         <div className="text-center space-y-3">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto text-murugan-accent" />
-          <p className="text-gray-400 font-medium">Loading manager control room...</p>
+          <p className="text-gray-400 font-medium">Loading executive portal...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-murugan-dark text-white pb-16">
+    <div className="min-h-screen bg-murugan-dark text-white pb-16 selection:bg-murugan-accent selection:text-black">
       {/* Top Navigation Bar */}
-      <header className="bg-murugan-card border-b border-white/10 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-murugan-card/95 border-b border-white/10 sticky top-0 z-40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-murugan-accent to-murugan-purple rounded-xl flex items-center justify-center shadow-lg shadow-murugan-accent/10">
-                <span className="font-extrabold text-black text-lg">MC</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-400/20">
+                <span className="font-black text-black text-base tracking-tight">MC</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold tracking-tight">Murugan Canvass</h1>
-                <p className="text-xs text-gray-400">Manager Command Center • {user.name}</p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-extrabold tracking-tight text-white">Murugan Canvass</h1>
+                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    Executive Portal
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  <span className="text-gray-200 font-semibold">{user.name}</span> • {user.roleTitle || 'Executive Director'}
+                </p>
               </div>
             </div>
 
@@ -125,7 +149,7 @@ export default function ManagerDashboard() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={handleExportCSV}
-                className="flex items-center gap-2 px-3.5 py-2 bg-murugan-accent text-black hover:bg-yellow-400 rounded-xl text-xs font-bold transition-all shadow-md shadow-murugan-accent/10"
+                className="flex items-center gap-2 px-3.5 py-2 bg-murugan-accent text-black hover:bg-yellow-400 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-murugan-accent/20"
               >
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Export CSV</span> ({filteredVisits.length})
@@ -142,18 +166,14 @@ export default function ManagerDashboard() {
 
           {/* Navigation Tabs */}
           <div className="flex space-x-1 border-t border-white/5 pt-1 overflow-x-auto scrollbar-none">
-            {[
-              { id: 'overview', label: 'Dashboard & Analytics', icon: TrendingUp },
-              { id: 'logs', label: `All Canvass Logs (${visits.length})`, icon: Layers },
-              { id: 'team', label: 'Field Team Performance', icon: Users }
-            ].map(tab => (
+            {navTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap",
+                  "flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
                   activeTab === tab.id
-                    ? "border-murugan-accent text-murugan-accent bg-white/5 rounded-t-lg"
+                    ? "border-murugan-accent text-murugan-accent bg-white/5 rounded-t-xl"
                     : "border-transparent text-gray-400 hover:text-gray-200"
                 )}
               >
@@ -168,41 +188,15 @@ export default function ManagerDashboard() {
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         
-        {/* ================= TAB 1: OVERVIEW ================= */}
+        {/* ================= TAB 1: OVERVIEW & LEADERSHIP KPIS ================= */}
         {activeTab === 'overview' && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Top KPI Metric Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Visits Logged', value: stats.totalVisits, icon: Briefcase, color: 'text-blue-400', bg: 'from-blue-500/10 to-transparent' },
-                { label: 'Active Hot Leads', value: stats.hotLeads, icon: Target, color: 'text-red-400', bg: 'from-red-500/10 to-transparent' },
-                { label: 'Closed Orders (Won)', value: stats.ordersWon, icon: TrendingUp, color: 'text-emerald-400', bg: 'from-emerald-500/10 to-transparent' },
-                { label: 'Overall Win Rate', value: `${stats.winRate}%`, icon: CheckCircle2, color: 'text-murugan-accent', bg: 'from-yellow-500/10 to-transparent' },
-              ].map((kpi, idx) => (
-                <motion.div 
-                  key={kpi.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.08 }}
-                  className={cn(
-                    "bg-murugan-card p-5 rounded-2xl border border-white/10 flex flex-col justify-between relative overflow-hidden bg-gradient-to-b shadow-lg",
-                    kpi.bg
-                  )}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <p className="text-xs sm:text-sm text-gray-400 font-medium">{kpi.label}</p>
-                    <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                      <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
-                    </div>
-                  </div>
-                  <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{kpi.value}</h3>
-                </motion.div>
-              ))}
-            </div>
+            {/* Dynamic Role-Based KPI Section for Admin */}
+            <DynamicKPISection currentUser={user} />
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -278,10 +272,10 @@ export default function ManagerDashboard() {
               <h3 className="text-base font-bold text-white mb-1">Product Demand in Field</h3>
               <p className="text-xs text-gray-400 mb-4">Total lead inquiries tagged per apparel category</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
-                {stats.productData.map((p, idx) => (
-                  <div key={p.name} className="p-3.5 bg-black/40 rounded-2xl border border-white/5 flex flex-col justify-between">
+                {stats.productData.map((p) => (
+                  <div key={p.name} className="p-3.5 bg-black/40 rounded-2xl border border-white/5 flex flex-col justify-between hover:border-white/20 transition-all">
                     <span className="text-xs text-gray-400 font-medium truncate">{p.name}</span>
-                    <span className="text-2xl font-bold text-white mt-2">{p.count}</span>
+                    <span className="text-2xl font-black text-white mt-2">{p.count}</span>
                   </div>
                 ))}
               </div>
@@ -289,7 +283,27 @@ export default function ManagerDashboard() {
           </motion.div>
         )}
 
-        {/* ================= TAB 2: ALL VISIT LOGS ================= */}
+        {/* ================= TAB 2: INVOICING & FINANCIALS ================= */}
+        {activeTab === 'invoicing' && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <InvoicingModule currentUser={user} />
+          </motion.div>
+        )}
+
+        {/* ================= TAB 3: MARKETING HUB ================= */}
+        {activeTab === 'marketing' && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <MarketingCampaignsModule currentUser={user} />
+          </motion.div>
+        )}
+
+        {/* ================= TAB 4: ALL VISIT LOGS ================= */}
         {activeTab === 'logs' && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -303,7 +317,7 @@ export default function ManagerDashboard() {
                   <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
                   <input
                     type="text"
-                    placeholder="Search by school, district, contact person, or canvasser..."
+                    placeholder="Search by school, district, contact person, or canvasser name..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent"
@@ -328,11 +342,11 @@ export default function ManagerDashboard() {
               {/* Multi Filters Dropdowns */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/5 text-xs">
                 <div>
-                  <label className="text-gray-500 block mb-1">District</label>
+                  <label className="text-gray-400 block mb-1 font-medium">District</label>
                   <select
                     value={selectedDistrict}
                     onChange={e => setSelectedDistrict(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
                   >
                     <option value="all">All Districts ({uniqueDistricts.length})</option>
                     {uniqueDistricts.map(d => <option key={d} value={d}>{d}</option>)}
@@ -340,23 +354,23 @@ export default function ManagerDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-gray-500 block mb-1">Canvasser</label>
+                  <label className="text-gray-400 block mb-1 font-medium">Canvasser</label>
                   <select
                     value={selectedCanvasser}
                     onChange={e => setSelectedCanvasser(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
                   >
-                    <option value="all">All Field Staff</option>
+                    <option value="all">All Canvassers</option>
                     {uniqueCanvassers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-gray-500 block mb-1">Interest Level</label>
+                  <label className="text-gray-400 block mb-1 font-medium">Interest Level</label>
                   <select
                     value={selectedInterest}
                     onChange={e => setSelectedInterest(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
                   >
                     <option value="all">All Interests</option>
                     <option value="Hot">Hot</option>
@@ -367,11 +381,11 @@ export default function ManagerDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-gray-500 block mb-1">Deal Outcome</label>
+                  <label className="text-gray-400 block mb-1 font-medium">Deal Outcome</label>
                   <select
                     value={selectedStatus}
                     onChange={e => setSelectedStatus(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent"
                   >
                     <option value="all">All Outcomes</option>
                     <option value="Open">Open</option>
@@ -384,14 +398,14 @@ export default function ManagerDashboard() {
               </div>
             </div>
 
-            {/* Results Count & Action Header */}
+            {/* Results Count */}
             <div className="flex justify-between items-center px-1">
               <p className="text-xs text-gray-400">
                 Showing <span className="font-bold text-white">{filteredVisits.length}</span> of {visits.length} logged visits
               </p>
             </div>
 
-            {/* Visit Logs Table / Cards */}
+            {/* Visit Logs List */}
             {filteredVisits.length === 0 ? (
               <div className="bg-murugan-card p-12 text-center rounded-3xl border border-white/10">
                 <p className="text-gray-400 font-medium">No matching visit logs found.</p>
@@ -409,7 +423,6 @@ export default function ManagerDashboard() {
                       className="bg-murugan-card border border-white/10 hover:border-white/20 rounded-2xl p-4 sm:p-5 transition-all shadow-md hover:shadow-xl"
                     >
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        {/* Left Column: School & Contact Details */}
                         <div className="space-y-2 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="text-base sm:text-lg font-bold text-white">{visit.school_name}</h4>
@@ -442,7 +455,7 @@ export default function ManagerDashboard() {
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Users className="w-3.5 h-3.5 text-gray-500" />
-                              <span>Logged by: <strong className="text-gray-200">{visit.canvasser_name || 'Field Staff'}</strong></span>
+                              <span>Logged by: <strong className="text-murugan-accent">{visit.canvasser_name || 'Canvasser'}</strong></span>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Phone className="w-3.5 h-3.5 text-gray-500" />
@@ -450,7 +463,6 @@ export default function ManagerDashboard() {
                             </div>
                           </div>
 
-                          {/* Products Tagged */}
                           <div className="flex flex-wrap items-center gap-1.5 pt-1">
                             <span className="text-xs text-gray-500">Products:</span>
                             {Array.isArray(visit.product_interests) && visit.product_interests.map(p => (
@@ -464,16 +476,28 @@ export default function ManagerDashboard() {
                               </span>
                             )}
                           </div>
-
-                          {/* Notes */}
+                          
                           {visit.notes && (
                             <p className="text-xs text-gray-300 bg-black/30 p-2.5 rounded-xl border border-white/5 italic">
                               "{visit.notes}"
                             </p>
                           )}
+
+                          {visit.last_edited_by_name && (
+                            <div className="flex items-center justify-between text-[11px] text-gray-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                              <span>Modified by <strong className="text-gray-200">{visit.last_edited_by_name}</strong> ({visit.last_edited_by_role || 'Staff'})</span>
+                              <button
+                                type="button"
+                                onClick={() => setInspectHistoryVisit(visit)}
+                                className="text-murugan-accent font-semibold hover:underline flex items-center gap-1"
+                              >
+                                <History className="w-3.5 h-3.5" />
+                                Audit Trail ({visit.edit_history?.length || 0})
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Right Column: Follow-up Status & Edit Action */}
                         <div className="flex md:flex-col justify-between items-end md:items-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
                           <div className="text-right">
                             <span className="text-[11px] text-gray-500 block">Follow-up Date</span>
@@ -486,14 +510,22 @@ export default function ManagerDashboard() {
                             </span>
                           </div>
 
-                          {/* Edit Button for Manager */}
-                          <button
-                            onClick={() => setEditingVisit(visit)}
-                            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 hover:border-murugan-accent rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-all group shadow-sm"
-                          >
-                            <Edit3 className="w-3.5 h-3.5 text-murugan-accent group-hover:scale-110 transition-transform" />
-                            Edit Details
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setInspectHistoryVisit(visit)}
+                              className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-murugan-accent flex items-center gap-1 transition-all"
+                            >
+                              <History className="w-3.5 h-3.5" />
+                              Audit
+                            </button>
+                            <button
+                              onClick={() => setEditingVisit(visit)}
+                              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 hover:border-murugan-accent rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-all group shadow-sm"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-murugan-accent group-hover:scale-110 transition-transform" />
+                              Edit Details
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -504,7 +536,7 @@ export default function ManagerDashboard() {
           </motion.div>
         )}
 
-        {/* ================= TAB 3: TEAM PERFORMANCE ================= */}
+        {/* ================= TAB 5: TEAM PERFORMANCE ================= */}
         {activeTab === 'team' && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -512,8 +544,8 @@ export default function ManagerDashboard() {
             className="space-y-6"
           >
             <div className="bg-murugan-card p-6 rounded-3xl border border-white/10 shadow-xl">
-              <h3 className="text-base font-bold text-white mb-1">Field Canvasser Leaderboard</h3>
-              <p className="text-xs text-gray-400 mb-6">Track visit volume, hot leads generated, and closed orders per team member</p>
+              <h3 className="text-base font-bold text-white mb-1">Field Canvassers Performance Leaderboard</h3>
+              <p className="text-xs text-gray-400 mb-6">Track visit volume, hot leads generated, and closed orders per Canvasser</p>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">
@@ -561,7 +593,7 @@ export default function ManagerDashboard() {
 
       </main>
 
-      {/* Reusable Edit Visit Modal for Manager */}
+      {/* Reusable Edit Visit Modal */}
       <EditVisitModal
         isOpen={!!editingVisit}
         onClose={() => setEditingVisit(null)}
@@ -569,6 +601,13 @@ export default function ManagerDashboard() {
         onSave={handleUpdateVisit}
         onDelete={handleDeleteVisit}
         isManager={true}
+      />
+
+      {/* Audit History Inspector Modal */}
+      <EditHistoryModal
+        isOpen={!!inspectHistoryVisit}
+        onClose={() => setInspectHistoryVisit(null)}
+        visit={inspectHistoryVisit}
       />
 
       {/* Toast Notification */}

@@ -1,15 +1,45 @@
+import { isAdmin, isCanvasser, getRoleConfig } from './lib/rbac';
+
 const mockUsers = [
-  { id: 1, email: "field@murugan.com", password: "password", name: "Rahul Sharma", role: "canvasser" },
-  { id: 2, email: "field2@murugan.com", password: "password", name: "Vikram Nathan", role: "canvasser" },
-  { id: 3, email: "field3@murugan.com", password: "password", name: "Karthik Raja", role: "canvasser" },
-  { id: 4, email: "manager@murugan.com", password: "password", name: "Suresh Murugan", role: "manager" }
+  {
+    id: 4,
+    email: "manager@murugan.com",
+    password: "password",
+    name: "Boss Baddie",
+    role: "admin",
+    roleTitle: "Executive Director"
+  },
+  {
+    id: 1,
+    email: "field@murugan.com",
+    password: "password",
+    name: "Rascals",
+    role: "canvasser",
+    roleTitle: "Field Sales Executive"
+  },
+  {
+    id: 2,
+    email: "field2@murugan.com",
+    password: "password",
+    name: "Royal Gaint",
+    role: "canvasser",
+    roleTitle: "Senior Canvasser"
+  },
+  {
+    id: 3,
+    email: "field3@murugan.com",
+    password: "password",
+    name: "Fireclapper",
+    role: "canvasser",
+    roleTitle: "Field Canvasser"
+  }
 ];
 
 const mockVisits = [
   {
     id: 1,
     canvasser_id: 1,
-    canvasser_name: "Rahul Sharma",
+    canvasser_name: "Rascals",
     school_name: "St. John's Higher Secondary School",
     district: "Coimbatore",
     institution_type: "School",
@@ -19,14 +49,38 @@ const mockVisits = [
     product_interests: ["Socks", "Uniforms", "Belts"],
     interest_level: "Hot",
     outcome_status: "Sample Sent",
-    follow_up_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // in 2 days
+    follow_up_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
     notes: "Very interested in 1200 custom combed-cotton socks and school belts. Sample pack sent yesterday.",
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString()
+    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+    last_edited_by_name: "Boss Baddie",
+    last_edited_by_role: "Executive Director",
+    last_edited_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+    edit_history: [
+      {
+        id: "EDT-101",
+        editor_name: "Rascals",
+        editor_role: "Canvasser",
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+        changes: [
+          { field: "Outcome Status", from: "Open", to: "Sample Sent" },
+          { field: "Notes", from: "Initial visit done.", to: "Sample pack sent yesterday." }
+        ]
+      },
+      {
+        id: "EDT-102",
+        editor_name: "Boss Baddie",
+        editor_role: "Admin",
+        timestamp: new Date(Date.now() - 86400000 * 1).toISOString(),
+        changes: [
+          { field: "Interest Level", from: "Warm", to: "Hot" }
+        ]
+      }
+    ]
   },
   {
     id: 2,
     canvasser_id: 1,
-    canvasser_name: "Rahul Sharma",
+    canvasser_name: "Rascals",
     school_name: "Vivekananda Arts & Science College",
     district: "Madurai",
     institution_type: "College",
@@ -36,14 +90,28 @@ const mockVisits = [
     product_interests: ["Bags", "Ties", "Track Pants"],
     interest_level: "Warm",
     outcome_status: "Quote Given",
-    follow_up_date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0], // Overdue by 1 day
+    follow_up_date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0],
     notes: "Quote provided for 800 custom college bags and ties. Follow up with purchasing committee.",
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString()
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    last_edited_by_name: "Rascals",
+    last_edited_by_role: "Canvasser",
+    last_edited_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    edit_history: [
+      {
+        id: "EDT-103",
+        editor_name: "Rascals",
+        editor_role: "Canvasser",
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+        changes: [
+          { field: "Outcome Status", from: "Sample Sent", to: "Quote Given" }
+        ]
+      }
+    ]
   },
   {
     id: 3,
     canvasser_id: 2,
-    canvasser_name: "Vikram Nathan",
+    canvasser_name: "Royal Gaint",
     school_name: "PSG Public Matriculation School",
     district: "Coimbatore",
     institution_type: "School",
@@ -55,12 +123,26 @@ const mockVisits = [
     outcome_status: "Won",
     follow_up_date: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0],
     notes: "Deal closed for 2,000 pairs of sports shoes and track pants! Initial advance received.",
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    last_edited_by_name: "Royal Gaint",
+    last_edited_by_role: "Canvasser",
+    last_edited_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+    edit_history: [
+      {
+        id: "EDT-104",
+        editor_name: "Royal Gaint",
+        editor_role: "Canvasser",
+        timestamp: new Date(Date.now() - 86400000 * 1).toISOString(),
+        changes: [
+          { field: "Outcome Status", from: "Quote Given", to: "Won" }
+        ]
+      }
+    ]
   },
   {
     id: 4,
     canvasser_id: 2,
-    canvasser_name: "Vikram Nathan",
+    canvasser_name: "Royal Gaint",
     school_name: "Al-Ameen International School",
     district: "Tiruppur",
     institution_type: "School",
@@ -77,7 +159,7 @@ const mockVisits = [
   {
     id: 5,
     canvasser_id: 3,
-    canvasser_name: "Karthik Raja",
+    canvasser_name: "Fireclapper",
     school_name: "Holy Cross Girls Higher Secondary",
     district: "Salem",
     institution_type: "School",
@@ -94,7 +176,7 @@ const mockVisits = [
   {
     id: 6,
     canvasser_id: 3,
-    canvasser_name: "Karthik Raja",
+    canvasser_name: "Fireclapper",
     school_name: "Vetri Vikas Academy",
     district: "Salem",
     institution_type: "School",
@@ -110,11 +192,10 @@ const mockVisits = [
   }
 ];
 
-// Helper to simulate network latency
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const getStoredVisits = () => {
-  const stored = localStorage.getItem('murugan_visits');
+  const stored = localStorage.getItem('murugan_visits_v2');
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -122,41 +203,54 @@ const getStoredVisits = () => {
       console.error("Failed to parse stored visits", e);
     }
   }
-  localStorage.setItem('murugan_visits', JSON.stringify(mockVisits));
+  localStorage.setItem('murugan_visits_v2', JSON.stringify(mockVisits));
   return mockVisits;
 };
 
 const saveStoredVisits = (visits) => {
-  localStorage.setItem('murugan_visits', JSON.stringify(visits));
+  localStorage.setItem('murugan_visits_v2', JSON.stringify(visits));
 };
 
 export const mockApi = {
   async login(email, password) {
-    await delay(600);
+    await delay(350);
     const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
     if (!user) throw new Error("Invalid email or password");
+
     return {
       token: "mock-jwt-token-" + user.id,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        roleTitle: user.roleTitle
+      }
     };
   },
 
   async getUsers() {
-    await delay(300);
-    return mockUsers.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role }));
+    await delay(200);
+    return mockUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      roleTitle: u.roleTitle
+    }));
   },
 
   async getVisits(userId, role) {
-    await delay(400);
+    await delay(300);
     const visits = getStoredVisits();
-    if (role === 'canvasser') {
+    if (isCanvasser({ role }) && userId) {
       return visits.filter(v => v.canvasser_id === userId);
     }
     return visits;
   },
 
   async addVisit(visitData, userId, userName) {
-    await delay(500);
+    await delay(400);
     const visits = getStoredVisits();
     
     const newVisit = {
@@ -164,24 +258,80 @@ export const mockApi = {
       id: Date.now(),
       canvasser_id: userId,
       canvasser_name: userName || "Field Canvasser",
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      edit_history: []
     };
     
-    visits.unshift(newVisit); // add to top
+    visits.unshift(newVisit);
     saveStoredVisits(visits);
     return newVisit;
   },
 
-  async updateVisit(id, updateData) {
-    await delay(400);
+  async updateVisit(id, updateData, currentUser) {
+    await delay(350);
     const visits = getStoredVisits();
     const index = visits.findIndex(v => v.id === id);
     if (index === -1) throw new Error("Visit not found");
     
+    const current = visits[index];
+
+    const changes = [];
+    const fieldsToTrack = [
+      { key: 'school_name', label: 'School Name' },
+      { key: 'district', label: 'District' },
+      { key: 'institution_type', label: 'Institution Type' },
+      { key: 'contact_person', label: 'Contact Person' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'student_strength', label: 'Student Strength' },
+      { key: 'interest_level', label: 'Interest Level' },
+      { key: 'outcome_status', label: 'Outcome Status' },
+      { key: 'follow_up_date', label: 'Follow-up Date' },
+      { key: 'notes', label: 'Notes' }
+    ];
+
+    fieldsToTrack.forEach(f => {
+      if (updateData[f.key] !== undefined && String(updateData[f.key]) !== String(current[f.key] || '')) {
+        changes.push({
+          field: f.label,
+          from: String(current[f.key] || 'None'),
+          to: String(updateData[f.key] || 'None')
+        });
+      }
+    });
+
+    if (Array.isArray(updateData.product_interests) && Array.isArray(current.product_interests)) {
+      const oldP = current.product_interests.sort().join(', ');
+      const newP = updateData.product_interests.sort().join(', ');
+      if (oldP !== newP) {
+        changes.push({
+          field: 'Product Interests',
+          from: oldP || 'None',
+          to: newP || 'None'
+        });
+      }
+    }
+
+    const editorName = currentUser?.name || 'Staff';
+    const editorRole = isAdmin(currentUser) ? 'Admin' : 'Canvasser';
+    const timestamp = new Date().toISOString();
+    const existingHistory = Array.isArray(current.edit_history) ? current.edit_history : [];
+
+    const newHistoryEntry = {
+      id: `EDT-${Date.now()}`,
+      editor_name: editorName,
+      editor_role: editorRole,
+      timestamp: timestamp,
+      changes: changes.length > 0 ? changes : [{ field: 'Details Updated', from: 'Previous record', to: 'Updated' }]
+    };
+
     visits[index] = {
-      ...visits[index],
+      ...current,
       ...updateData,
-      updated_at: new Date().toISOString()
+      last_edited_by_name: editorName,
+      last_edited_by_role: editorRole,
+      last_edited_at: timestamp,
+      edit_history: [newHistoryEntry, ...existingHistory],
+      updated_at: timestamp
     };
     
     saveStoredVisits(visits);
@@ -189,7 +339,7 @@ export const mockApi = {
   },
 
   async deleteVisit(id) {
-    await delay(400);
+    await delay(300);
     let visits = getStoredVisits();
     const initialLen = visits.length;
     visits = visits.filter(v => v.id !== id);
@@ -198,9 +348,9 @@ export const mockApi = {
     saveStoredVisits(visits);
     return true;
   },
-  
+
   async getDashboardStats() {
-    await delay(400);
+    await delay(300);
     const visits = getStoredVisits();
     
     const totalVisits = visits.length;
@@ -212,7 +362,6 @@ export const mockApi = {
       ? Math.round((ordersWon / (ordersWon + ordersLost)) * 100) 
       : 0;
 
-    // Aggregate by interest level
     const interestCounts = {
       Hot: visits.filter(v => v.interest_level === "Hot").length,
       Warm: visits.filter(v => v.interest_level === "Warm").length,
@@ -221,7 +370,6 @@ export const mockApi = {
     };
     const interestData = Object.entries(interestCounts).map(([name, value]) => ({ name, value }));
 
-    // Aggregate by district
     const districtCounts = {};
     visits.forEach(v => {
       const dist = v.district || "Unassigned";
@@ -231,7 +379,6 @@ export const mockApi = {
       .map(([name, visits]) => ({ name, visits }))
       .sort((a, b) => b.visits - a.visits);
 
-    // Aggregate by product
     const productCounts = {};
     visits.forEach(v => {
       if (Array.isArray(v.product_interests)) {
@@ -244,7 +391,6 @@ export const mockApi = {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Canvasser performance
     const canvasserStats = {};
     mockUsers.filter(u => u.role === 'canvasser').forEach(u => {
       canvasserStats[u.id] = { id: u.id, name: u.name, visits: 0, hot: 0, won: 0 };
@@ -268,6 +414,43 @@ export const mockApi = {
       productData,
       canvasserStats: Object.values(canvasserStats)
     };
+  },
+
+  async getRoleSpecificKPIs(user) {
+    await delay(250);
+    const visits = getStoredVisits();
+    const invoices = await mockApi.getInvoices(user?.id, user?.role);
+    const quotations = await mockApi.getQuotations(user?.id, user?.role);
+
+    const totalInvoicedVal = invoices.reduce((sum, i) => sum + (i.grand_total || 0), 0);
+    const totalCollectedVal = invoices.reduce((sum, i) => sum + (i.paid_amount || 0), 0);
+
+    if (isAdmin(user)) {
+      return {
+        revenue: { formatted: `₹${((totalInvoicedVal + 8500000) / 100000).toFixed(1)}L`, raw: totalInvoicedVal + 8500000 },
+        gross_profit: { formatted: '₹48.2L (48%)', raw: 4820000 },
+        ebitda: { formatted: '₹24.5L (23.5%)', raw: 2450000 },
+        cash_flow: { formatted: '+₹18.4L', raw: 1840000 },
+        marketing_roi: { formatted: '4.8x Return', raw: 4.8 },
+        collection_rate: { formatted: '89.4%', raw: 89.4 }
+      };
+    } else {
+      const userVisits = visits.filter(v => v.canvasser_id === user?.id);
+      const userWon = userVisits.filter(v => v.outcome_status === 'Won').length;
+      const userQuotes = quotations.filter(q => q.canvasser_id === user?.id);
+      const userOrderVal = invoices
+        .filter(i => i.canvasser_id === user?.id)
+        .reduce((s, i) => s + (i.grand_total || 0), 0);
+
+      return {
+        school_visits: { formatted: `${userVisits.length || visits.length}`, raw: userVisits.length || visits.length },
+        leads_generated: { formatted: `${userVisits.length + 3}`, raw: userVisits.length + 3 },
+        quotations_issued: { formatted: `${userQuotes.length || 2}`, raw: userQuotes.length || 2 },
+        orders_won: { formatted: `${userWon || 1}`, raw: userWon || 1 },
+        order_value: { formatted: `₹${((userOrderVal || 1722800) / 100000).toFixed(2)}L`, raw: userOrderVal || 1722800 },
+        conversion_pct: { formatted: `${userVisits.length ? Math.round((userWon / userVisits.length) * 100) : 50}%`, raw: 50 }
+      };
+    }
   },
 
   exportToCSV(visits) {
@@ -319,5 +502,453 @@ export const mockApi = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  },
+
+  async getProducts() {
+    await delay(200);
+    const stored = localStorage.getItem('murugan_products_v1');
+    if (stored) {
+      try { return JSON.parse(stored); } catch (e) {}
+    }
+    const defaultProducts = [
+      { id: 1, name: "Socks", unit_price: 45, unit: "pairs", hsn: "6115", gst_rate: 18, description: "Custom combed cotton school socks with logo" },
+      { id: 2, name: "Uniforms", unit_price: 480, unit: "sets", hsn: "6204", gst_rate: 18, description: "Premium durable stitched school uniform set" },
+      { id: 3, name: "Belts", unit_price: 65, unit: "pcs", hsn: "4203", gst_rate: 18, description: "Custom engraved school buckle belts" },
+      { id: 4, name: "Ties", unit_price: 55, unit: "pcs", hsn: "6215", gst_rate: 18, description: "Woven school crest ties" },
+      { id: 5, name: "Shoes", unit_price: 380, unit: "pairs", hsn: "6403", gst_rate: 18, description: "Heavy-duty canvas and leather sports shoes" },
+      { id: 6, name: "Bags", unit_price: 320, unit: "pcs", hsn: "4202", gst_rate: 18, description: "Waterproof ergonomic school backpacks" },
+      { id: 7, name: "Track Pants", unit_price: 350, unit: "pcs", hsn: "6114", gst_rate: 18, description: "Breathable sports track pants" }
+    ];
+    localStorage.setItem('murugan_products_v1', JSON.stringify(defaultProducts));
+    return defaultProducts;
+  },
+
+  async saveProducts(products) {
+    await delay(300);
+    localStorage.setItem('murugan_products_v1', JSON.stringify(products));
+    return products;
+  },
+
+  async getQuotations(userId, role) {
+    await delay(300);
+    const stored = localStorage.getItem('murugan_quotations_v1');
+    let quotations = [];
+    if (stored) {
+      try { quotations = JSON.parse(stored); } catch (e) {}
+    } else {
+      quotations = [
+        {
+          id: "QTN-2026-001",
+          visit_id: 3,
+          school_name: "PSG Public Matriculation School",
+          contact_person: "Dr. Kavin (Correspondent)",
+          phone: "9876543212",
+          district: "Coimbatore",
+          canvasser_id: 2,
+          canvasser_name: "Royal Gaint",
+          date: new Date(Date.now() - 86400000 * 5).toISOString().split('T')[0],
+          valid_until: new Date(Date.now() + 86400000 * 25).toISOString().split('T')[0],
+          status: "Converted to Invoice",
+          items: [
+            { product: "Shoes", description: "Sports Shoes", qty: 2000, rate: 380, amount: 760000 },
+            { product: "Track Pants", description: "Breathable Track Pants", qty: 2000, rate: 350, amount: 700000 }
+          ],
+          subtotal: 1460000,
+          gst_percent: 18,
+          tax_amount: 262800,
+          grand_total: 1722800,
+          notes: "Price includes custom school crest embroidery and individual size packaging."
+        },
+        {
+          id: "QTN-2026-002",
+          visit_id: 2,
+          school_name: "Vivekananda Arts & Science College",
+          contact_person: "Mrs. Priya (Admin Officer)",
+          phone: "9876543211",
+          district: "Madurai",
+          canvasser_id: 1,
+          canvasser_name: "Rascals",
+          date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+          valid_until: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0],
+          status: "Sent",
+          items: [
+            { product: "Bags", description: "Custom College Backpacks", qty: 800, rate: 320, amount: 256000 },
+            { product: "Ties", description: "Woven Crest Ties", qty: 800, rate: 55, amount: 44000 }
+          ],
+          subtotal: 300000,
+          gst_percent: 18,
+          tax_amount: 54000,
+          grand_total: 354000,
+          notes: "Sample approved by purchasing committee. Awaiting formal PO."
+        }
+      ];
+      localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+    }
+
+    if (isCanvasser({ role }) && userId) {
+      return quotations.filter(q => q.canvasser_id === userId);
+    }
+    return quotations;
+  },
+
+  async addQuotation(quoteData, userId, userName) {
+    await delay(400);
+    const stored = localStorage.getItem('murugan_quotations_v1');
+    const quotations = stored ? JSON.parse(stored) : [];
+
+    const nextNum = quotations.length + 1;
+    const qtnId = `QTN-2026-${String(nextNum).padStart(3, '0')}`;
+
+    const newQuotation = {
+      ...quoteData,
+      id: qtnId,
+      canvasser_id: userId,
+      canvasser_name: userName || "Field Canvasser",
+      status: quoteData.status || "Draft",
+      created_at: new Date().toISOString()
+    };
+
+    quotations.unshift(newQuotation);
+    localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+
+    if (quoteData.visit_id) {
+      try {
+        await mockApi.updateVisit(quoteData.visit_id, { outcome_status: "Quote Given" });
+      } catch (e) {}
+    }
+
+    return newQuotation;
+  },
+
+  async updateQuotationStatus(id, status) {
+    await delay(250);
+    const stored = localStorage.getItem('murugan_quotations_v1');
+    const quotations = stored ? JSON.parse(stored) : [];
+    const index = quotations.findIndex(q => q.id === id);
+    if (index !== -1) {
+      quotations[index].status = status;
+      localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+      return quotations[index];
+    }
+    throw new Error("Quotation not found");
+  },
+
+  async getInvoices(userId, role) {
+    await delay(300);
+    const stored = localStorage.getItem('murugan_invoices_v1');
+    let invoices = [];
+    if (stored) {
+      try { invoices = JSON.parse(stored); } catch (e) {}
+    } else {
+      invoices = [
+        {
+          id: "INV-2026-001",
+          quotation_id: "QTN-2026-001",
+          visit_id: 3,
+          school_name: "PSG Public Matriculation School",
+          contact_person: "Dr. Kavin (Correspondent)",
+          phone: "9876543212",
+          district: "Coimbatore",
+          canvasser_id: 2,
+          canvasser_name: "Royal Gaint",
+          date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0],
+          due_date: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0],
+          items: [
+            { product: "Shoes", description: "Sports Shoes", qty: 2000, rate: 380, amount: 760000 },
+            { product: "Track Pants", description: "Breathable Track Pants", qty: 2000, rate: 350, amount: 700000 }
+          ],
+          subtotal: 1460000,
+          gst_percent: 18,
+          tax_amount: 262800,
+          grand_total: 1722800,
+          paid_amount: 500000,
+          pending_balance: 1222800,
+          status: "Partially Paid",
+          notes: "30% Advance received. Balance due upon delivery of batch 2."
+        },
+        {
+          id: "INV-2026-002",
+          quotation_id: null,
+          visit_id: 5,
+          school_name: "Holy Cross Girls Higher Secondary",
+          contact_person: "Sister Mary (Headmistress)",
+          phone: "9443210987",
+          district: "Salem",
+          canvasser_id: 3,
+          canvasser_name: "Fireclapper",
+          date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0],
+          due_date: new Date(Date.now() + 86400000 * 14).toISOString().split('T')[0],
+          items: [
+            { product: "Ties", description: "Navy Blue Crest Ties", qty: 1800, rate: 50, amount: 90000 },
+            { product: "Socks", description: "White Sports Socks", qty: 1800, rate: 45, amount: 81000 }
+          ],
+          subtotal: 171000,
+          gst_percent: 18,
+          tax_amount: 30780,
+          grand_total: 201780,
+          paid_amount: 201780,
+          pending_balance: 0,
+          status: "Paid",
+          notes: "Full payment received via UPI transaction."
+        }
+      ];
+      localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+    }
+
+    if (isCanvasser({ role }) && userId) {
+      return invoices.filter(i => i.canvasser_id === userId);
+    }
+    return invoices;
+  },
+
+  async addInvoice(invoiceData, userId, userName) {
+    await delay(400);
+    const stored = localStorage.getItem('murugan_invoices_v1');
+    const invoices = stored ? JSON.parse(stored) : [];
+
+    const nextNum = invoices.length + 1;
+    const invId = `INV-2026-${String(nextNum).padStart(3, '0')}`;
+
+    const paid = Number(invoiceData.paid_amount || 0);
+    const grandTotal = Number(invoiceData.grand_total || 0);
+    const pending = grandTotal - paid;
+
+    let status = "Unpaid";
+    if (paid >= grandTotal && grandTotal > 0) status = "Paid";
+    else if (paid > 0) status = "Partially Paid";
+
+    const newInvoice = {
+      ...invoiceData,
+      id: invId,
+      canvasser_id: userId,
+      canvasser_name: userName || "Field Canvasser",
+      paid_amount: paid,
+      pending_balance: Math.max(0, pending),
+      status: invoiceData.status || status,
+      created_at: new Date().toISOString()
+    };
+
+    invoices.unshift(newInvoice);
+    localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+
+    if (invoiceData.quotation_id) {
+      try {
+        await mockApi.updateQuotationStatus(invoiceData.quotation_id, "Converted to Invoice");
+      } catch (e) {}
+    }
+
+    if (invoiceData.visit_id) {
+      try {
+        await mockApi.updateVisit(invoiceData.visit_id, { outcome_status: "Won" });
+      } catch (e) {}
+    }
+
+    return newInvoice;
+  },
+
+  async getPayments() {
+    await delay(250);
+    const stored = localStorage.getItem('murugan_payments_v1');
+    if (stored) {
+      try { return JSON.parse(stored); } catch (e) {}
+    }
+    const defaultPayments = [
+      {
+        id: "PAY-1001",
+        invoice_id: "INV-2026-001",
+        school_name: "PSG Public Matriculation School",
+        date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0],
+        amount: 500000,
+        mode: "Bank Transfer (NEFT)",
+        reference_id: "UTIBR5202608149872",
+        notes: "30% Advance deposit"
+      },
+      {
+        id: "PAY-1002",
+        invoice_id: "INV-2026-002",
+        school_name: "Holy Cross Girls Higher Secondary",
+        date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0],
+        amount: 201780,
+        mode: "UPI (GPay)",
+        reference_id: "UPI/62391098234",
+        notes: "Full settlement payment"
+      }
+    ];
+    localStorage.setItem('murugan_payments_v1', JSON.stringify(defaultPayments));
+    return defaultPayments;
+  },
+
+  async recordPayment(invoiceId, paymentData) {
+    await delay(350);
+    const storedInvoices = localStorage.getItem('murugan_invoices_v1');
+    const invoices = storedInvoices ? JSON.parse(storedInvoices) : [];
+    const invIndex = invoices.findIndex(i => i.id === invoiceId);
+
+    if (invIndex === -1) throw new Error("Invoice not found");
+
+    const inv = invoices[invIndex];
+    const payAmount = Number(paymentData.amount);
+
+    const newPaidTotal = inv.paid_amount + payAmount;
+    const newPending = Math.max(0, inv.grand_total - newPaidTotal);
+
+    let newStatus = "Partially Paid";
+    if (newPending <= 0) newStatus = "Paid";
+
+    invoices[invIndex] = {
+      ...inv,
+      paid_amount: newPaidTotal,
+      pending_balance: newPending,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+    localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+
+    const storedPayments = localStorage.getItem('murugan_payments_v1');
+    const payments = storedPayments ? JSON.parse(storedPayments) : [];
+    const payId = `PAY-${1000 + payments.length + 1}`;
+    const newPayment = {
+      id: payId,
+      invoice_id: invoiceId,
+      school_name: inv.school_name,
+      date: paymentData.date || new Date().toISOString().split('T')[0],
+      amount: payAmount,
+      mode: paymentData.mode || "Cash",
+      reference_id: paymentData.reference_id || "-",
+      notes: paymentData.notes || ""
+    };
+    payments.unshift(newPayment);
+    localStorage.setItem('murugan_payments_v1', JSON.stringify(payments));
+
+    return { invoice: invoices[invIndex], payment: newPayment };
+  },
+
+  async getFinancialStats(userId, role, userObj) {
+    await delay(300);
+    const invoices = await mockApi.getInvoices(userId, role);
+    const quotations = await mockApi.getQuotations(userId, role);
+
+    const totalInvoiced = invoices.reduce((sum, i) => sum + (i.grand_total || 0), 0);
+    const totalCollected = invoices.reduce((sum, i) => sum + (i.paid_amount || 0), 0);
+    const totalPending = invoices.reduce((sum, i) => sum + (i.pending_balance || 0), 0);
+    const overdueCount = invoices.filter(i => {
+      if (i.status === 'Paid') return false;
+      const due = new Date(i.due_date);
+      return due < new Date();
+    }).length;
+
+    const totalQuotes = quotations.length;
+    const pendingQuotes = quotations.filter(q => q.status === 'Sent' || q.status === 'Draft').length;
+
+    const isUserAdmin = isAdmin(userObj || { role });
+
+    return {
+      totalInvoiced: isUserAdmin ? totalInvoiced : (userId ? totalInvoiced : '—'),
+      totalCollected: isUserAdmin ? totalCollected : (userId ? totalCollected : '—'),
+      totalPending: isUserAdmin ? totalPending : (userId ? totalPending : '—'),
+      overdueCount,
+      totalQuotes,
+      pendingQuotes,
+      invoicesCount: invoices.length,
+      isFinancialsMasked: !isUserAdmin
+    };
+  },
+
+  async getMarketingCampaigns() {
+    await delay(250);
+    return [
+      {
+        id: "CMP-2026-01",
+        name: "Back-to-School 2026 Mega Apparel Drive",
+        target: "Matriculation & CBSE Schools (Kongu & Central TN)",
+        budget: 150000,
+        spent: 98000,
+        reach: 18400,
+        leads: 76,
+        conversions: 18,
+        roi: "5.4x",
+        status: "Active",
+        channels: ["School Visits", "Direct Mailer", "WhatsApp Catalog", "Instagram"],
+        keyCollateral: ["2026 School Socks & Uniform Lookbook (PDF)", "Custom Embroidery Swatch Card Pack"]
+      },
+      {
+        id: "CMP-2026-02",
+        name: "College Sports & Track Pants Special",
+        target: "Arts & Science and Engineering Colleges",
+        budget: 80000,
+        spent: 54000,
+        reach: 12200,
+        leads: 42,
+        conversions: 8,
+        roi: "4.1x",
+        status: "Active",
+        channels: ["Canvasser Sample Drop", "Physical Catalog", "Sports Director Outreach"],
+        keyCollateral: ["Breathable Poly-Cotton Track Pants Spec Sheet", "Bulk Rate Tier Guide"]
+      },
+      {
+        id: "CMP-2026-03",
+        name: "Coimbatore School Belts & Crest Ties Upgrade",
+        target: "Private School Trustees & Principals",
+        budget: 60000,
+        spent: 60000,
+        reach: 9500,
+        leads: 30,
+        conversions: 11,
+        roi: "6.2x",
+        status: "Completed",
+        channels: ["Canvasser 1-on-1 Pitch", "Custom Sample Box"],
+        keyCollateral: ["Engraved Metal Buckle Sample Kit", "Woven Crest Tie Physical Sample"]
+      }
+    ];
+  },
+
+  async getMarketingCollateral() {
+    await delay(200);
+    return [
+      {
+        id: "COL-01",
+        title: "2026 Master Product Catalog & Price Guide",
+        category: "Catalog",
+        format: "PDF (Digital + Print)",
+        size: "4.2 MB",
+        downloadUrl: "#",
+        updatedAt: "2026-08-15",
+        targetAudience: "Principals & Management Trustees",
+        recommendedFor: "All Field Visits"
+      },
+      {
+        id: "COL-02",
+        title: "Combed Cotton Socks Durability & Wash Test Report",
+        category: "Technical Sheet",
+        format: "PDF",
+        size: "1.8 MB",
+        downloadUrl: "#",
+        updatedAt: "2026-08-10",
+        targetAudience: "School Purchase Committees",
+        recommendedFor: "Socks Inquiries"
+      },
+      {
+        id: "COL-03",
+        title: "School Uniform Embroidery & Custom Crest Guidelines",
+        category: "Design Spec",
+        format: "PDF",
+        size: "2.4 MB",
+        downloadUrl: "#",
+        updatedAt: "2026-08-01",
+        targetAudience: "Design Coordinators & Canvassers",
+        recommendedFor: "Uniform & Crest Tie Closures"
+      },
+      {
+        id: "COL-04",
+        title: "Institutional Volume Discount & Credit Policy",
+        category: "Sales Collateral",
+        format: "PDF",
+        size: "950 KB",
+        downloadUrl: "#",
+        updatedAt: "2026-08-18",
+        targetAudience: "Commercial Heads & Canvassers",
+        recommendedFor: "High Strength Institutions (>1000 Students)"
+      }
+    ];
   }
 };

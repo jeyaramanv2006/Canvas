@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History } from 'lucide-react';
 import { cn } from '../lib/utils';
+import EditHistoryModal from './EditHistoryModal';
 
 const PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
@@ -17,6 +18,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (visit) {
@@ -85,7 +87,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-murugan-accent/20 text-murugan-accent border border-murugan-accent/30">
-                  {isManager ? 'Manager Edit' : 'Edit Visit Log'}
+                  {isManager ? 'Kattakunjan Control' : 'Nettakunjan Edit'}
                 </span>
                 {formData.canvasser_name && (
                   <span className="text-xs text-gray-400">by {formData.canvasser_name}</span>
@@ -287,21 +289,32 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
           </form>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-white/10 bg-black/40 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting || saving}
-              className={cn(
-                "px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all",
-                confirmDelete 
-                  ? "bg-red-600 text-white hover:bg-red-700 animate-pulse" 
-                  : "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
-              )}
-            >
-              <Trash2 className="w-4 h-4" />
-              {confirmDelete ? "Click to Confirm Delete" : "Delete Log"}
-            </button>
+          <div className="p-4 border-t border-white/10 bg-black/40 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || saving}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all",
+                  confirmDelete 
+                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse" 
+                    : "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                )}
+              >
+                <Trash2 className="w-4 h-4" />
+                {confirmDelete ? "Confirm Delete" : "Delete"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-murugan-accent font-semibold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <History className="w-4 h-4" />
+                <span>Audit Trail ({formData.edit_history?.length || 0})</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-3">
               <button
@@ -323,6 +336,13 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             </div>
           </div>
         </motion.div>
+
+        {/* Audit History Timeline Modal */}
+        <EditHistoryModal
+          isOpen={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          visit={formData}
+        />
       </div>
     </AnimatePresence>
   );
