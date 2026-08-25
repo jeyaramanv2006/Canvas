@@ -20,6 +20,14 @@
 - **Decision**: Issue signed JWT tokens on login. Canvassers are scoped to their own logs with edit/delete rights; Managers have global view and edit/delete permissions over all records.
 - **Rationale**: Empowers canvassers to maintain accurate logs while granting management full operational oversight.
 
+### DEC-004: Two-Role RBAC Model with Layer-Based Access Scoping (Admin: L1–L3, Canvasser: L3–L4)
+- **Status**: CONFIRMED
+- **Context**: The client established a 2-role architecture where:
+  1. **Admin / Leadership Role**: Covers **L1 through L3 (Executive, Commercial, Finance, Marketing Manager)**. Sees full management financials, strategy metrics, revenue, EBITDA, cash flow, receivables/payables, and campaign ROI.
+  2. **Field Canvasser Role**: Covers **L3 (Marketing) + L4 (Sales / Canvassing & Execution)**. Sees field leads, school visits, quotations, orders won, conversion %, and marketing campaign collateral. Top-level corporate financials (EBITDA, Gross Profit %, Cash Position) are strictly masked.
+- **Decision**: Enforce this 2-role model with layer scoping in `src/lib/rbac.js`.
+- **Rationale**: Keeps user management simple with 2 concrete roles while enforcing the client's exact data visibility and financial masking rules.
+
 ---
 
 ## Decisions Required / Unresolved Questions

@@ -57,3 +57,57 @@ Stores field canvassing data linked to the canvasser.
 | `follow_up_date` | DATE | NULLABLE | Next action follow-up date |
 | `notes` | TEXT | NULLABLE | Field notes & requirements |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Logging timestamp |
+
+### Table 3: `Products`
+Catalog of school apparel and accessories with base prices.
+
+| Field | Data Type | Constraints | Description |
+|---|---|---|---|
+| `id` | INTEGER / UUID | Primary Key | Unique product ID |
+| `name` | VARCHAR(255) | NOT NULL | Apparel name (Socks, Uniforms, etc.) |
+| `unit_price` | DECIMAL(10,2) | NOT NULL | Base selling rate |
+| `unit` | VARCHAR(50) | NOT NULL | Unit measure (pairs, sets, pcs) |
+| `hsn` | VARCHAR(50) | NOT NULL | HSN Code for GST billing |
+| `gst_rate` | DECIMAL(5,2) | DEFAULT 18.00 | GST percentage |
+
+### Table 4: `Quotations`
+Stores formal sales quotes issued to schools.
+
+| Field | Data Type | Constraints | Description |
+|---|---|---|---|
+| `id` | VARCHAR(50) | Primary Key | Format: `QTN-2026-XXX` |
+| `visit_id` | INTEGER | FK -> `Visits(id)` | Linked canvass visit |
+| `canvasser_id` | INTEGER | FK -> `Users(id)` | Creating canvasser |
+| `school_name` | VARCHAR(255) | NOT NULL | Customer name |
+| `items` | JSON | NOT NULL | Line items list with rates & quantities |
+| `subtotal` | DECIMAL(12,2) | NOT NULL | Pre-tax total |
+| `tax_amount` | DECIMAL(12,2) | NOT NULL | GST tax calculated |
+| `grand_total` | DECIMAL(12,2) | NOT NULL | Total quote amount |
+| `status` | VARCHAR(50) | NOT NULL | `Draft`, `Sent`, `Converted to Invoice` |
+
+### Table 5: `Invoices`
+Stores tax invoices and balance tracking.
+
+| Field | Data Type | Constraints | Description |
+|---|---|---|---|
+| `id` | VARCHAR(50) | Primary Key | Format: `INV-2026-XXX` |
+| `quotation_id` | VARCHAR(50) | FK -> `Quotations(id)` | Source quotation |
+| `visit_id` | INTEGER | FK -> `Visits(id)` | Source visit |
+| `school_name` | VARCHAR(255) | NOT NULL | Customer name |
+| `grand_total` | DECIMAL(12,2) | NOT NULL | Total invoice bill |
+| `paid_amount` | DECIMAL(12,2) | DEFAULT 0.00 | Cumulative paid amount |
+| `pending_balance` | DECIMAL(12,2) | NOT NULL | Outstanding balance |
+| `status` | VARCHAR(50) | NOT NULL | `Unpaid`, `Partially Paid`, `Paid` |
+| `due_date` | DATE | NOT NULL | Payment deadline |
+
+### Table 6: `Payments`
+Audit log of payment transactions received.
+
+| Field | Data Type | Constraints | Description |
+|---|---|---|---|
+| `id` | VARCHAR(50) | Primary Key | Format: `PAY-XXXX` |
+| `invoice_id` | VARCHAR(50) | FK -> `Invoices(id)` | Target invoice |
+| `amount` | DECIMAL(12,2) | NOT NULL | Collected installment |
+| `mode` | VARCHAR(100) | NOT NULL | NEFT, UPI, Cheque, Cash |
+| `reference_id` | VARCHAR(255) | NULLABLE | Bank reference / transaction ID |
+| `date` | DATE | NOT NULL | Payment date |

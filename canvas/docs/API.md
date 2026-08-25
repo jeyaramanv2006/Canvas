@@ -71,3 +71,43 @@
 ### GET `/api/admin/export`
 - **Access**: Manager
 - **Description**: Generates and downloads the full CSV file.
+
+---
+
+## Financials & Invoicing API (Refrens Integration)
+
+### GET `/api/products`
+- **Access**: Canvasser, Manager
+- **Description**: Returns product catalog with standard unit rates, units of measure, and HSN codes.
+
+### POST `/api/products`
+- **Access**: Manager
+- **Description**: Saves or updates master product pricing catalog.
+
+### GET `/api/quotations`
+- **Access**: Canvasser (scoped), Manager (global)
+- **Description**: Returns sales quotations.
+
+### POST `/api/quotations`
+- **Access**: Canvasser, Manager
+- **Description**: Creates a new Sales Quotation. Auto-links to `visit_id` if provided and updates visit outcome to `Quote Given`.
+
+### GET `/api/invoices`
+- **Access**: Canvasser (scoped), Manager (global)
+- **Description**: Returns tax invoices with billing breakdown, paid amount, and outstanding balances.
+
+### POST `/api/invoices`
+- **Access**: Canvasser, Manager
+- **Description**: Generates a new Tax Invoice (`INV-2026-XXX`). Auto-links to `quotation_id` or `visit_id` and updates visit outcome to `Won`.
+
+### POST `/api/invoices/{id}/payments`
+- **Access**: Manager
+- **Description**: Records a payment transaction installment against an invoice, updating `paid_amount`, `pending_balance`, and status (`Paid`, `Partially Paid`).
+
+### GET `/api/payments`
+- **Access**: Manager
+- **Description**: Audit log of all payment transactions collected.
+
+### GET `/api/financial-stats`
+- **Access**: Manager
+- **Description**: Computes financial KPIs (Total Invoiced, Total Collected, Outstanding Balance, Overdue Invoices Count).
