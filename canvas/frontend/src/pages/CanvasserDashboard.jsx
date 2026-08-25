@@ -1,26 +1,33 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
-  MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter 
+  LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
+  MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, Receipt, History,
+  Megaphone, ChevronRight, Sparkles, Target, Award, ArrowUpRight
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { AuthContext } from '../App';
 import EditVisitModal from '../components/EditVisitModal';
+import EditHistoryModal from '../components/EditHistoryModal';
+import InvoicingModule from '../components/InvoicingModule';
+import InvoiceDocumentModal from '../components/InvoiceDocumentModal';
+import MarketingCampaignsModule from '../components/MarketingCampaignsModule';
+import DynamicKPISection from '../components/DynamicKPISection';
+import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
 const PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
-  { label: 'Hot', color: 'bg-red-500', text: 'text-red-500', border: 'border-red-500' },
-  { label: 'Warm', color: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500' },
-  { label: 'Cold', color: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500' },
-  { label: 'Not Interested', color: 'bg-gray-500', text: 'text-gray-500', border: 'border-gray-500' }
+  { label: 'Hot', color: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/40' },
+  { label: 'Warm', color: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500/40' },
+  { label: 'Cold', color: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500/40' },
+  { label: 'Not Interested', color: 'bg-gray-600', text: 'text-gray-400', border: 'border-gray-600/40' }
 ];
 const OUTCOME_STATUSES = ["Open", "Sample Sent", "Quote Given", "Won", "Lost"];
 
 export default function CanvasserDashboard() {
   const { user, setUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('new'); // 'new' or 'list'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'new', 'list', 'invoices', 'marketing'
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,12 +41,16 @@ export default function CanvasserDashboard() {
 
   // Editing and Modal State
   const [editingVisit, setEditingVisit] = useState(null);
+  const [quoteVisitModal, setQuoteVisitModal] = useState(null);
+  const [inspectHistoryVisit, setInspectHistoryVisit] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
   // Filters for "My Visits" tab
   const [searchQuery, setSearchQuery] = useState('');
   const [filterInterest, setFilterInterest] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+
+  const roleConfig = getRoleConfig(user);
 
   useEffect(() => {
     loadVisits();
@@ -71,9 +82,8 @@ export default function CanvasserDashboard() {
     setSubmitting(true);
     try {
       await mockApi.addVisit(formData, user.id, user.name);
-      showToast("Visit logged successfully!");
+      showToast("School visit logged successfully!");
       
-      // Reset form
       setFormData({
         school_name: '', district: '', institution_type: 'School', 
         contact_person: '', phone: '', student_strength: '', 
@@ -89,7 +99,7 @@ export default function CanvasserDashboard() {
   };
 
   const handleUpdateVisit = async (id, updatedData) => {
-    await mockApi.updateVisit(id, updatedData);
+    await mockApi.updateVisit(id, updatedData, user);
     showToast("Visit updated successfully!");
     await loadVisits();
   };
@@ -100,7 +110,6 @@ export default function CanvasserDashboard() {
     await loadVisits();
   };
 
-  // Filtered visits for the user
   const filteredVisits = visits.filter(v => {
     const matchesSearch = 
       (v.school_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -114,55 +123,157 @@ export default function CanvasserDashboard() {
     return matchesSearch && matchesInterest && matchesStatus;
   });
 
+  const hotVisits = visits.filter(v => v.interest_level === 'Hot');
+  const wonVisits = visits.filter(v => v.outcome_status === 'Won');
+
   return (
-    <div className="pb-24 max-w-lg mx-auto min-h-screen bg-murugan-dark shadow-2xl relative border-x border-white/5">
-      {/* Mobile Header */}
-      <header className="bg-murugan-card border-b border-white/10 p-4 sticky top-0 z-40 backdrop-blur-md">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-murugan-accent to-murugan-purple flex items-center justify-center font-black text-black text-xs">
+    <div className="pb-24 max-w-xl mx-auto min-h-screen bg-murugan-dark shadow-2xl relative border-x border-white/5 selection:bg-murugan-accent selection:text-black">
+      {/* Mobile Top Header */}
+      <header className="bg-murugan-card/95 border-b border-white/10 p-4 sticky top-0 z-40 backdrop-blur-xl">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center font-black text-black text-sm shadow-md shadow-amber-400/20">
               MC
             </div>
             <div>
-              <h1 className="text-base font-bold text-white leading-tight">Murugan Canvass</h1>
-              <p className="text-xs text-murugan-accent font-medium">{user.name}</p>
+              <h1 className="text-base font-extrabold text-white tracking-tight">Murugan Canvass</h1>
+              <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>{user.name}</span>
+                <span className="text-gray-500">•</span>
+                <span className="text-amber-400">{user.roleTitle || 'Field Sales'}</span>
+              </p>
             </div>
           </div>
           <button 
             onClick={() => setUser(null)} 
             title="Sign Out"
-            className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors text-gray-400"
+            className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
           >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
-        
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 text-center">
-            <p className="text-[10px] text-gray-400 uppercase font-semibold">Total Visits</p>
-            <p className="text-lg font-bold text-white mt-0.5">{visits.length}</p>
-          </div>
-          <div className="bg-red-500/10 rounded-xl p-2.5 border border-red-500/20 text-center">
-            <p className="text-[10px] text-red-300 uppercase font-semibold">Hot Leads</p>
-            <p className="text-lg font-bold text-red-400 mt-0.5">
-              {visits.filter(v => v.interest_level === 'Hot').length}
-            </p>
-          </div>
-          <div className="bg-emerald-500/10 rounded-xl p-2.5 border border-emerald-500/20 text-center">
-            <p className="text-[10px] text-emerald-300 uppercase font-semibold">Deals Won</p>
-            <p className="text-lg font-bold text-emerald-400 mt-0.5">
-              {visits.filter(v => v.outcome_status === 'Won').length}
-            </p>
-          </div>
-        </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="p-4">
+      <main className="p-4 space-y-4">
         <AnimatePresence mode="wait">
-          {/* ================= TAB 1: NEW VISIT FORM ================= */}
-          {activeTab === 'new' ? (
+          
+          {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
+          {activeTab === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-5"
+            >
+              {/* Quick Action Banner */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/20 via-murugan-card to-murugan-card border border-amber-500/30 shadow-xl relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                    Field Sales Workspace
+                  </span>
+                  <h2 className="text-xl font-extrabold text-white mt-2">Ready to log today's visits?</h2>
+                  <p className="text-xs text-gray-300 mt-1 max-w-xs">
+                    Capture school details, tag apparel interests, and issue instant formal quotations.
+                  </p>
+                  <div className="flex gap-2.5 mt-4">
+                    <button
+                      onClick={() => setActiveTab('new')}
+                      className="px-4 py-2.5 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-murugan-accent/20 flex items-center gap-1.5 transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Log New Visit
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('invoices')}
+                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 transition-all"
+                    >
+                      <Receipt className="w-4 h-4 text-murugan-accent" />
+                      Invoicing
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Field Performance KPI Cards */}
+              <DynamicKPISection currentUser={user} />
+
+              {/* Pipeline Quick Summary */}
+              <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Target className="w-4 h-4 text-murugan-accent" />
+                    Lead Pipeline Breakdown
+                  </h3>
+                  <button 
+                    onClick={() => setActiveTab('list')}
+                    className="text-xs text-murugan-accent font-semibold hover:underline flex items-center gap-1"
+                  >
+                    View All ({visits.length})
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                    <span className="text-[11px] font-semibold text-red-300 block">Hot Leads</span>
+                    <span className="text-2xl font-black text-red-400 mt-1 block">{hotVisits.length}</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">Ready for sample/quote</span>
+                  </div>
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                    <span className="text-[11px] font-semibold text-emerald-300 block">Deals Won</span>
+                    <span className="text-2xl font-black text-emerald-400 mt-1 block">{wonVisits.length}</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">Converted orders</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent School Visits */}
+              <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-murugan-accent" />
+                    Recent Field Activity
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('list')}
+                    className="text-xs text-gray-400 hover:text-white font-medium"
+                  >
+                    See all
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {visits.slice(0, 3).map((visit) => (
+                    <div 
+                      key={visit.id}
+                      onClick={() => setActiveTab('list')}
+                      className="p-3 bg-black/40 hover:bg-black/60 border border-white/5 hover:border-white/15 rounded-2xl cursor-pointer transition-all flex items-center justify-between"
+                    >
+                      <div>
+                        <h4 className="text-xs font-bold text-white">{visit.school_name}</h4>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{visit.district} • {visit.contact_person}</p>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full font-bold",
+                        visit.interest_level === 'Hot' ? 'bg-red-500/20 text-red-400' :
+                        visit.interest_level === 'Warm' ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-400'
+                      )}>
+                        {visit.outcome_status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ================= TAB 2: CLEAN NEW VISIT FORM ================= */}
+          {activeTab === 'new' && (
             <motion.form 
               key="new"
               initial={{ opacity: 0, y: 15 }}
@@ -170,15 +281,20 @@ export default function CanvasserDashboard() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.25 }}
               onSubmit={handleSubmit} 
-              className="space-y-5"
+              className="space-y-5 bg-murugan-card border border-white/10 p-5 rounded-3xl shadow-xl"
             >
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">Log School Visit</h2>
-                <span className="text-xs bg-white/5 text-gray-400 px-2 py-1 rounded-md border border-white/5">Step 1 of 1</span>
+                <div>
+                  <h2 className="text-lg font-black text-white tracking-tight">Log School Visit</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Enter visit outcome and school requirements</p>
+                </div>
+                <span className="text-[11px] font-bold bg-murugan-accent/10 text-murugan-accent border border-murugan-accent/20 px-2.5 py-1 rounded-xl">
+                  Field Entry
+                </span>
               </div>
               
               {/* Institution Details */}
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 <div className="relative">
                   <Building2 className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
                   <input 
@@ -186,7 +302,7 @@ export default function CanvasserDashboard() {
                     placeholder="School / Institution Name" 
                     value={formData.school_name} 
                     onChange={e => setFormData({...formData, school_name: e.target.value})} 
-                    className="w-full bg-murugan-card border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
+                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -194,16 +310,16 @@ export default function CanvasserDashboard() {
                     <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
                     <input 
                       required 
-                      placeholder="District / Area" 
+                      placeholder="District / City" 
                       value={formData.district} 
                       onChange={e => setFormData({...formData, district: e.target.value})} 
-                      className="w-full bg-murugan-card border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
                     />
                   </div>
                   <select 
                     value={formData.institution_type} 
                     onChange={e => setFormData({...formData, institution_type: e.target.value})} 
-                    className="w-full bg-murugan-card border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent appearance-none font-medium"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent appearance-none font-medium"
                   >
                     <option value="School">School</option>
                     <option value="College">College</option>
@@ -215,16 +331,16 @@ export default function CanvasserDashboard() {
 
               {/* Contact Details */}
               <div className="space-y-3 pt-3 border-t border-white/10">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact Person & Capacity</p>
+                <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Contact Person & Strength</p>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="relative">
                     <User className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
                     <input 
                       required 
-                      placeholder="Principal / Contact" 
+                      placeholder="Contact Person (e.g. Principal)" 
                       value={formData.contact_person} 
                       onChange={e => setFormData({...formData, contact_person: e.target.value})} 
-                      className="w-full bg-murugan-card border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
                     />
                   </div>
                   <div className="relative">
@@ -235,7 +351,7 @@ export default function CanvasserDashboard() {
                       placeholder="Phone Number" 
                       value={formData.phone} 
                       onChange={e => setFormData({...formData, phone: e.target.value})} 
-                      className="w-full bg-murugan-card border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
                     />
                   </div>
                 </div>
@@ -246,7 +362,7 @@ export default function CanvasserDashboard() {
                     placeholder="Est. Student Strength (e.g. 1500)" 
                     value={formData.student_strength} 
                     onChange={e => setFormData({...formData, student_strength: Number(e.target.value) || ''})} 
-                    className="w-full bg-murugan-card border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
+                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
                   />
                 </div>
               </div>
@@ -254,8 +370,8 @@ export default function CanvasserDashboard() {
               {/* Product Interests Multi-select Chips */}
               <div className="space-y-2.5 pt-3 border-t border-white/10">
                 <div className="flex justify-between items-center">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Product Interests</p>
-                  <span className="text-[11px] text-murugan-accent font-medium">Multi-select</span>
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Product Interests</p>
+                  <span className="text-[11px] text-murugan-accent font-medium">Tap to Select</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {PRODUCTS.map(product => {
@@ -270,7 +386,7 @@ export default function CanvasserDashboard() {
                           "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all",
                           isSelected 
                             ? "bg-murugan-accent text-black border-murugan-accent shadow-md shadow-murugan-accent/20" 
-                            : "bg-murugan-card text-gray-300 border-white/10 hover:border-gray-500"
+                            : "bg-black/40 text-gray-300 border-white/10 hover:border-gray-500"
                         )}
                       >
                         {product}
@@ -282,7 +398,7 @@ export default function CanvasserDashboard() {
 
               {/* Interest Level Selection */}
               <div className="space-y-2.5 pt-3 border-t border-white/10">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Interest Level</p>
+                <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Interest Level</p>
                 <div className="grid grid-cols-2 gap-2">
                   {INTEREST_LEVELS.map(level => (
                     <motion.button
@@ -294,7 +410,7 @@ export default function CanvasserDashboard() {
                         "py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-xs font-bold",
                         formData.interest_level === level.label 
                           ? `${level.color} border-transparent text-white shadow-lg` 
-                          : `bg-murugan-card ${level.border} ${level.text} border-opacity-40 hover:bg-white/5`
+                          : `bg-black/40 ${level.border} ${level.text} hover:bg-white/5`
                       )}
                     >
                       {formData.interest_level === level.label && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -307,8 +423,8 @@ export default function CanvasserDashboard() {
               {/* Outcome Status / Deal Stage Selection */}
               <div className="space-y-2.5 pt-3 border-t border-white/10">
                 <div className="flex justify-between items-center">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Visit Outcome / Deal Status</p>
-                  <span className="text-[11px] text-gray-400 font-medium">Initial Stage</span>
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Visit Outcome</p>
+                  <span className="text-[11px] text-gray-400 font-medium">Deal Stage</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {OUTCOME_STATUSES.map(status => {
@@ -326,8 +442,8 @@ export default function CanvasserDashboard() {
                               ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20"
                               : status === 'Lost'
                               ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20"
-                              : "bg-murugan-purple text-white border-purple-400 shadow-lg shadow-purple-500/20"
-                            : "bg-murugan-card text-gray-400 border-white/10 hover:border-white/20"
+                              : "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
+                            : "bg-black/40 text-gray-400 border-white/10 hover:border-white/20"
                         )}
                       >
                         {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -340,7 +456,7 @@ export default function CanvasserDashboard() {
 
               {/* Follow-up & Field Notes */}
               <div className="space-y-3 pt-3 border-t border-white/10">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Next Action Follow-up</p>
+                <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Next Action Follow-up</p>
                 <div className="relative">
                   <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
                   <input 
@@ -348,14 +464,14 @@ export default function CanvasserDashboard() {
                     type="date" 
                     value={formData.follow_up_date} 
                     onChange={e => setFormData({...formData, follow_up_date: e.target.value})} 
-                    className="w-full bg-murugan-card border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent [color-scheme:dark]" 
+                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent [color-scheme:dark]" 
                   />
                 </div>
                 <textarea 
-                  placeholder="Notes / specific sample requests / remarks" 
+                  placeholder="Notes / specific sample requests / principal feedback" 
                   value={formData.notes} 
                   onChange={e => setFormData({...formData, notes: e.target.value})} 
-                  className="w-full bg-murugan-card border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none" 
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none" 
                 />
               </div>
 
@@ -366,11 +482,13 @@ export default function CanvasserDashboard() {
                 type="submit"
                 className="w-full bg-murugan-accent text-black font-extrabold py-3.5 rounded-xl shadow-lg shadow-murugan-accent/20 hover:bg-yellow-400 transition-all text-sm disabled:opacity-50"
               >
-                {submitting ? 'Saving Visit to Cloud...' : 'Submit School Visit'}
+                {submitting ? 'Saving Visit...' : 'Submit School Visit'}
               </motion.button>
             </motion.form>
-          ) : (
-            /* ================= TAB 2: MY VISITS LIST & EDIT ================= */
+          )}
+
+          {/* ================= TAB 3: MY VISITS LIST & EDIT ================= */}
+          {activeTab === 'list' && (
             <motion.div 
               key="list"
               initial={{ opacity: 0, y: 15 }}
@@ -380,8 +498,17 @@ export default function CanvasserDashboard() {
               className="space-y-4"
             >
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white">My Logged Visits</h2>
-                <span className="text-xs text-gray-400">{filteredVisits.length} records</span>
+                <div>
+                  <h2 className="text-base font-bold text-white">My Field Visits</h2>
+                  <p className="text-xs text-gray-400">{filteredVisits.length} recorded visits</p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('new')}
+                  className="px-3 py-1.5 bg-murugan-accent hover:bg-yellow-400 text-black font-bold text-xs rounded-xl flex items-center gap-1 shadow-md shadow-murugan-accent/20"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Visit
+                </button>
               </div>
 
               {/* Search and Filters */}
@@ -390,10 +517,10 @@ export default function CanvasserDashboard() {
                   <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
                   <input
                     type="text"
-                    placeholder="Search by school, district, or note..."
+                    placeholder="Search by school, district, contact person..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full bg-murugan-card border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
+                    className="w-full bg-murugan-card border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
                   />
                 </div>
 
@@ -401,7 +528,7 @@ export default function CanvasserDashboard() {
                   <select
                     value={filterInterest}
                     onChange={e => setFilterInterest(e.target.value)}
-                    className="flex-1 bg-murugan-card border border-white/10 rounded-lg p-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent text-xs"
+                    className="flex-1 bg-murugan-card border border-white/10 rounded-xl p-2.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent text-xs"
                   >
                     <option value="all">All Interests</option>
                     <option value="Hot">Hot</option>
@@ -413,7 +540,7 @@ export default function CanvasserDashboard() {
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value)}
-                    className="flex-1 bg-murugan-card border border-white/10 rounded-lg p-2 text-gray-300 focus:ring-1 focus:ring-murugan-accent text-xs"
+                    className="flex-1 bg-murugan-card border border-white/10 rounded-xl p-2.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent text-xs"
                   >
                     <option value="all">All Outcomes</option>
                     <option value="Open">Open</option>
@@ -427,11 +554,17 @@ export default function CanvasserDashboard() {
 
               {/* List of Visits */}
               {loading ? (
-                <p className="text-gray-400 text-center py-10 text-xs">Loading your field records...</p>
+                <p className="text-gray-400 text-center py-10 text-xs">Loading field records...</p>
               ) : filteredVisits.length === 0 ? (
-                <div className="text-center py-12 bg-murugan-card rounded-2xl border border-white/5 p-4">
-                  <p className="text-sm text-gray-400 font-medium">No visits found.</p>
-                  <p className="text-xs text-gray-600 mt-1">Tap "New Visit" below to log your first school visit.</p>
+                <div className="text-center py-12 bg-murugan-card rounded-3xl border border-white/5 p-5">
+                  <p className="text-sm text-gray-300 font-bold">No visits found.</p>
+                  <p className="text-xs text-gray-500 mt-1">Tap "New Visit" to log your school visit.</p>
+                  <button
+                    onClick={() => setActiveTab('new')}
+                    className="mt-3 px-4 py-2 bg-murugan-accent text-black font-bold text-xs rounded-xl"
+                  >
+                    Log Visit Now
+                  </button>
                 </div>
               ) : (
                 filteredVisits.map((visit, idx) => {
@@ -443,7 +576,7 @@ export default function CanvasserDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.04 }}
                       key={visit.id} 
-                      className="bg-murugan-card p-4 rounded-2xl border border-white/10 shadow-md space-y-3 relative overflow-hidden"
+                      className="bg-murugan-card p-4 rounded-2xl border border-white/10 shadow-md space-y-3 relative overflow-hidden hover:border-white/20 transition-all"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1">
@@ -462,44 +595,73 @@ export default function CanvasserDashboard() {
                           </span>
                           <span className={cn(
                             "text-[10px] px-2 py-0.5 rounded font-bold",
-                            visit.outcome_status === 'Won' ? 'bg-emerald-500/20 text-emerald-400' :
-                            visit.outcome_status === 'Lost' ? 'bg-rose-500/20 text-rose-400' :
-                            'bg-purple-500/20 text-purple-300'
+                            visit.outcome_status === 'Won' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                            visit.outcome_status === 'Lost' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                            'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                           )}>
                             {visit.outcome_status}
                           </span>
                         </div>
                       </div>
                       
-                      {/* Products and Contact */}
+                      {/* Contact & Products */}
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <Phone className="w-3.5 h-3.5 text-gray-500" />
+                        <span>{visit.contact_person} ({visit.phone})</span>
+                      </div>
+
                       <div className="flex flex-wrap gap-1">
                         {Array.isArray(visit.product_interests) && visit.product_interests.map(p => (
-                          <span key={p} className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300">{p}</span>
+                          <span key={p} className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300 font-medium">{p}</span>
                         ))}
                       </div>
 
                       {visit.notes && (
-                        <p className="text-xs text-gray-300 bg-black/30 p-2 rounded-lg border border-white/5 italic">
+                        <p className="text-xs text-gray-300 bg-black/30 p-2.5 rounded-xl border border-white/5 italic">
                           "{visit.notes}"
                         </p>
+                      )}
+
+                      {/* Audit Trail Metadata */}
+                      {visit.last_edited_by_name && (
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 bg-white/5 px-2.5 py-1.5 rounded-xl">
+                          <span>Modified by <strong className="text-gray-200">{visit.last_edited_by_name}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => setInspectHistoryVisit(visit)}
+                            className="text-murugan-accent font-semibold hover:underline flex items-center gap-1"
+                          >
+                            <History className="w-3 h-3" />
+                            Audit History ({visit.edit_history?.length || 0})
+                          </button>
+                        </div>
                       )}
                       
                       {/* Action Footer */}
                       <div className="pt-2.5 border-t border-white/5 flex justify-between items-center text-xs">
                         <div className="text-gray-400 text-[11px]">
-                          Follow-up: <span className={cn("font-semibold", isOverdue ? "text-red-400" : "text-gray-200")}>
+                          Follow-up: <span className={cn("font-bold", isOverdue ? "text-red-400" : "text-gray-200")}>
                             {visit.follow_up_date || 'None'}
                             {isOverdue && ' (Due)'}
                           </span>
                         </div>
                         
-                        <button
-                          onClick={() => setEditingVisit(visit)}
-                          className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-lg font-semibold flex items-center gap-1 transition-all"
-                        >
-                          <Edit3 className="w-3 h-3 text-murugan-accent" />
-                          Edit / Delete
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setQuoteVisitModal(visit)}
+                            className="px-2.5 py-1.5 bg-murugan-accent text-black font-extrabold rounded-xl text-xs hover:bg-yellow-400 transition-all flex items-center gap-1 shadow-md shadow-murugan-accent/10"
+                          >
+                            <Receipt className="w-3 h-3" />
+                            + Quote
+                          </button>
+                          <button
+                            onClick={() => setEditingVisit(visit)}
+                            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl font-bold flex items-center gap-1 transition-all"
+                          >
+                            <Edit3 className="w-3 h-3 text-murugan-accent" />
+                            Edit
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -507,36 +669,96 @@ export default function CanvasserDashboard() {
               )}
             </motion.div>
           )}
+
+          {/* ================= TAB 4: INVOICING & QUOTATIONS WORKSPACE ================= */}
+          {activeTab === 'invoices' && (
+            <motion.div
+              key="invoices"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+            >
+              <InvoicingModule currentUser={user} />
+            </motion.div>
+          )}
+
+          {/* ================= TAB 5: MARKETING & CAMPAIGNS HUB ================= */}
+          {activeTab === 'marketing' && (
+            <motion.div
+              key="marketing"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25 }}
+            >
+              <MarketingCampaignsModule currentUser={user} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
-      {/* Fixed Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-murugan-card/95 backdrop-blur-lg border-t border-white/10 pb-safe z-50">
-        <div className="flex p-1.5">
+      {/* Fixed Bottom Navigation with 5 clean tabs */}
+      <nav className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-murugan-card/95 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
+        <div className="grid grid-cols-5 p-1.5">
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className={cn(
+              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
+              activeTab === 'dashboard' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
+            )}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span className="text-[10px]">Dashboard</span>
+          </button>
+          
           <button 
             onClick={() => setActiveTab('new')}
             className={cn(
-              "flex-1 py-2.5 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'new' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-500 hover:text-gray-300"
+              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
+              activeTab === 'new' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
             )}
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             <span className="text-[10px]">New Visit</span>
           </button>
+
           <button 
             onClick={() => setActiveTab('list')}
             className={cn(
-              "flex-1 py-2.5 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'list' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-500 hover:text-gray-300"
+              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
+              activeTab === 'list' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
             )}
           >
-            <List className="w-5 h-5" />
-            <span className="text-[10px]">My Visits ({visits.length})</span>
+            <List className="w-4 h-4" />
+            <span className="text-[10px]">Visits ({visits.length})</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('invoices')}
+            className={cn(
+              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
+              activeTab === 'invoices' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
+            )}
+          >
+            <Receipt className="w-4 h-4" />
+            <span className="text-[10px]">Invoicing</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('marketing')}
+            className={cn(
+              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
+              activeTab === 'marketing' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
+            )}
+          >
+            <Megaphone className="w-4 h-4" />
+            <span className="text-[10px]">Marketing</span>
           </button>
         </div>
       </nav>
 
-      {/* Edit Visit Modal for Canvasser */}
+      {/* Edit Visit Modal */}
       <EditVisitModal
         isOpen={!!editingVisit}
         onClose={() => setEditingVisit(null)}
@@ -544,6 +766,27 @@ export default function CanvasserDashboard() {
         onSave={handleUpdateVisit}
         onDelete={handleDeleteVisit}
         isManager={false}
+      />
+
+      {/* Audit History Inspector Modal */}
+      <EditHistoryModal
+        isOpen={!!inspectHistoryVisit}
+        onClose={() => setInspectHistoryVisit(null)}
+        visit={inspectHistoryVisit}
+      />
+
+      {/* Direct Quote Modal from Visit */}
+      <InvoiceDocumentModal
+        isOpen={!!quoteVisitModal}
+        onClose={() => setQuoteVisitModal(null)}
+        type="quote"
+        mode="create"
+        visitData={quoteVisitModal}
+        currentUser={user}
+        onSaveSuccess={() => {
+          showToast("Quotation generated successfully!");
+          loadVisits();
+        }}
       />
 
       {/* Toast Notification */}
