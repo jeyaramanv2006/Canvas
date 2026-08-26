@@ -3,39 +3,47 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
   MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, History,
-  ChevronRight, Sparkles, Target, Award, ArrowUpRight, Trophy
+  ChevronRight, Sparkles, Target, Award, ArrowUpRight, Trophy, Image, Camera,
+  FileText, X, AlertCircle
 } from 'lucide-react';
-import { mockApi } from '../mockApi';
+import { mockApi, calculateCommissionSlab } from '../mockApi';
 import { AuthContext } from '../App';
 import EditVisitModal from '../components/EditVisitModal';
 import EditHistoryModal from '../components/EditHistoryModal';
 import DynamicKPISection from '../components/DynamicKPISection';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import SchoolSearchPicker from '../components/SchoolSearchPicker';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
-const PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
+const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
   { label: 'Hot', color: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/40' },
   { label: 'Warm', color: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500/40' },
   { label: 'Cold', color: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500/40' },
   { label: 'Not Interested', color: 'bg-gray-600', text: 'text-gray-400', border: 'border-gray-600/40' }
 ];
-const OUTCOME_STATUSES = ["Open", "Sample Sent", "Quote Given", "Won", "Lost"];
+
+// Canvassers can only choose between Open, Sample Sent, and Not Interested
+const CANVASSER_OUTCOME_STATUSES = ["Open", "Sample Sent", "Not Interested"];
 
 export default function CanvasserDashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'new', 'list', 'leaderboard'
   const [visits, setVisits] = useState([]);
+  const [availableProducts, setAvailableProducts] = useState(DEFAULT_PRODUCTS);
   const [loading, setLoading] = useState(true);
 
   // Form State for New Visit
   const [formData, setFormData] = useState({
     school_name: '', district: '', institution_type: 'School', 
     contact_person: '', phone: '', student_strength: '', 
-    product_interests: [], interest_level: 'Warm', outcome_status: 'Open', follow_up_date: '', notes: ''
+    product_interests: [], product_specifications: '', attachments: [],
+    interest_level: 'Warm', outcome_status: 'Open', follow_up_date: '', noFollowUp: false, notes: '',
+    is_from_master_db: false, master_school_id: null, cluster_or_block: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Editing and Modal State
   const [editingVisit, setEditingVisit] = useState(null);
@@ -49,9 +57,28 @@ export default function CanvasserDashboard() {
 
   const roleConfig = getRoleConfig(user);
 
+  const navTabs = [
+    { id: 'dashboard', label: 'Dashboard Overview', mobileLabel: 'Overview', icon: LayoutDashboard },
+    { id: 'new', label: 'Log School Visit', mobileLabel: 'Log Visit', icon: Plus },
+    { id: 'list', label: 'My Visits', mobileLabel: 'My Visits', icon: List },
+    { id: 'leaderboard', label: 'Team Leaderboard', mobileLabel: 'Leaderboard', icon: Trophy }
+  ];
+
   useEffect(() => {
     loadVisits();
+    loadCatalogProducts();
   }, [user]);
+
+  const loadCatalogProducts = async () => {
+    try {
+      const prods = await mockApi.getProducts();
+      if (prods && prods.length > 0) {
+        setAvailableProducts(prods.map(p => p.name));
+      }
+    } catch (e) {
+      console.error("Failed to load catalog products", e);
+    }
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -67,24 +94,61 @@ export default function CanvasserDashboard() {
 
   const handleProductToggle = (product) => {
     setFormData(prev => {
-      const interests = prev.product_interests.includes(product)
+      const exists = prev.product_interests.includes(product);
+      const interests = exists 
         ? prev.product_interests.filter(p => p !== product)
         : [...prev.product_interests, product];
       return { ...prev, product_interests: interests };
     });
   };
 
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const newAttachment = {
+          id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          name: file.name,
+          url: uploadEvent.target.result,
+          type: file.type,
+          timestamp: new Date().toISOString()
+        };
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), newAttachment]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveAttachment = (attId) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter(a => a.id !== attId)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await mockApi.addVisit(formData, user.id, user.name);
+      const payload = {
+        ...formData,
+        follow_up_date: formData.noFollowUp ? null : (formData.follow_up_date || null)
+      };
+      await mockApi.addVisit(payload, user.id, user.name);
       showToast("School visit logged successfully!");
       
       setFormData({
         school_name: '', district: '', institution_type: 'School', 
         contact_person: '', phone: '', student_strength: '', 
-        product_interests: [], interest_level: 'Warm', outcome_status: 'Open', follow_up_date: '', notes: ''
+        product_interests: [], product_specifications: '', attachments: [],
+        interest_level: 'Warm', outcome_status: 'Open', follow_up_date: '', noFollowUp: false, notes: '',
+        is_from_master_db: false, master_school_id: null, cluster_or_block: ''
       });
       setActiveTab('list');
       await loadVisits();
@@ -112,6 +176,7 @@ export default function CanvasserDashboard() {
       (v.school_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.district || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.contact_person || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (v.product_specifications || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.notes || '').toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesInterest = filterInterest === 'all' || v.interest_level === filterInterest;
@@ -123,37 +188,97 @@ export default function CanvasserDashboard() {
   const hotVisits = visits.filter(v => v.interest_level === 'Hot');
   const wonVisits = visits.filter(v => v.outcome_status === 'Won');
 
+  if (loading && visits.length === 0) {
+    return (
+      <div className="min-h-screen bg-murugan-dark flex items-center justify-center text-white">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-murugan-accent border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 text-xs">Loading field canvassing terminal...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pb-24 max-w-xl mx-auto min-h-screen bg-murugan-dark shadow-2xl relative border-x border-white/5 selection:bg-murugan-accent selection:text-black">
-      {/* Mobile Top Header */}
-      <header className="bg-murugan-card/95 border-b border-white/10 p-4 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center font-black text-black text-sm shadow-md shadow-amber-400/20">
-              MC
+    <div className="min-h-screen bg-murugan-dark text-white pb-24 selection:bg-murugan-accent selection:text-black">
+      {/* Top Header & Desktop Nav */}
+      <header className="bg-murugan-card/95 border-b border-white/10 sticky top-0 z-40 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center font-black text-black text-sm shadow-md shadow-amber-400/20">
+                MC
+              </div>
+              <div>
+                <h1 className="text-base font-extrabold text-white tracking-tight">Murugan Canvass</h1>
+                <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{user.name}</span>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-amber-400 font-semibold">{user.roleTitle || 'Field Sales'}</span>
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-base font-extrabold text-white tracking-tight">Murugan Canvass</h1>
-              <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>{user.name}</span>
-                <span className="text-gray-500">•</span>
-                <span className="text-amber-400">{user.roleTitle || 'Field Sales'}</span>
-              </p>
+
+            {/* Desktop Navigation Tabs */}
+            <div className="hidden md:flex items-center space-x-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/10">
+              {navTabs.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                      isActive
+                        ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-400/20 font-black"
+                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            <button 
+              onClick={() => setUser(null)} 
+              title="Sign Out"
+              className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white border border-white/5"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => setUser(null)} 
-            title="Sign Out"
-            className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+
+          {/* Mobile sub-tabs scrollbar for quick top navigation */}
+          <div className="flex md:hidden space-x-1.5 overflow-x-auto pb-3 pt-1 scrollbar-none">
+            {navTabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap",
+                    isActive
+                      ? "bg-murugan-accent text-black shadow-md font-black"
+                      : "bg-white/5 text-gray-400 hover:text-white"
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.mobileLabel || tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="p-4 space-y-4">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <AnimatePresence mode="wait">
           
           {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
@@ -290,40 +415,26 @@ export default function CanvasserDashboard() {
                 </span>
               </div>
               
-              {/* Institution Details */}
-              <div className="space-y-3 pt-2">
-                <div className="relative">
-                  <Building2 className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
-                  <input 
-                    required 
-                    placeholder="School / Institution Name" 
-                    value={formData.school_name} 
-                    onChange={e => setFormData({...formData, school_name: e.target.value})} 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
-                    <input 
-                      required 
-                      placeholder="District / City" 
-                      value={formData.district} 
-                      onChange={e => setFormData({...formData, district: e.target.value})} 
-                      className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent" 
-                    />
-                  </div>
-                  <select 
-                    value={formData.institution_type} 
-                    onChange={e => setFormData({...formData, institution_type: e.target.value})} 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent appearance-none font-medium"
-                  >
-                    <option value="School">School</option>
-                    <option value="College">College</option>
-                    <option value="Distributor">Distributor</option>
-                    <option value="Trust/Group">Trust / Group</option>
-                  </select>
-                </div>
+              {/* Institution Selection via Master Database Picker */}
+              <div className="pt-2">
+                <SchoolSearchPicker
+                  selectedSchoolName={formData.school_name}
+                  selectedDistrict={formData.district}
+                  selectedInstitutionType={formData.institution_type}
+                  isFromMasterDb={formData.is_from_master_db}
+                  masterSchoolId={formData.master_school_id}
+                  onSchoolChange={(data) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      school_name: data.school_name,
+                      district: data.district,
+                      institution_type: data.institution_type,
+                      is_from_master_db: data.is_from_master_db,
+                      master_school_id: data.master_school_id,
+                      cluster_or_block: data.cluster_or_block || ''
+                    }));
+                  }}
+                />
               </div>
 
               {/* Contact Details */}
@@ -371,7 +482,7 @@ export default function CanvasserDashboard() {
                   <span className="text-[11px] text-murugan-accent font-medium">Tap to Select</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {PRODUCTS.map(product => {
+                  {availableProducts.map(product => {
                     const isSelected = formData.product_interests.includes(product);
                     return (
                       <motion.button
@@ -391,6 +502,75 @@ export default function CanvasserDashboard() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Product Specifications & Custom Requirements */}
+              <div className="space-y-2 pt-3 border-t border-white/10">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-murugan-accent" />
+                    Product Specifications & Custom Requirements
+                  </p>
+                  <span className="text-[10px] text-gray-400">Principal's specs</span>
+                </div>
+                <textarea 
+                  rows={3}
+                  placeholder="Type specific material or design requirements (e.g. 100% combed cotton, 220 GSM uniform fabric, double-ribbed socks with school crest, customized buckle)..." 
+                  value={formData.product_specifications} 
+                  onChange={e => setFormData({...formData, product_specifications: e.target.value})} 
+                  className="w-full bg-black/50 border border-white/10 focus:border-murugan-accent/50 rounded-xl p-3 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent/30 resize-none" 
+                />
+              </div>
+
+              {/* Sample Photos / Reference Image Attachment */}
+              <div className="space-y-2.5 pt-3 border-t border-white/10">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-murugan-accent" />
+                    Sample Photos & Reference Images
+                  </p>
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {formData.attachments?.length || 0} attached
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer px-4 py-2.5 bg-black/60 hover:bg-white/10 border border-dashed border-white/20 hover:border-murugan-accent rounded-xl text-xs font-bold text-gray-300 hover:text-white flex items-center gap-2 transition-all">
+                    <Image className="w-4 h-4 text-murugan-accent" />
+                    <span>+ Attach Sample Photo</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      multiple 
+                      className="hidden" 
+                      onChange={handleImageUpload} 
+                    />
+                  </label>
+                  <span className="text-[11px] text-gray-400">Attach photos of previous uniform/sock samples</span>
+                </div>
+
+                {formData.attachments && formData.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2.5 pt-2">
+                    {formData.attachments.map(att => (
+                      <div key={att.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-white/20 bg-black shadow-md">
+                        <img 
+                          src={att.url} 
+                          alt={att.name} 
+                          onClick={() => setPreviewImage(att.url)}
+                          className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(att.id)}
+                          className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors"
+                          title="Remove photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Interest Level Selection */}
@@ -417,14 +597,14 @@ export default function CanvasserDashboard() {
                 </div>
               </div>
 
-              {/* Outcome Status / Deal Stage Selection */}
+              {/* Outcome Status / Deal Stage Selection (Restricted for Canvassers) */}
               <div className="space-y-2.5 pt-3 border-t border-white/10">
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Visit Outcome</p>
-                  <span className="text-[11px] text-gray-400 font-medium">Deal Stage</span>
+                  <span className="text-[10px] text-gray-400">Quotes/Orders handled by Admin</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  {OUTCOME_STATUSES.map(status => {
+                <div className="grid grid-cols-3 gap-2">
+                  {CANVASSER_OUTCOME_STATUSES.map(status => {
                     const isSelected = formData.outcome_status === status;
                     return (
                       <motion.button
@@ -433,13 +613,13 @@ export default function CanvasserDashboard() {
                         key={status}
                         onClick={() => setFormData({...formData, outcome_status: status})}
                         className={cn(
-                          "py-2 px-2 rounded-xl border text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
+                          "py-2.5 px-2 rounded-xl border text-xs font-bold transition-all text-center flex items-center justify-center gap-1",
                           isSelected
-                            ? status === 'Won' 
-                              ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20"
-                              : status === 'Lost'
-                              ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20"
-                              : "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
+                            ? status === 'Sample Sent'
+                              ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
+                              : status === 'Not Interested'
+                              ? "bg-gray-700 text-white border-gray-500"
+                              : "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/20"
                             : "bg-black/40 text-gray-400 border-white/10 hover:border-white/20"
                         )}
                       >
@@ -453,22 +633,40 @@ export default function CanvasserDashboard() {
 
               {/* Follow-up & Field Notes */}
               <div className="space-y-3 pt-3 border-t border-white/10">
-                <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Next Action Follow-up</p>
-                <div className="relative">
-                  <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
-                  <input 
-                    required 
-                    type="date" 
-                    value={formData.follow_up_date} 
-                    onChange={e => setFormData({...formData, follow_up_date: e.target.value})} 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent [color-scheme:dark]" 
-                  />
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Next Action Follow-up</p>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-white">
+                    <input 
+                      type="checkbox"
+                      checked={formData.noFollowUp}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        noFollowUp: e.target.checked,
+                        follow_up_date: e.target.checked ? '' : formData.follow_up_date
+                      })}
+                      className="rounded border-white/20 bg-black text-murugan-accent focus:ring-0 w-3.5 h-3.5"
+                    />
+                    <span>No Follow-up Needed</span>
+                  </label>
                 </div>
+
+                {!formData.noFollowUp && (
+                  <div className="relative">
+                    <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
+                    <input 
+                      type="date" 
+                      value={formData.follow_up_date} 
+                      onChange={e => setFormData({...formData, follow_up_date: e.target.value})} 
+                      className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent [color-scheme:dark]" 
+                    />
+                  </div>
+                )}
+
                 <textarea 
-                  placeholder="Notes / specific sample requests / principal feedback" 
+                  placeholder="Additional field notes / principal discussion summary..." 
                   value={formData.notes} 
                   onChange={e => setFormData({...formData, notes: e.target.value})} 
-                  className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none" 
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-murugan-accent h-20 resize-none" 
                 />
               </div>
 
@@ -477,9 +675,9 @@ export default function CanvasserDashboard() {
                 whileTap={{ scale: 0.98 }}
                 disabled={submitting}
                 type="submit"
-                className="w-full bg-murugan-accent text-black font-extrabold py-3.5 rounded-xl shadow-lg shadow-murugan-accent/20 hover:bg-yellow-400 transition-all text-sm disabled:opacity-50"
+                className="w-full bg-murugan-accent text-black font-extrabold py-3.5 rounded-xl shadow-lg shadow-murugan-accent/20 hover:bg-yellow-400 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {submitting ? 'Saving Visit...' : 'Submit School Visit'}
+                {submitting ? 'Saving School Visit...' : 'Submit School Visit'}
               </motion.button>
             </motion.form>
           )}
@@ -576,8 +774,19 @@ export default function CanvasserDashboard() {
                       className="bg-murugan-card p-4 rounded-2xl border border-white/10 shadow-md space-y-3 relative overflow-hidden hover:border-white/20 transition-all"
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-sm text-white">{visit.school_name}</h3>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-sm text-white">{visit.school_name}</h3>
+                            {visit.is_from_master_db ? (
+                              <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                🏛️ DB School
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                                🆕 New Discovery
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400">{visit.district} • {visit.institution_type}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -613,6 +822,37 @@ export default function CanvasserDashboard() {
                         ))}
                       </div>
 
+                      {visit.product_specifications && (
+                        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
+                            <FileText className="w-3 h-3" />
+                            <span>Product Specifications:</span>
+                          </div>
+                          <p className="text-xs text-gray-200">{visit.product_specifications}</p>
+                        </div>
+                      )}
+
+                      {/* Photo Attachments */}
+                      {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-murugan-accent" />
+                            Sample Photos ({visit.attachments.length})
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {visit.attachments.map((att, i) => (
+                              <div 
+                                key={att.id || i} 
+                                onClick={() => setPreviewImage(att.url)}
+                                className="w-14 h-14 rounded-xl overflow-hidden border border-white/15 cursor-pointer hover:border-murugan-accent hover:scale-105 transition-all shadow-md bg-black"
+                              >
+                                <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {visit.notes && (
                         <p className="text-xs text-gray-300 bg-black/30 p-2.5 rounded-xl border border-white/5 italic">
                           "{visit.notes}"
@@ -638,7 +878,7 @@ export default function CanvasserDashboard() {
                       <div className="pt-2.5 border-t border-white/5 flex justify-between items-center text-xs">
                         <div className="text-gray-400 text-[11px]">
                           Follow-up: <span className={cn("font-bold", isOverdue ? "text-red-400" : "text-gray-200")}>
-                            {visit.follow_up_date || 'None'}
+                            {visit.follow_up_date || 'None scheduled'}
                             {isOverdue && ' (Due)'}
                           </span>
                         </div>
@@ -675,52 +915,28 @@ export default function CanvasserDashboard() {
         </AnimatePresence>
       </main>
 
-      {/* Fixed Bottom Navigation with 4 clean tabs */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-murugan-card/95 backdrop-blur-xl border-t border-white/10 pb-safe z-50">
-        <div className="grid grid-cols-4 p-1.5">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={cn(
-              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'dashboard' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
-            )}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span className="text-[10px]">Dashboard</span>
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('new')}
-            className={cn(
-              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'new' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
-            )}
-          >
-            <Plus className="w-4 h-4" />
-            <span className="text-[10px]">New Visit</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('list')}
-            className={cn(
-              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'list' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
-            )}
-          >
-            <List className="w-4 h-4" />
-            <span className="text-[10px]">Visits ({visits.length})</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('leaderboard')}
-            className={cn(
-              "py-2 flex flex-col items-center gap-1 rounded-xl transition-all", 
-              activeTab === 'leaderboard' ? "text-murugan-accent bg-white/5 font-bold" : "text-gray-400 hover:text-gray-200"
-            )}
-          >
-            <Trophy className="w-4 h-4" />
-            <span className="text-[10px]">Leaderboard</span>
-          </button>
+      {/* Mobile-Only Fixed Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-2 py-1.5 shadow-2xl">
+        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+          {navTabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "py-2 flex flex-col items-center gap-1 rounded-2xl transition-all relative", 
+                  isActive 
+                    ? "text-amber-400 bg-amber-500/10 font-black border border-amber-500/30 shadow-lg shadow-amber-500/10" 
+                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-[10px] font-bold tracking-tight">{tab.mobileLabel || tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -740,6 +956,27 @@ export default function CanvasserDashboard() {
         onClose={() => setInspectHistoryVisit(null)}
         visit={inspectHistoryVisit}
       />
+
+      {/* Image Lightbox Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setPreviewImage(null)}
+          >
+            <div className="relative max-w-xl max-h-[85vh] p-2 bg-murugan-card border border-white/20 rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification */}
       <AnimatePresence>

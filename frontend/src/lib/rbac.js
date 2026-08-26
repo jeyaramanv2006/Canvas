@@ -12,9 +12,9 @@ export const ROLES = {
     id: 'admin',
     name: 'Executive Management',
     tagline: 'Company Overview & Strategy',
-    description: 'High-level business metrics, revenue, EBITDA, cash flow, invoicing management, and marketing ROI.',
+    description: 'High-level business metrics, revenue, EBITDA, cash flow, invoicing management, and quotation pipeline.',
     canSeeCompanyFinancials: true,
-    canSeeMarketing: true,
+    canSeeMarketing: false,
     canSeeInvoicing: true,
     canSeeAllVisits: true,
     canManagePricing: true,
@@ -24,7 +24,6 @@ export const ROLES = {
       { key: 'gross_profit', label: 'Gross Profit', format: 'currency', trend: '+14.2% YoY' },
       { key: 'ebitda', label: 'EBITDA', format: 'currency', trend: '+22.5% Margin' },
       { key: 'cash_flow', label: 'Net Cash Flow', format: 'currency', trend: 'Positive' },
-      { key: 'marketing_roi', label: 'Marketing ROI', format: 'multiplier', trend: '4.8x Return' },
       { key: 'collection_rate', label: 'Collection Rate', format: 'percent', trend: '89.4% On-time' }
     ]
   },
@@ -41,11 +40,11 @@ export const ROLES = {
     canSeeLeaderboard: true,
     primaryKPIs: [
       { key: 'school_visits', label: 'School Visits Logged', format: 'number', trend: 'Field Visits' },
-      { key: 'leads_generated', label: 'Active Leads', format: 'number', trend: 'Pipeline' },
       { key: 'orders_won', label: 'Orders Won', format: 'number', trend: 'Closed Deals' },
-      { key: 'invoices_credited', label: 'Invoiced Credited', format: 'currency', trend: 'Admin Verified' },
-      { key: 'team_rank', label: 'Leaderboard Rank', format: 'text', trend: 'Team Position' },
-      { key: 'conversion_pct', label: 'Visit to Won Rate', format: 'percent', trend: 'Win Rate' }
+      { key: 'invoices_credited', label: 'Invoiced Sales', format: 'currency', trend: 'Admin Verified' },
+      { key: 'commission_earned', label: 'Commission Earned', format: 'currency', trend: 'Slab Payout' },
+      { key: 'commission_slab', label: 'Active Slab Tier', format: 'text', trend: '1% - 5% Tier' },
+      { key: 'team_rank', label: 'Leaderboard Rank', format: 'text', trend: 'Team Position' }
     ]
   }
 };
@@ -53,7 +52,7 @@ export const ROLES = {
 export function getUserRole(user) {
   if (!user) return 'canvasser';
   const r = (user.role || '').toLowerCase();
-  if (r === 'admin' || r === 'manager' || r === 'kattakunjan' || r === 'executive') {
+  if (r === 'admin' || r === 'manager' || r === 'executive' || r === 'general manager') {
     return 'admin';
   }
   return 'canvasser';
@@ -76,7 +75,7 @@ export function canAccessSensitiveFinancials(user) {
 }
 
 export function canAccessMarketingHub(user) {
-  return isAdmin(user);
+  return false;
 }
 
 export function canAccessInvoicing(user) {

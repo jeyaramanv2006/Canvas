@@ -124,17 +124,17 @@ export default function Login() {
 
           {/* Admin Role */}
           <div 
-            onClick={() => loginWithDemo('manager@murugan.com')}
+            onClick={() => loginWithDemo('sudhan@murugan.com')}
             className="p-3 bg-black/40 border border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer transition-all text-left group hover:bg-black/60 shadow-md"
           >
             <div className="flex justify-between items-center">
               <span className="text-amber-400 font-bold text-xs flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
-                Executive Portal (Boss Baddie)
+                Executive Portal (Sudhan)
               </span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">Manager</span>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">General Manager</span>
             </div>
-            <span className="text-gray-400 block text-[11px] mt-1">manager@murugan.com • Company Financials, Analytics & Invoicing</span>
+            <span className="text-gray-400 block text-[11px] mt-1">sudhan@murugan.com • Company Financials, Central Registry & Invoicing</span>
           </div>
 
           {/* Canvasser Roles */}
@@ -145,25 +145,28 @@ export default function Login() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
               <div 
-                onClick={() => loginWithDemo('field@murugan.com')}
+                onClick={() => loginWithDemo('gokul@murugan.com')}
                 className="p-3 bg-black/40 border border-white/10 hover:border-murugan-accent rounded-2xl cursor-pointer transition-all text-left hover:bg-black/60 shadow-md"
               >
-                <span className="text-white font-bold block">Rascals</span>
-                <span className="text-gray-500 text-[10px] block mt-0.5">field@murugan.com</span>
+                <span className="text-white font-bold block">Gokul</span>
+                <span className="text-gray-400 text-[10px] block">Senior Canvasser</span>
+                <span className="text-gray-500 text-[10px] block mt-0.5">gokul@murugan.com</span>
               </div>
               <div 
-                onClick={() => loginWithDemo('field2@murugan.com')}
+                onClick={() => loginWithDemo('murugan@murugan.com')}
                 className="p-3 bg-black/40 border border-white/10 hover:border-murugan-accent rounded-2xl cursor-pointer transition-all text-left hover:bg-black/60 shadow-md"
               >
-                <span className="text-white font-bold block">Royal Gaint</span>
-                <span className="text-gray-500 text-[10px] block mt-0.5">field2@murugan.com</span>
+                <span className="text-white font-bold block">Murugan</span>
+                <span className="text-gray-400 text-[10px] block">Field Sales Lead</span>
+                <span className="text-gray-500 text-[10px] block mt-0.5">murugan@murugan.com</span>
               </div>
               <div 
-                onClick={() => loginWithDemo('field3@murugan.com')}
+                onClick={() => loginWithDemo('suhas@murugan.com')}
                 className="p-3 bg-black/40 border border-white/10 hover:border-murugan-accent rounded-2xl cursor-pointer transition-all text-left hover:bg-black/60 shadow-md"
               >
-                <span className="text-white font-bold block">Fireclapper</span>
-                <span className="text-gray-500 text-[10px] block mt-0.5">field3@murugan.com</span>
+                <span className="text-white font-bold block">Suhas</span>
+                <span className="text-gray-400 text-[10px] block">Field Canvasser</span>
+                <span className="text-gray-500 text-[10px] block mt-0.5">suhas@murugan.com</span>
               </div>
             </div>
           </div>

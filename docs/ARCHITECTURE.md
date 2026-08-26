@@ -17,7 +17,7 @@
   - **Admin**: Covers **L1 (Executive) through L3 (Commercial, Finance, Marketing)**.
   - **Canvasser**: Covers **L3 (Marketing) + L4 (Sales / Canvassing & Execution)**.
 - **Dynamic KPI Section (`DynamicKPISection.jsx`)**: Context-aware metrics component rendering leadership financials for Admin (Revenue, Profit, EBITDA, Cash Flow, Marketing ROI) and operational metrics for Canvassers (Visits, Leads, Quotes, Orders Won, Value, Conversion %).
-- **Manager Command Center (`ManagerDashboard.jsx`)**: High-level command room with Leadership KPIs, aggregate charts, complete visit logs CRUD, team leaderboard, Refrens Invoicing workspace, and L3 Marketing Hub.
+- **Manager Command Center (`ManagerDashboard.jsx`)**: High-level command room with Leadership KPIs, aggregate charts, complete visit logs CRUD, team leaderboard, and Enterprise Invoicing & Quotation workspace.
 - **Field Canvasser Interface (`CanvasserDashboard.jsx`)**: Mobile-first field app with Field KPIs, single-screen visit logging, visit history, quote generator, and direct access to L3 Marketing campaign assets & lookbooks.
 - **Invoicing Module (`InvoicingModule.jsx`)**: Financial overview, quotations table, tax invoices table, payment transaction audit tracker, and product master pricing.
 - **Marketing Hub (`MarketingCampaignsModule.jsx`)**: Campaign tracking, channel metrics, ROI, and digital/print sales collateral repository.

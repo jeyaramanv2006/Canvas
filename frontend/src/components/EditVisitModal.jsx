@@ -1,36 +1,81 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History } from 'lucide-react';
+import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image } from 'lucide-react';
+import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import EditHistoryModal from './EditHistoryModal';
 
-const PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
+const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
   { label: 'Hot', color: 'bg-red-500 text-white', border: 'border-red-500' },
   { label: 'Warm', color: 'bg-orange-500 text-white', border: 'border-orange-500' },
   { label: 'Cold', color: 'bg-blue-500 text-white', border: 'border-blue-500' },
   { label: 'Not Interested', color: 'bg-gray-500 text-white', border: 'border-gray-500' }
 ];
-const OUTCOME_STATUSES = ["Open", "Sample Sent", "Quote Given", "Won", "Lost"];
+
+const CANVASSER_STATUSES = ["Open", "Sample Sent", "Not Interested"];
+const MANAGER_STATUSES = ["Open", "Sample Sent", "Quote Given", "Won", "Lost", "Not Interested"];
 
 export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelete, isManager = false }) {
   const [formData, setFormData] = useState(null);
+  const [availableProducts, setAvailableProducts] = useState(DEFAULT_PRODUCTS);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
+    mockApi.getProducts().then(prods => {
+      if (prods && prods.length > 0) {
+        setAvailableProducts(prods.map(p => p.name));
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (visit) {
       setFormData({
         ...visit,
-        product_interests: Array.isArray(visit.product_interests) ? [...visit.product_interests] : []
+        product_interests: Array.isArray(visit.product_interests) ? [...visit.product_interests] : [],
+        product_specifications: visit.product_specifications || '',
+        attachments: Array.isArray(visit.attachments) ? [...visit.attachments] : [],
+        follow_up_date: visit.follow_up_date || ''
       });
       setConfirmDelete(false);
     }
   }, [visit]);
 
   if (!isOpen || !formData) return null;
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const newAttachment = {
+          id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          name: file.name,
+          url: uploadEvent.target.result,
+          type: file.type,
+          timestamp: new Date().toISOString()
+        };
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), newAttachment]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveAttachment = (attId) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter(a => a.id !== attId)
+    }));
+  };
 
   const handleProductToggle = (product) => {
     setFormData(prev => {
@@ -87,8 +132,17 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-murugan-accent/20 text-murugan-accent border border-murugan-accent/30">
-                  {isManager ? 'Kattakunjan Control' : 'Nettakunjan Edit'}
+                  {isManager ? 'Executive Control' : 'Field Record Edit'}
                 </span>
+                {formData.is_from_master_db ? (
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    🏛️ Master DB School
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    🆕 Unlisted / Custom
+                  </span>
+                )}
                 {formData.canvasser_name && (
                   <span className="text-xs text-gray-400">by {formData.canvasser_name}</span>
                 )}
@@ -186,7 +240,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             <div className="space-y-4 pt-4 border-t border-white/10">
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Products of Interest</h3>
               <div className="flex flex-wrap gap-2">
-                {PRODUCTS.map(product => {
+                {availableProducts.map(product => {
                   const isSelected = formData.product_interests?.includes(product);
                   return (
                     <motion.button
@@ -206,6 +260,68 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                   );
                 })}
               </div>
+            </div>
+
+            {/* Product Specifications */}
+            <div className="space-y-3 pt-4 border-t border-white/10">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-murugan-accent" />
+                  Product Specifications & Requirements
+                </h3>
+                <span className="text-[10px] text-gray-400">Principal's specs</span>
+              </div>
+              <textarea
+                rows={3}
+                placeholder="Type specific material/design requirements (e.g. 100% combed cotton, 220 GSM uniform fabric, school crest on belts)..."
+                value={formData.product_specifications || ''}
+                onChange={e => setFormData({ ...formData, product_specifications: e.target.value })}
+                className="w-full bg-black/50 border border-white/10 focus:border-murugan-accent/50 rounded-xl p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent/30 text-sm resize-none"
+              />
+            </div>
+
+            {/* Reference Photos & Sample Images */}
+            <div className="space-y-3 pt-4 border-t border-white/10">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-murugan-accent" />
+                  Sample Photos & Reference Images
+                </h3>
+                <span className="text-xs text-gray-400">{formData.attachments?.length || 0} attached</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer px-4 py-2 bg-black/60 hover:bg-white/10 border border-dashed border-white/20 hover:border-murugan-accent rounded-xl text-xs font-bold text-gray-300 hover:text-white flex items-center gap-2 transition-all">
+                  <Image className="w-4 h-4 text-murugan-accent" />
+                  <span>+ Attach Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                </label>
+                <span className="text-xs text-gray-500">Upload sample reference photos</span>
+              </div>
+
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  {formData.attachments.map(att => (
+                    <div key={att.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-white/20 bg-black shadow-md">
+                      <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(att.id)}
+                        className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors"
+                        title="Remove"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Pipeline Stages */}
@@ -238,9 +354,17 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 block mb-2 font-medium">Outcome Status</label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  {OUTCOME_STATUSES.map(status => {
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs text-gray-400 font-medium">Outcome Status</label>
+                  {!isManager && (
+                    <span className="text-[10px] text-gray-400 font-semibold">Quotes & Orders managed by Admin</span>
+                  )}
+                </div>
+                <div className={cn(
+                  "grid gap-2",
+                  isManager ? "grid-cols-2 sm:grid-cols-6" : "grid-cols-3"
+                )}>
+                  {(isManager ? MANAGER_STATUSES : CANVASSER_STATUSES).map(status => {
                     const isSelected = formData.outcome_status === status;
                     return (
                       <button
@@ -254,7 +378,9 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                               ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20"
                               : status === 'Lost'
                               ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20"
-                              : "bg-murugan-purple text-white border-purple-400 shadow-lg shadow-purple-500/20"
+                              : status === 'Sample Sent'
+                              ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
+                              : "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/20"
                             : "bg-black/30 text-gray-400 border-white/10 hover:border-white/20"
                         )}
                       >
@@ -268,7 +394,18 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
 
             {/* Follow-up & Notes */}
             <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Follow-up & Notes</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Next Action Follow-up</h3>
+                {formData.follow_up_date && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, follow_up_date: '' })}
+                    className="text-xs text-red-400 hover:underline"
+                  >
+                    Clear Follow-up Date
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Calendar className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
                 <input
@@ -283,7 +420,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 placeholder="Notes / Detailed school requirements / Sample feedback"
                 value={formData.notes || ''}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent h-28 resize-none text-sm placeholder:text-gray-600"
+                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none text-sm placeholder:text-gray-600"
               />
             </div>
           </form>

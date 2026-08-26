@@ -74,7 +74,7 @@
 
 ---
 
-## Financials & Invoicing API (Refrens Integration)
+## Financials & Invoicing API (Enterprise Invoicing & Commercial Suite)
 
 ### GET `/api/products`
 - **Access**: Canvasser, Manager

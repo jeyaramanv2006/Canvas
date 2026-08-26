@@ -6,17 +6,17 @@
 - **Admin Role (`admin`)**:
   - Layers Covered: **L1 through L3 (Executive, Commercial, Finance, Marketing Manager)**.
   - Primary KPIs: Total Revenue, Gross Profit, EBITDA, Net Cash Flow, Marketing ROI, Collection Rate.
-  - Capabilities: Full read/write/edit/delete authority across all visits, complete Refrens Invoicing workspace (quotes, invoices, payments, product master pricing), L3 Marketing Hub, and CSV data export.
+  - Capabilities: Full read/write/edit/delete authority across all visits, complete Invoicing & Commercial workspace (quotes, invoices, payments, product master pricing), CSV data export, and Canvasser order attribution.
 - **Canvasser Role (`canvasser`)**:
-  - Layers Covered: **L3 (Marketing) + L4 (Sales / Canvassing & Marketing Execution)**.
-  - Primary KPIs: School Visits Logged, Active Leads, Quotations Created, Orders Won, Direct Order Value (₹), Conversion Rate %.
-  - Capabilities: Single-screen visit logging, scoped "My Visits" feed, direct quotation generation from visit cards, and full access to L3 Marketing campaigns & download collateral lookbooks.
-  - Data Masking: Sensitive top-level financials (EBITDA, Gross Profit %, Cash Position) are strictly masked.
+  - Layers Covered: **L4 (Sales / Field Canvassing & Relationship Management)**.
+  - Primary KPIs: School Visits Logged, Active Leads Generated, Orders Won, Invoices Credited (₹), Team Rank, Conversion Rate %.
+  - Capabilities: Single-screen visit logging, scoped "My Visits" feed with audit history, and live **Competitive Field Leaderboard**.
+  - Access Restrictions: Invoicing and Marketing tabs/actions are completely removed from Canvassers. Quotation & Invoice creation is handled exclusively by Admin.
 
 ### Dynamic Role KPI Dashboards
 - Render Primary KPIs tailored for the logged-in user:
   - Admin sees management/leadership financials (Revenue, EBITDA, Profit, Cash Flow, ROI, Collections).
-  - Canvasser sees operational field performance (Visits, Leads, Quotes, Orders Won, Value, Conversion %).
+  - Canvasser sees operational field performance (Visits, Leads, Invoices Credited, Team Rank, Orders Won, Conversion %).
 
 ### Authentication & Authorization
 - Every user authenticates with `email` and `password`.
@@ -26,21 +26,33 @@
   - Admin: `manager@murugan.com` (password: `password`)
   - Canvassers: `field@murugan.com`, `field2@murugan.com`, `field3@murugan.com` (password: `password`)
 
-### Field Operations & Canvassing
-- **Visit Form**: Log `school_name`, `district`, `institution_type`, `contact_person`, `phone`, `student_strength`, `product_interests`, `interest_level`, `follow_up_date`, and `notes` on a single mobile-first screen.
-- **Multi-select Product Chips**: Easily tap to select multiple items (Socks, Belts, Ties, Shoes, Uniforms, Bags, Track Pants).
-- **Pipeline Interest Levels**: Select Hot (ready to order), Warm (follow-up), Cold, or Not Interested.
-- **My Visits List**: Canvassers view, search, and filter only their own visits with search keywords.
-- **Direct Quotation Generation**: Convert any school visit directly into a formal Sales Quotation pre-filled with customer contact info and product interests.
-- **Edit & Delete Visit**: Canvassers can edit all details and delete their own logged visits.
-- **Status Updates**: Mark visits as Won, Lost, Quote Given, or Sample Sent.
-- **Follow-up Alerts**: Highlight overdue follow-up dates.
+### Field Operations & Master School Directory
+- **Institutional Master Database Search**: Canvassers search by School Name, District, or Block/Cluster across the pre-cataloged master directory of verified schools across Tamil Nadu.
+- **Auto-Population**: Selecting a school from the master database automatically populates `school_name`, `district`, `institution_type` (Board), and links `master_school_id`.
+- **Custom Unlisted School Entry**: If a school is not present in the master directory, canvassers can switch to manual entry and type the custom school name and district (flagged as `🆕 Newly Discovered`).
+- **Product Specifications & Principal Requirements**: Dedicated input field for canvassers to capture fabric GSM, yarn specifications, custom school crest embossing, double-ribbed socks, buckle designs, and principal feedback.
+- **Sample Photos & Reference Images**: Canvassers can attach sample product photos (e.g. previous uniform/sock samples shown by the principal) with full lightbox modal preview.
+- **Flexible Next Action Follow-Up**: Canvassers can set a specific date or toggle "No Follow-up Needed / None".
+- **Restricted Canvasser Deal Statuses**: Canvassers can only choose from `Open`, `Sample Sent`, or `Not Interested`. Statuses `Quote Given`, `Won`, and `Lost` are strictly managed by Admin upon commercial negotiation.
+- **My Visits List & Lightbox**: Canvassers view, search, and filter their own visits with specifications notes, photo thumbnails, and full-screen image lightboxes.
+- **Edit & Delete Visit**: Canvassers can edit notes, specifications, photos, and delete their own logged visits.
 
-### Invoicing & Payment System Requirements
-- **Sales Quotations**: Create, preview, print, and convert Quotations to Tax Invoices. Quotation status tracking (`Draft`, `Sent`, `Converted to Invoice`).
-- **Tax Invoices**: Generate itemized Tax Invoices with unique invoice numbering (`INV-2026-XXX`), GST calculation (18% default), HSN codes, and payment due dates.
+### Commission Slab & Competitive Leaderboard Requirements
+- **Tiered Incentive Structure**:
+  - `₹0 – ₹5,00,000 (1 - 5L)`: **1% Commission**
+  - `₹5,00,001 – ₹10,00,000 (5 - 10L)`: **2% Commission**
+  - `₹10,00,001 – ₹15,00,000 (10 - 15L)`: **3% Commission**
+  - `₹15,00,001 – ₹20,00,000 (15 - 20L)`: **4% Commission**
+  - `> ₹20,00,000 (> 20L)`: **5% Commission (Capped Maximum)**
+- **Gamified Performance Ranking**: Displays live rankings of all active canvassers sorted by Total Invoiced Value Generated (₹), Active Commission Slab %, and Total Commission Earned (₹).
+- **Progress to Next Tier**: Interactive progress bar indicating the exact remaining sales needed to level up to the next commission percentage.
+- **Metric Transparency without Confidentiality Breaches**: Renders aggregate numbers (Invoiced ₹, Commission ₹, Total Visits, Orders Won, Rank #) without exposing individual school names or pricing breakdowns.
+
+### Invoicing & Commercial Pipeline (Admin Exclusive Authority)
+- **Quotation Generation**: Admin creates formal Sales Quotations from visit records and specifications, tracks negotiation attempts.
+- **Tax Invoices & Order Attribution**: Admin generates itemized Tax Invoices (`INV-2026-XXX`), calculates GST (18% default), HSN codes, marks the visit as `Won`, and attributes the invoice to the originating Canvasser (`canvasser_id`), automatically computing their commission slab.
 - **Payment Tracking**: Log partial and full payment collections with payment modes (NEFT, UPI, Cheque, Cash) and reference IDs, updating pending balances dynamically.
-- **Product Catalog Management**: Maintain standard selling rates, HSN numbers, and unit measures for all apparel product categories.
+- **Marketing Hub Removal**: The Marketing Hub section is completely removed from both Canvasser and Admin interfaces.
 
 ### Visit Audit Trail & Change History Requirements
 - **Edit Tracking**: Whenever a visit record is updated, record the editor's identity (`last_edited_by_name`, `last_edited_by_role`) and timestamp (`last_edited_at`).
@@ -53,8 +65,11 @@
 - **Performance**: Instant data persistence and fast client-side calculations.
 
 ## Confirmed Requirements
-- Email/Password login with 2-role RBAC (Admin L1–L3, Canvasser L3–L4).
-- Dynamic Primary KPI rendering for Admin and Canvasser.
-- Strict financial data masking for Canvassers.
-- Unified Canvassing → Quotation → Tax Invoice → Payment Tracking Workflow.
-- Mobile-first React + Tailwind CSS web client.
+- Email/Password login with 2-role RBAC (Admin L1–L3, Canvasser L4).
+- Master School Database search with unlisted custom fallback.
+- Product Specifications notes and Sample Photo attachments.
+- Canvasser outcome status restricted to `Open`, `Sample Sent`, `Not Interested`.
+- Flexible follow-up (Date or None).
+- Admin management of Quotes, Invoices, Status updates to `Won`/`Lost`, and Canvasser attribution.
+- 5-Tier Commission Slab structure (1% to 5%) with leaderboard earnings and progression.
+- Removal of Marketing Hub from both Canvasser and Admin views.
