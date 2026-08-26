@@ -64,10 +64,16 @@ Every user must log in with email and password. Backend issues JWT digital keys 
   - `GET /api/admin/team` (team performance table)
   - `GET /api/admin/export` (CSV export)
 
-### 6. PDF Presentation Notes & Features
-- Product Chips: Socks, Belts, Ties, Shoes, Uniforms, Bags, Track Pants
-- Pipeline Stages: Hot (ready to order), Warm (follow-up), Cold, Not Interested
-- Follow-up dates with overdue highlighting
-- Quick stats header for canvassers: Today's visits, Hot leads, This week
-- Manager dashboard components: Total Visits, Hot Leads, Orders Won, Win Rate %, Interest Breakdown (Doughnut chart), Visit Outcomes (Bar chart), Top Districts (Ranked bars), Product Demand, Canvasser Table, Recent Feed
-- Future / Pilot Considerations: Browser offline support / localStorage sync fallback, GPS check-in, Photo upload, WhatsApp sharing, direct CRM / Google Sheets sync.
+### 7. Client Clarifications (Latest Update)
+- **Canvasser Access Restrictions**:
+  - Canvassers must **NOT** have access to the Invoice or Marketing sections. Remove both modules entirely from the Canvasser interface.
+  - Canvassers cannot create, edit, or view detailed school invoicing documents or company marketing campaigns.
+- **Canvasser Competitive Leaderboard**:
+  - Add a dedicated read-only section for Canvassers to view how other canvassers are performing vs themselves (Leaderboard).
+  - Metrics shown: Total Invoiced Value Generated (₹) attributed to each canvasser, Total School Visits completed, Orders Won, and Rank.
+  - Pure aggregated numbers without revealing confidential school names or line-item details of competitor canvassers.
+  - Canvassers have strictly **read-only** access and cannot modify any numbers.
+- **Admin Invoicing & Quotations Management**:
+  - Canvasser conducts field visits and updates visit logs.
+  - Based on visit logs, Admin generates Quotations and sends them to school principals.
+  - After follow-up attempts and order confirmation, Admin generates Tax Invoices and attributes them to the originating Canvasser (`canvasser_id`), automatically updating the Canvasser's total invoiced amount on the Leaderboard.

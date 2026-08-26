@@ -8,10 +8,11 @@ export default {
     extend: {
       colors: {
         murugan: {
-          dark: '#111111',
-          card: '#1a1a1a',
-          accent: '#FFD700', // Yellow accent from PDF
-          purple: '#9333ea', // Secondary accent from PDF
+          dark: '#0d0e12',
+          card: '#16171d',
+          border: '#27272e',
+          accent: '#FFD700', // Yellow accent
+          purple: '#9333ea',
           green: '#10b981',
           red: '#ef4444',
           gray: '#333333'

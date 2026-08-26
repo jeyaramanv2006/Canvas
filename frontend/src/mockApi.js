@@ -1,35 +1,106 @@
 import { isAdmin, isCanvasser, getRoleConfig } from './lib/rbac';
+import { MASTER_SCHOOLS, searchMasterSchoolsLocal, getMasterSchoolById } from './data/masterSchools';
+
+export function calculateCommissionSlab(amount) {
+  const invoiced = Number(amount) || 0;
+  let rate = 1;
+  let tier = 1;
+  let slabLabel = "1% (Tier 1: Up to ₹5L)";
+  let nextTarget = 500000;
+  
+  if (invoiced <= 0) {
+    return {
+      rate: 1,
+      tier: 1,
+      slabLabel: "1% (Tier 1: Up to ₹5L)",
+      commission: 0,
+      nextTarget: 500000,
+      amountToNextTier: 500000,
+      progressPercent: 0,
+      formattedCommission: "₹0"
+    };
+  }
+
+  if (invoiced <= 500000) {
+    rate = 1;
+    tier = 1;
+    slabLabel = "1% (Tier 1: Up to ₹5L)";
+    nextTarget = 500000;
+  } else if (invoiced <= 1000000) {
+    rate = 2;
+    tier = 2;
+    slabLabel = "2% (Tier 2: ₹5L - ₹10L)";
+    nextTarget = 1000000;
+  } else if (invoiced <= 1500000) {
+    rate = 3;
+    tier = 3;
+    slabLabel = "3% (Tier 3: ₹10L - ₹15L)";
+    nextTarget = 1500000;
+  } else if (invoiced <= 2000000) {
+    rate = 4;
+    tier = 4;
+    slabLabel = "4% (Tier 4: ₹15L - ₹20L)";
+    nextTarget = 2000000;
+  } else {
+    rate = 5;
+    tier = 5;
+    slabLabel = "5% (Tier 5: >₹20L Max)";
+    nextTarget = null;
+  }
+
+  const commission = (invoiced * rate) / 100;
+  const amountToNextTier = nextTarget ? Math.max(0, nextTarget - invoiced) : 0;
+  const prevTierThreshold = tier === 1 ? 0 : (tier - 1) * 500000;
+  const progressPercent = nextTarget 
+    ? Math.min(100, Math.round(((invoiced - prevTierThreshold) / 500000) * 100))
+    : 100;
+
+  return {
+    rate,
+    tier,
+    slabLabel,
+    commission,
+    nextTarget,
+    amountToNextTier,
+    progressPercent,
+    formattedCommission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+  };
+}
 
 const mockUsers = [
   {
     id: 4,
-    email: "manager@murugan.com",
+    email: "sudhan@murugan.com",
+    aliases: ["manager@murugan.com", "sudhan@murugan.com", "admin@murugan.com"],
     password: "password",
-    name: "Boss Baddie",
+    name: "Sudhan",
     role: "admin",
-    roleTitle: "Executive Director"
+    roleTitle: "General Manager"
   },
   {
     id: 1,
-    email: "field@murugan.com",
+    email: "gokul@murugan.com",
+    aliases: ["field@murugan.com", "gokul@murugan.com"],
     password: "password",
-    name: "Rascals",
-    role: "canvasser",
-    roleTitle: "Field Sales Executive"
-  },
-  {
-    id: 2,
-    email: "field2@murugan.com",
-    password: "password",
-    name: "Royal Gaint",
+    name: "Gokul",
     role: "canvasser",
     roleTitle: "Senior Canvasser"
   },
   {
-    id: 3,
-    email: "field3@murugan.com",
+    id: 2,
+    email: "murugan@murugan.com",
+    aliases: ["field2@murugan.com", "murugan@murugan.com"],
     password: "password",
-    name: "Fireclapper",
+    name: "Murugan",
+    role: "canvasser",
+    roleTitle: "Field Sales Lead"
+  },
+  {
+    id: 3,
+    email: "suhas@murugan.com",
+    aliases: ["field3@murugan.com", "suhas@murugan.com"],
+    password: "password",
+    name: "Suhas",
     role: "canvasser",
     roleTitle: "Field Canvasser"
   }
@@ -39,26 +110,33 @@ const mockVisits = [
   {
     id: 1,
     canvasser_id: 1,
-    canvasser_name: "Rascals",
+    canvasser_name: "Gokul",
+    is_from_master_db: true,
+    master_school_id: "SCH-CBE-001",
     school_name: "St. John's Higher Secondary School",
     district: "Coimbatore",
+    cluster_or_block: "Coimbatore South",
     institution_type: "School",
     contact_person: "Mr. Ramesh (Principal)",
     phone: "9876543210",
     student_strength: 1200,
     product_interests: ["Socks", "Uniforms", "Belts"],
+    product_specifications: "Requires 100% combed cotton navy-blue socks with white twin stripes and embroidered crest on buckle belts. Principal showed previous year sample.",
+    attachments: [
+      { id: "att-1", name: "school_sock_sample.jpg", url: "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=400&q=80", type: "image/jpeg" }
+    ],
     interest_level: "Hot",
     outcome_status: "Sample Sent",
     follow_up_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
     notes: "Very interested in 1200 custom combed-cotton socks and school belts. Sample pack sent yesterday.",
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-    last_edited_by_name: "Boss Baddie",
-    last_edited_by_role: "Executive Director",
+    last_edited_by_name: "Sudhan",
+    last_edited_by_role: "General Manager",
     last_edited_at: new Date(Date.now() - 86400000 * 1).toISOString(),
     edit_history: [
       {
         id: "EDT-101",
-        editor_name: "Rascals",
+        editor_name: "Gokul",
         editor_role: "Canvasser",
         timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
         changes: [
@@ -68,7 +146,7 @@ const mockVisits = [
       },
       {
         id: "EDT-102",
-        editor_name: "Boss Baddie",
+        editor_name: "Sudhan",
         editor_role: "Admin",
         timestamp: new Date(Date.now() - 86400000 * 1).toISOString(),
         changes: [
@@ -80,7 +158,7 @@ const mockVisits = [
   {
     id: 2,
     canvasser_id: 1,
-    canvasser_name: "Rascals",
+    canvasser_name: "Gokul",
     school_name: "Vivekananda Arts & Science College",
     district: "Madurai",
     institution_type: "College",
@@ -93,13 +171,13 @@ const mockVisits = [
     follow_up_date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0],
     notes: "Quote provided for 800 custom college bags and ties. Follow up with purchasing committee.",
     created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-    last_edited_by_name: "Rascals",
+    last_edited_by_name: "Gokul",
     last_edited_by_role: "Canvasser",
     last_edited_at: new Date(Date.now() - 86400000 * 2).toISOString(),
     edit_history: [
       {
         id: "EDT-103",
-        editor_name: "Rascals",
+        editor_name: "Gokul",
         editor_role: "Canvasser",
         timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
         changes: [
@@ -111,7 +189,7 @@ const mockVisits = [
   {
     id: 3,
     canvasser_id: 2,
-    canvasser_name: "Royal Gaint",
+    canvasser_name: "Murugan",
     school_name: "PSG Public Matriculation School",
     district: "Coimbatore",
     institution_type: "School",
@@ -124,13 +202,13 @@ const mockVisits = [
     follow_up_date: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0],
     notes: "Deal closed for 2,000 pairs of sports shoes and track pants! Initial advance received.",
     created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    last_edited_by_name: "Royal Gaint",
+    last_edited_by_name: "Murugan",
     last_edited_by_role: "Canvasser",
     last_edited_at: new Date(Date.now() - 86400000 * 1).toISOString(),
     edit_history: [
       {
         id: "EDT-104",
-        editor_name: "Royal Gaint",
+        editor_name: "Murugan",
         editor_role: "Canvasser",
         timestamp: new Date(Date.now() - 86400000 * 1).toISOString(),
         changes: [
@@ -142,7 +220,7 @@ const mockVisits = [
   {
     id: 4,
     canvasser_id: 2,
-    canvasser_name: "Royal Gaint",
+    canvasser_name: "Murugan",
     school_name: "Al-Ameen International School",
     district: "Tiruppur",
     institution_type: "School",
@@ -159,7 +237,7 @@ const mockVisits = [
   {
     id: 5,
     canvasser_id: 3,
-    canvasser_name: "Fireclapper",
+    canvasser_name: "Suhas",
     school_name: "Holy Cross Girls Higher Secondary",
     district: "Salem",
     institution_type: "School",
@@ -176,7 +254,7 @@ const mockVisits = [
   {
     id: 6,
     canvasser_id: 3,
-    canvasser_name: "Fireclapper",
+    canvasser_name: "Suhas",
     school_name: "Vetri Vikas Academy",
     district: "Salem",
     institution_type: "School",
@@ -195,7 +273,7 @@ const mockVisits = [
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const getStoredVisits = () => {
-  const stored = localStorage.getItem('murugan_visits_v2');
+  const stored = localStorage.getItem('murugan_visits_v3');
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -203,18 +281,22 @@ const getStoredVisits = () => {
       console.error("Failed to parse stored visits", e);
     }
   }
-  localStorage.setItem('murugan_visits_v2', JSON.stringify(mockVisits));
+  localStorage.setItem('murugan_visits_v3', JSON.stringify(mockVisits));
   return mockVisits;
 };
 
 const saveStoredVisits = (visits) => {
-  localStorage.setItem('murugan_visits_v2', JSON.stringify(visits));
+  localStorage.setItem('murugan_visits_v3', JSON.stringify(visits));
 };
 
 export const mockApi = {
   async login(email, password) {
     await delay(350);
-    const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+    const inputEmail = (email || '').trim().toLowerCase();
+    const user = mockUsers.find(u => 
+      (u.email.toLowerCase() === inputEmail || (u.aliases && u.aliases.map(a => a.toLowerCase()).includes(inputEmail))) && 
+      u.password === password
+    );
     if (!user) throw new Error("Invalid email or password");
 
     return {
@@ -254,6 +336,13 @@ export const mockApi = {
     const visits = getStoredVisits();
     
     const newVisit = {
+      is_from_master_db: Boolean(visitData.is_from_master_db),
+      master_school_id: visitData.master_school_id || null,
+      cluster_or_block: visitData.cluster_or_block || "",
+      product_specifications: visitData.product_specifications || "",
+      attachments: Array.isArray(visitData.attachments) ? visitData.attachments : [],
+      follow_up_date: visitData.follow_up_date || null,
+      outcome_status: visitData.outcome_status || "Open",
       ...visitData,
       id: Date.now(),
       canvasser_id: userId,
@@ -286,6 +375,7 @@ export const mockApi = {
       { key: 'interest_level', label: 'Interest Level' },
       { key: 'outcome_status', label: 'Outcome Status' },
       { key: 'follow_up_date', label: 'Follow-up Date' },
+      { key: 'product_specifications', label: 'Product Specifications' },
       { key: 'notes', label: 'Notes' }
     ];
 
@@ -307,6 +397,16 @@ export const mockApi = {
           field: 'Product Interests',
           from: oldP || 'None',
           to: newP || 'None'
+        });
+      }
+    }
+
+    if (Array.isArray(updateData.attachments) && Array.isArray(current.attachments)) {
+      if (updateData.attachments.length !== current.attachments.length) {
+        changes.push({
+          field: 'Attachments',
+          from: `${current.attachments.length} photos`,
+          to: `${updateData.attachments.length} photos`
         });
       }
     }
@@ -371,37 +471,34 @@ export const mockApi = {
     const interestData = Object.entries(interestCounts).map(([name, value]) => ({ name, value }));
 
     const districtCounts = {};
-    visits.forEach(v => {
-      const dist = v.district || "Unassigned";
-      districtCounts[dist] = (districtCounts[dist] || 0) + 1;
-    });
-    const districtData = Object.entries(districtCounts)
-      .map(([name, visits]) => ({ name, visits }))
-      .sort((a, b) => b.visits - a.visits);
-
     const productCounts = {};
+    const canvasserStats = {};
+
     visits.forEach(v => {
+      districtCounts[v.district] = (districtCounts[v.district] || 0) + 1;
+
       if (Array.isArray(v.product_interests)) {
         v.product_interests.forEach(p => {
           productCounts[p] = (productCounts[p] || 0) + 1;
         });
       }
-    });
-    const productData = Object.entries(productCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
 
-    const canvasserStats = {};
-    mockUsers.filter(u => u.role === 'canvasser').forEach(u => {
-      canvasserStats[u.id] = { id: u.id, name: u.name, visits: 0, hot: 0, won: 0 };
-    });
-    visits.forEach(v => {
-      if (canvasserStats[v.canvasser_id]) {
-        canvasserStats[v.canvasser_id].visits += 1;
-        if (v.interest_level === 'Hot') canvasserStats[v.canvasser_id].hot += 1;
-        if (v.outcome_status === 'Won') canvasserStats[v.canvasser_id].won += 1;
+      if (!canvasserStats[v.canvasser_id]) {
+        canvasserStats[v.canvasser_id] = {
+          id: v.canvasser_id,
+          name: v.canvasser_name || `Canvasser ${v.canvasser_id}`,
+          visits: 0,
+          won: 0,
+          hot: 0
+        };
       }
+      canvasserStats[v.canvasser_id].visits += 1;
+      if (v.outcome_status === 'Won') canvasserStats[v.canvasser_id].won += 1;
+      if (v.interest_level === 'Hot') canvasserStats[v.canvasser_id].hot += 1;
     });
+
+    const districtData = Object.entries(districtCounts).map(([name, visits]) => ({ name, visits }));
+    const productData = Object.entries(productCounts).map(([name, count]) => ({ name, count }));
 
     return {
       totalVisits,
@@ -419,7 +516,7 @@ export const mockApi = {
   async getCanvasserLeaderboard() {
     await delay(250);
     const visits = getStoredVisits();
-    const storedInvoices = localStorage.getItem('murugan_invoices_v1');
+    const storedInvoices = localStorage.getItem('murugan_invoices_v2');
     let invoices = [];
     if (storedInvoices) {
       try { invoices = JSON.parse(storedInvoices); } catch (e) {}
@@ -435,6 +532,7 @@ export const mockApi = {
       const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+      const slabInfo = calculateCommissionSlab(totalInvoiced);
 
       return {
         id: c.id,
@@ -448,7 +546,15 @@ export const mockApi = {
         totalCollected: totalCollected,
         invoicesCount: cInvoices.length,
         formattedInvoiced: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
-        formattedInvoicedFull: `₹${totalInvoiced.toLocaleString('en-IN')}`
+        formattedInvoicedFull: `₹${totalInvoiced.toLocaleString('en-IN')}`,
+        commissionRate: slabInfo.rate,
+        commissionTier: slabInfo.tier,
+        slabLabel: slabInfo.slabLabel,
+        commissionEarned: slabInfo.commission,
+        formattedCommission: slabInfo.formattedCommission,
+        amountToNextTier: slabInfo.amountToNextTier,
+        progressPercent: slabInfo.progressPercent,
+        nextTarget: slabInfo.nextTarget
       };
     });
 
@@ -458,9 +564,9 @@ export const mockApi = {
     // Assign ranks and badges
     const ranked = leaderboard.map((item, idx) => {
       let badge = '⚡ Field Executive';
-      if (idx === 0) badge = '🏆 #1 Top Earner';
-      else if (idx === 1) badge = '🥈 Top Closer';
-      else if (idx === 2) badge = '🥉 Active Canvasser';
+      if (idx === 0) badge = '🏆 #1 Top Closer';
+      else if (idx === 1) badge = '🥈 Senior Canvasser';
+      else if (idx === 2) badge = '🥉 Field Canvasser';
 
       return {
         ...item,
@@ -472,6 +578,7 @@ export const mockApi = {
     const totalTeamInvoiced = ranked.reduce((s, c) => s + c.totalInvoiced, 0);
     const totalTeamVisits = ranked.reduce((s, c) => s + c.totalVisits, 0);
     const totalTeamWon = ranked.reduce((s, c) => s + c.wonOrders, 0);
+    const totalTeamCommission = ranked.reduce((s, c) => s + c.commissionEarned, 0);
 
     return {
       rankings: ranked,
@@ -480,6 +587,8 @@ export const mockApi = {
         formattedTeamInvoiced: `₹${(totalTeamInvoiced / 100000).toFixed(2)}L`,
         totalTeamVisits,
         totalTeamWon,
+        totalTeamCommission,
+        formattedTeamCommission: `₹${totalTeamCommission.toLocaleString('en-IN')}`,
         leaderName: ranked[0]?.name || 'None'
       }
     };
@@ -510,14 +619,15 @@ export const mockApi = {
 
       const userRankItem = leaderboardData.rankings.find(r => r.id === user?.id);
       const userRankText = userRankItem ? `#${userRankItem.rank} in Team` : 'Rank #1';
+      const userSlab = calculateCommissionSlab(userOrderVal);
 
       return {
         school_visits: { formatted: `${userVisits.length}`, raw: userVisits.length },
-        leads_generated: { formatted: `${userVisits.length + 2}`, raw: userVisits.length + 2 },
         orders_won: { formatted: `${userWon}`, raw: userWon },
         invoices_credited: { formatted: `₹${(userOrderVal / 100000).toFixed(2)}L`, raw: userOrderVal },
-        team_rank: { formatted: userRankText, raw: userRankItem?.rank || 1 },
-        conversion_pct: { formatted: `${userVisits.length ? Math.round((userWon / userVisits.length) * 100) : 0}%`, raw: 0 }
+        commission_earned: { formatted: userSlab.formattedCommission, raw: userSlab.commission },
+        commission_slab: { formatted: `${userSlab.rate}% Slab`, raw: userSlab.rate },
+        team_rank: { formatted: userRankText, raw: userRankItem?.rank || 1 }
       };
     }
   },
@@ -575,10 +685,6 @@ export const mockApi = {
 
   async getProducts() {
     await delay(200);
-    const stored = localStorage.getItem('murugan_products_v1');
-    if (stored) {
-      try { return JSON.parse(stored); } catch (e) {}
-    }
     const defaultProducts = [
       { id: 1, name: "Socks", unit_price: 45, unit: "pairs", hsn: "6115", gst_rate: 18, description: "Custom combed cotton school socks with logo" },
       { id: 2, name: "Uniforms", unit_price: 480, unit: "sets", hsn: "6204", gst_rate: 18, description: "Premium durable stitched school uniform set" },
@@ -588,8 +694,21 @@ export const mockApi = {
       { id: 6, name: "Bags", unit_price: 320, unit: "pcs", hsn: "4202", gst_rate: 18, description: "Waterproof ergonomic school backpacks" },
       { id: 7, name: "Track Pants", unit_price: 350, unit: "pcs", hsn: "6114", gst_rate: 18, description: "Breathable sports track pants" }
     ];
+    const stored = localStorage.getItem('murugan_products_v1');
+    if (stored) {
+      try { 
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {}
+    }
     localStorage.setItem('murugan_products_v1', JSON.stringify(defaultProducts));
     return defaultProducts;
+  },
+
+  async getInvoicingStats(userId, role, userObj) {
+    return this.getFinancialStats(userId, role, userObj);
   },
 
   async saveProducts(products) {
@@ -598,9 +717,54 @@ export const mockApi = {
     return products;
   },
 
+  async addProduct(productData) {
+    await delay(250);
+    const products = await this.getProducts();
+    const newId = products.length > 0 ? Math.max(...products.map(p => Number(p.id) || 0)) + 1 : 1;
+    const newProduct = {
+      id: newId,
+      name: (productData.name || '').trim(),
+      unit_price: Number(productData.unit_price) || 0,
+      unit: (productData.unit || 'pcs').trim(),
+      hsn: (productData.hsn || '').trim(),
+      gst_rate: Number(productData.gst_rate) || 18,
+      description: (productData.description || '').trim()
+    };
+    const updated = [...products, newProduct];
+    localStorage.setItem('murugan_products_v1', JSON.stringify(updated));
+    return newProduct;
+  },
+
+  async updateProduct(id, productData) {
+    await delay(250);
+    const products = await this.getProducts();
+    const index = products.findIndex(p => String(p.id) === String(id));
+    if (index === -1) throw new Error("Product not found");
+    
+    products[index] = {
+      ...products[index],
+      name: (productData.name ?? products[index].name).trim(),
+      unit_price: productData.unit_price !== undefined ? Number(productData.unit_price) : products[index].unit_price,
+      unit: (productData.unit ?? products[index].unit).trim(),
+      hsn: (productData.hsn ?? products[index].hsn).trim(),
+      gst_rate: productData.gst_rate !== undefined ? Number(productData.gst_rate) : (products[index].gst_rate || 18),
+      description: (productData.description ?? products[index].description).trim()
+    };
+    localStorage.setItem('murugan_products_v1', JSON.stringify(products));
+    return products[index];
+  },
+
+  async deleteProduct(id) {
+    await delay(250);
+    const products = await this.getProducts();
+    const filtered = products.filter(p => String(p.id) !== String(id));
+    localStorage.setItem('murugan_products_v1', JSON.stringify(filtered));
+    return { success: true, id };
+  },
+
   async getQuotations(userId, role) {
     await delay(300);
-    const stored = localStorage.getItem('murugan_quotations_v1');
+    const stored = localStorage.getItem('murugan_quotations_v2');
     let quotations = [];
     if (stored) {
       try { quotations = JSON.parse(stored); } catch (e) {}
@@ -614,7 +778,7 @@ export const mockApi = {
           phone: "9876543212",
           district: "Coimbatore",
           canvasser_id: 2,
-          canvasser_name: "Royal Gaint",
+          canvasser_name: "Murugan",
           date: new Date(Date.now() - 86400000 * 5).toISOString().split('T')[0],
           valid_until: new Date(Date.now() + 86400000 * 25).toISOString().split('T')[0],
           status: "Converted to Invoice",
@@ -636,7 +800,7 @@ export const mockApi = {
           phone: "9876543211",
           district: "Madurai",
           canvasser_id: 1,
-          canvasser_name: "Rascals",
+          canvasser_name: "Gokul",
           date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
           valid_until: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0],
           status: "Converted to Invoice",
@@ -651,7 +815,7 @@ export const mockApi = {
           notes: "Sample approved by purchasing committee. PO issued."
         }
       ];
-      localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+      localStorage.setItem('murugan_quotations_v2', JSON.stringify(quotations));
     }
 
     if (isCanvasser({ role }) && userId) {
@@ -662,14 +826,14 @@ export const mockApi = {
 
   async addQuotation(quoteData, userId, userName) {
     await delay(400);
-    const stored = localStorage.getItem('murugan_quotations_v1');
+    const stored = localStorage.getItem('murugan_quotations_v2');
     const quotations = stored ? JSON.parse(stored) : [];
 
     const nextNum = quotations.length + 1;
     const qtnId = `QTN-2026-${String(nextNum).padStart(3, '0')}`;
 
     const targetCanvasserId = quoteData.canvasser_id || userId;
-    const targetCanvasserName = quoteData.canvasser_name || userName || "Field Canvasser";
+    const targetCanvasserName = quoteData.canvasser_name || userName || "Gokul";
 
     const newQuotation = {
       ...quoteData,
@@ -681,7 +845,7 @@ export const mockApi = {
     };
 
     quotations.unshift(newQuotation);
-    localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+    localStorage.setItem('murugan_quotations_v2', JSON.stringify(quotations));
 
     if (quoteData.visit_id) {
       try {
@@ -694,12 +858,12 @@ export const mockApi = {
 
   async updateQuotationStatus(id, status) {
     await delay(250);
-    const stored = localStorage.getItem('murugan_quotations_v1');
+    const stored = localStorage.getItem('murugan_quotations_v2');
     const quotations = stored ? JSON.parse(stored) : [];
     const index = quotations.findIndex(q => q.id === id);
     if (index !== -1) {
       quotations[index].status = status;
-      localStorage.setItem('murugan_quotations_v1', JSON.stringify(quotations));
+      localStorage.setItem('murugan_quotations_v2', JSON.stringify(quotations));
       return quotations[index];
     }
     throw new Error("Quotation not found");
@@ -707,7 +871,7 @@ export const mockApi = {
 
   async getInvoices(userId, role) {
     await delay(300);
-    const stored = localStorage.getItem('murugan_invoices_v1');
+    const stored = localStorage.getItem('murugan_invoices_v2');
     let invoices = [];
     if (stored) {
       try { invoices = JSON.parse(stored); } catch (e) {}
@@ -722,7 +886,7 @@ export const mockApi = {
           phone: "9876543212",
           district: "Coimbatore",
           canvasser_id: 2,
-          canvasser_name: "Royal Gaint",
+          canvasser_name: "Murugan",
           date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0],
           due_date: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0],
           items: [
@@ -747,7 +911,7 @@ export const mockApi = {
           phone: "9443210987",
           district: "Salem",
           canvasser_id: 3,
-          canvasser_name: "Fireclapper",
+          canvasser_name: "Suhas",
           date: new Date(Date.now() - 86400000 * 1).toISOString().split('T')[0],
           due_date: new Date(Date.now() + 86400000 * 14).toISOString().split('T')[0],
           items: [
@@ -772,7 +936,7 @@ export const mockApi = {
           phone: "9876543211",
           district: "Madurai",
           canvasser_id: 1,
-          canvasser_name: "Rascals",
+          canvasser_name: "Gokul",
           date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
           due_date: new Date(Date.now() + 86400000 * 15).toISOString().split('T')[0],
           items: [
@@ -789,7 +953,7 @@ export const mockApi = {
           notes: "Advance of ₹1,00,000 received. Delivery in progress."
         }
       ];
-      localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+      localStorage.setItem('murugan_invoices_v2', JSON.stringify(invoices));
     }
 
     if (isCanvasser({ role }) && userId) {
@@ -800,7 +964,7 @@ export const mockApi = {
 
   async addInvoice(invoiceData, userId, userName) {
     await delay(400);
-    const stored = localStorage.getItem('murugan_invoices_v1');
+    const stored = localStorage.getItem('murugan_invoices_v2');
     const invoices = stored ? JSON.parse(stored) : [];
 
     const nextNum = invoices.length + 1;
@@ -815,7 +979,7 @@ export const mockApi = {
     else if (paid > 0) status = "Partially Paid";
 
     const targetCanvasserId = invoiceData.canvasser_id || userId;
-    const targetCanvasserName = invoiceData.canvasser_name || userName || "Field Canvasser";
+    const targetCanvasserName = invoiceData.canvasser_name || userName || "Gokul";
 
     const newInvoice = {
       ...invoiceData,
@@ -829,7 +993,7 @@ export const mockApi = {
     };
 
     invoices.unshift(newInvoice);
-    localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+    localStorage.setItem('murugan_invoices_v2', JSON.stringify(invoices));
 
     if (invoiceData.quotation_id) {
       try {
@@ -848,7 +1012,7 @@ export const mockApi = {
 
   async getPayments() {
     await delay(250);
-    const stored = localStorage.getItem('murugan_payments_v1');
+    const stored = localStorage.getItem('murugan_payments_v2');
     if (stored) {
       try { return JSON.parse(stored); } catch (e) {}
     }
@@ -874,13 +1038,13 @@ export const mockApi = {
         notes: "Full settlement payment"
       }
     ];
-    localStorage.setItem('murugan_payments_v1', JSON.stringify(defaultPayments));
+    localStorage.setItem('murugan_payments_v2', JSON.stringify(defaultPayments));
     return defaultPayments;
   },
 
   async recordPayment(invoiceId, paymentData) {
     await delay(350);
-    const storedInvoices = localStorage.getItem('murugan_invoices_v1');
+    const storedInvoices = localStorage.getItem('murugan_invoices_v2');
     const invoices = storedInvoices ? JSON.parse(storedInvoices) : [];
     const invIndex = invoices.findIndex(i => i.id === invoiceId);
 
@@ -902,9 +1066,9 @@ export const mockApi = {
       status: newStatus,
       updated_at: new Date().toISOString()
     };
-    localStorage.setItem('murugan_invoices_v1', JSON.stringify(invoices));
+    localStorage.setItem('murugan_invoices_v2', JSON.stringify(invoices));
 
-    const storedPayments = localStorage.getItem('murugan_payments_v1');
+    const storedPayments = localStorage.getItem('murugan_payments_v2');
     const payments = storedPayments ? JSON.parse(storedPayments) : [];
     const payId = `PAY-${1000 + payments.length + 1}`;
     const newPayment = {
@@ -918,7 +1082,7 @@ export const mockApi = {
       notes: paymentData.notes || ""
     };
     payments.unshift(newPayment);
-    localStorage.setItem('murugan_payments_v1', JSON.stringify(payments));
+    localStorage.setItem('murugan_payments_v2', JSON.stringify(payments));
 
     return { invoice: invoices[invIndex], payment: newPayment };
   },
@@ -1050,5 +1214,22 @@ export const mockApi = {
         recommendedFor: "High Strength Institutions (>1000 Students)"
       }
     ];
+  },
+
+  // ================= INSTITUTIONAL MASTER SCHOOL DATABASE =================
+  async searchMasterSchools(query = '', district = 'all', limit = 20) {
+    await delay(120);
+    return searchMasterSchoolsLocal(query, district, limit);
+  },
+
+  async getMasterSchoolById(id) {
+    await delay(50);
+    return getMasterSchoolById(id);
+  },
+
+  async getAllMasterSchools() {
+    await delay(150);
+    return MASTER_SCHOOLS;
   }
 };
+

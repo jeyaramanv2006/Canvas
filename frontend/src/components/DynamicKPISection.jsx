@@ -14,7 +14,6 @@ const KPI_ICONS = {
   gross_profit: TrendingUp,
   ebitda: Award,
   cash_flow: Sparkles,
-  marketing_roi: ArrowUpRight,
   collection_rate: CheckCircle,
   school_visits: Briefcase,
   leads_generated: Target,
@@ -22,6 +21,8 @@ const KPI_ICONS = {
   orders_won: Award,
   order_value: DollarSign,
   invoices_credited: Receipt,
+  commission_earned: TrendingUp,
+  commission_slab: Sparkles,
   team_rank: Trophy,
   conversion_pct: Percent
 };
@@ -31,7 +32,6 @@ const KPI_COLORS = {
   gross_profit: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
   ebitda: 'from-purple-500/20 to-indigo-500/5 text-purple-400 border-purple-500/30',
   cash_flow: 'from-blue-500/20 to-cyan-500/5 text-blue-400 border-blue-500/30',
-  marketing_roi: 'from-orange-500/20 to-amber-500/5 text-orange-400 border-orange-500/30',
   collection_rate: 'from-emerald-500/20 to-green-500/5 text-emerald-400 border-emerald-500/30',
   school_visits: 'from-blue-500/20 to-indigo-500/5 text-blue-400 border-blue-500/30',
   leads_generated: 'from-amber-500/20 to-orange-500/5 text-amber-400 border-amber-500/30',
@@ -39,6 +39,8 @@ const KPI_COLORS = {
   orders_won: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
   order_value: 'from-yellow-500/20 to-amber-500/5 text-yellow-400 border-yellow-500/30',
   invoices_credited: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
+  commission_earned: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
+  commission_slab: 'from-purple-500/20 to-indigo-500/5 text-purple-400 border-purple-500/30',
   team_rank: 'from-yellow-500/20 to-orange-500/5 text-yellow-400 border-yellow-500/30',
   conversion_pct: 'from-rose-500/20 to-red-500/5 text-rose-400 border-rose-500/30'
 };
@@ -128,7 +130,7 @@ export default function DynamicKPISection({ currentUser }) {
                 </div>
 
                 <div className="mt-2 relative z-10">
-                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white group-hover:text-murugan-accent transition-colors">
+                  <h3 className="text-base sm:text-2xl lg:text-3xl font-black font-mono tracking-tight text-white group-hover:text-murugan-accent transition-colors truncate whitespace-nowrap">
                     {displayVal}
                   </h3>
                 </div>

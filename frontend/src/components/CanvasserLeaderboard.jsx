@@ -46,7 +46,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
 
   return (
     <div className="space-y-4">
-      {/* Top Banner: Logged In Canvasser Rank Status */}
+      {/* Top Banner: Logged In Canvasser Rank Status & Commission Slab */}
       {myRank && (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -67,11 +67,14 @@ export default function CanvasserLeaderboard({ currentUser }) {
                     Your Rank
                   </span>
                 </div>
-                <p className="text-xs text-gray-300 mt-0.5 flex items-center gap-1.5">
-                  <span>{myRank.badge}</span>
-                  <span className="text-gray-500">•</span>
-                  <span>{myRank.roleTitle}</span>
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md">
+                    {myRank.commissionRate}% Slab Tier
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Earned: <strong className="text-emerald-400 font-extrabold">{myRank.formattedCommission}</strong>
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -81,41 +84,98 @@ export default function CanvasserLeaderboard({ currentUser }) {
             </div>
           </div>
 
+          {/* Slab Progress Bar */}
+          {myRank.nextTarget && (
+            <div className="mt-4 pt-3 border-t border-white/10 space-y-1.5">
+              <div className="flex justify-between text-[11px] font-medium">
+                <span className="text-gray-300">
+                  Progress to <strong>{myRank.commissionRate + 1}% Slab</strong>
+                </span>
+                <span className="text-amber-400 font-bold">
+                  ₹{(myRank.amountToNextTier / 100000).toFixed(2)}L more to upgrade
+                </span>
+              </div>
+              <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/10">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-500"
+                  style={{ width: `${myRank.progressPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Motivational gap note */}
-          <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-gray-300">
+          <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-xs text-gray-300">
             {myRank.rank === 1 ? (
               <span className="flex items-center gap-1.5 text-amber-300 font-bold">
                 <CrownIcon className="w-4 h-4 text-amber-400" />
-                You are leading the board! Keep closing those school deals.
+                You are #1 on the leaderboard! Keep closing those school deals.
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-gray-300 font-medium">
-                <Flame className="w-4 h-4 text-orange-400" />
+              <span className="flex items-center gap-1.5 text-gray-300 font-medium text-[11px]">
+                <Flame className="w-3.5 h-3.5 text-orange-400" />
                 <span>Gap to #1 ({topLeader?.name}):</span>
                 <strong className="text-white">₹{(gapToLeader / 100000).toFixed(2)}L</strong>
               </span>
             )}
 
             <span className="text-[11px] text-gray-400 bg-white/5 px-2.5 py-1 rounded-xl">
-              {myRank.totalVisits} visits logged
+              {myRank.totalVisits} visits • {myRank.wonOrders} won
             </span>
           </div>
         </motion.div>
       )}
 
       {/* Team Aggregates Overview */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <div className="bg-murugan-card border border-white/10 p-3.5 rounded-2xl text-center shadow-md">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-murugan-card border border-white/10 p-3 rounded-2xl text-center shadow-md">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Team Invoiced</span>
-          <span className="text-base sm:text-lg font-black text-amber-400 mt-0.5 block">{teamStats.formattedTeamInvoiced}</span>
+          <span className="text-base font-black text-amber-400 mt-0.5 block">{teamStats.formattedTeamInvoiced}</span>
         </div>
-        <div className="bg-murugan-card border border-white/10 p-3.5 rounded-2xl text-center shadow-md">
+        <div className="bg-murugan-card border border-white/10 p-3 rounded-2xl text-center shadow-md">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Commission</span>
+          <span className="text-base font-black text-emerald-400 mt-0.5 block">{teamStats.formattedTeamCommission || '₹0'}</span>
+        </div>
+        <div className="bg-murugan-card border border-white/10 p-3 rounded-2xl text-center shadow-md">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Visits</span>
-          <span className="text-base sm:text-lg font-black text-white mt-0.5 block">{teamStats.totalTeamVisits}</span>
+          <span className="text-base font-black text-white mt-0.5 block">{teamStats.totalTeamVisits}</span>
         </div>
-        <div className="bg-murugan-card border border-white/10 p-3.5 rounded-2xl text-center shadow-md">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Deals Won</span>
-          <span className="text-base sm:text-lg font-black text-emerald-400 mt-0.5 block">{teamStats.totalTeamWon}</span>
+        <div className="bg-murugan-card border border-white/10 p-3 rounded-2xl text-center shadow-md">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Orders Won</span>
+          <span className="text-base font-black text-purple-300 mt-0.5 block">{teamStats.totalTeamWon}</span>
+        </div>
+      </div>
+
+      {/* Commission Slab Reference Chart */}
+      <div className="bg-murugan-card/60 border border-white/10 p-3.5 rounded-2xl">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-murugan-accent" />
+            Canvasser Commission Slab Rules
+          </span>
+          <span className="text-[10px] text-gray-500">Tiered incentives</span>
+        </div>
+        <div className="grid grid-cols-5 gap-1 text-center">
+          <div className="p-1.5 bg-black/40 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 block font-semibold">1 - 5L</span>
+            <span className="text-xs font-black text-amber-400 mt-0.5 block">1%</span>
+          </div>
+          <div className="p-1.5 bg-black/40 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 block font-semibold">5 - 10L</span>
+            <span className="text-xs font-black text-amber-400 mt-0.5 block">2%</span>
+          </div>
+          <div className="p-1.5 bg-black/40 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 block font-semibold">10 - 15L</span>
+            <span className="text-xs font-black text-amber-400 mt-0.5 block">3%</span>
+          </div>
+          <div className="p-1.5 bg-black/40 rounded-xl border border-white/5">
+            <span className="text-[10px] text-gray-400 block font-semibold">15 - 20L</span>
+            <span className="text-xs font-black text-amber-400 mt-0.5 block">4%</span>
+          </div>
+          <div className="p-1.5 bg-emerald-950/40 rounded-xl border border-emerald-500/30">
+            <span className="text-[10px] text-emerald-300 block font-semibold">&gt; 20L</span>
+            <span className="text-xs font-black text-emerald-400 mt-0.5 block">5% Max</span>
+          </div>
         </div>
       </div>
 
@@ -126,7 +186,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
             <Trophy className="w-4 h-4 text-murugan-accent" />
             <h3 className="text-sm font-bold text-white">Canvasser Rankings</h3>
           </div>
-          <span className="text-[11px] text-gray-400 font-medium">Ranked by Invoiced Value</span>
+          <span className="text-[11px] text-gray-400 font-medium">Ranked by Invoiced Total</span>
         </div>
 
         <div className="space-y-2.5 pt-1">
@@ -184,11 +244,16 @@ export default function CanvasserLeaderboard({ currentUser }) {
                           </span>
                         )}
                       </h4>
+                      <span className="text-[10px] font-bold bg-white/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.2 rounded">
+                        {canvasser.commissionRate}% Slab
+                      </span>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-0.5">
                       <span>{canvasser.totalVisits} Visits</span>
                       <span className="mx-1">•</span>
-                      <span className="text-emerald-400">{canvasser.wonOrders} Deals Won</span>
+                      <span className="text-emerald-400 font-semibold">{canvasser.wonOrders} Won</span>
+                      <span className="mx-1">•</span>
+                      <span>Earned: <strong className="text-emerald-300">{canvasser.formattedCommission}</strong></span>
                     </p>
                   </div>
                 </div>
