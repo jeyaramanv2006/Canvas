@@ -380,7 +380,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                               ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20"
                               : status === 'Sample Sent'
                               ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
-                              : "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/20"
+                              : "bg-amber-400 text-black border-amber-300 shadow-lg shadow-amber-500/20 font-bold"
                             : "bg-black/30 text-gray-400 border-white/10 hover:border-white/20"
                         )}
                       >

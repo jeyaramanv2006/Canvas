@@ -30,17 +30,17 @@ const KPI_ICONS = {
 const KPI_COLORS = {
   revenue: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
   gross_profit: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
-  ebitda: 'from-purple-500/20 to-indigo-500/5 text-purple-400 border-purple-500/30',
-  cash_flow: 'from-blue-500/20 to-cyan-500/5 text-blue-400 border-blue-500/30',
+  ebitda: 'from-yellow-500/20 to-amber-500/5 text-yellow-400 border-yellow-500/30',
+  cash_flow: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
   collection_rate: 'from-emerald-500/20 to-green-500/5 text-emerald-400 border-emerald-500/30',
-  school_visits: 'from-blue-500/20 to-indigo-500/5 text-blue-400 border-blue-500/30',
+  school_visits: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
   leads_generated: 'from-amber-500/20 to-orange-500/5 text-amber-400 border-amber-500/30',
-  quotations_issued: 'from-purple-500/20 to-pink-500/5 text-purple-400 border-purple-500/30',
+  quotations_issued: 'from-yellow-500/20 to-amber-500/5 text-yellow-400 border-yellow-500/30',
   orders_won: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
   order_value: 'from-yellow-500/20 to-amber-500/5 text-yellow-400 border-yellow-500/30',
   invoices_credited: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
   commission_earned: 'from-emerald-500/20 to-teal-500/5 text-emerald-400 border-emerald-500/30',
-  commission_slab: 'from-purple-500/20 to-indigo-500/5 text-purple-400 border-purple-500/30',
+  commission_slab: 'from-amber-500/20 to-yellow-500/5 text-amber-400 border-amber-500/30',
   team_rank: 'from-yellow-500/20 to-orange-500/5 text-yellow-400 border-yellow-500/30',
   conversion_pct: 'from-rose-500/20 to-red-500/5 text-rose-400 border-rose-500/30'
 };

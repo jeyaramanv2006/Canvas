@@ -541,12 +541,12 @@ export default function InvoicingModule({ currentUser }) {
                           <td className="py-3 px-4 text-center whitespace-nowrap">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap shadow-sm ${
                               q.status === 'Converted to Invoice' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' :
-                              q.status === 'Sent' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30' :
+                              q.status === 'Sent' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' :
                               'bg-gray-500/15 text-gray-300 border border-gray-500/30'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${
                                 q.status === 'Converted to Invoice' ? 'bg-emerald-400' :
-                                q.status === 'Sent' ? 'bg-blue-400' :
+                                q.status === 'Sent' ? 'bg-amber-400' :
                                 'bg-gray-400'
                               }`} />
                               {q.status}
@@ -838,7 +838,7 @@ export default function InvoicingModule({ currentUser }) {
                           <td className="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
                             <button
                               onClick={() => handleOpenEditProduct(prd)}
-                              className="p-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
+                              className="p-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
                               title="Edit product specifications"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
