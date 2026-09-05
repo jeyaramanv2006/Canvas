@@ -148,47 +148,47 @@ export default function Login() {
 
             {/* CEO */}
             <div
-              onClick={() => loginWithDemo('arjun@murugan.com')}
+              onClick={() => loginWithDemo('sudhan@murugan.com')}
               className="p-3 bg-black/40 border border-yellow-500/40 hover:border-yellow-400 hover:bg-black/60 rounded-2xl cursor-pointer transition-all text-left shadow-md"
             >
               <div className="flex justify-between items-center">
                 <span className="text-yellow-400 font-bold text-xs flex items-center gap-1.5">
                   <Crown className="w-4 h-4" />
-                  Arjun — CEO
+                  Sudhan — CEO
                 </span>
                 <span className="text-[10px] bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full font-bold">SUPER ADMIN</span>
               </div>
-              <span className="text-gray-400 block text-[11px] mt-1">arjun@murugan.com • Global access — all dashboards & financials</span>
+              <span className="text-gray-400 block text-[11px] mt-1">sudhan@murugan.com • Global access — all dashboards & financials</span>
             </div>
 
             {/* CFO */}
             <div
-              onClick={() => loginWithDemo('priya@murugan.com')}
+              onClick={() => loginWithDemo('abhishek@murugan.com')}
               className="p-3 bg-black/40 border border-blue-500/40 hover:border-blue-400 hover:bg-black/60 rounded-2xl cursor-pointer transition-all text-left shadow-md"
             >
               <div className="flex justify-between items-center">
                 <span className="text-blue-400 font-bold text-xs flex items-center gap-1.5">
                   <BarChart3 className="w-4 h-4" />
-                  Priya — CFO
+                  Abhishek — CFO
                 </span>
                 <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full font-bold">FINANCIAL</span>
               </div>
-              <span className="text-gray-400 block text-[11px] mt-1">priya@murugan.com • Sales, GP, Collections, Receivables, Cash & Bank</span>
+              <span className="text-gray-400 block text-[11px] mt-1">abhishek@murugan.com • Sales, GP, Collections, Receivables, Cash & Bank</span>
             </div>
 
             {/* CCO */}
             <div
-              onClick={() => loginWithDemo('karthik@murugan.com')}
+              onClick={() => loginWithDemo('varshini@murugan.com')}
               className="p-3 bg-black/40 border border-emerald-500/40 hover:border-emerald-400 hover:bg-black/60 rounded-2xl cursor-pointer transition-all text-left shadow-md"
             >
               <div className="flex justify-between items-center">
                 <span className="text-emerald-400 font-bold text-xs flex items-center gap-1.5">
                   <TrendingUp className="w-4 h-4" />
-                  Karthik — CCO
+                  Varshini — CCO
                 </span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">COMMERCIAL</span>
               </div>
-              <span className="text-gray-400 block text-[11px] mt-1">karthik@murugan.com • Field ops, conversion rates & canvassing KPIs</span>
+              <span className="text-gray-400 block text-[11px] mt-1">varshini@murugan.com • Field ops, conversion rates & canvassing KPIs</span>
             </div>
           </div>
 
@@ -198,17 +198,17 @@ export default function Login() {
 
             {/* Admin Exec */}
             <div
-              onClick={() => loginWithDemo('sudhan@murugan.com')}
+              onClick={() => loginWithDemo('admin@murugan.com')}
               className="p-3 bg-black/40 border border-amber-500/30 hover:border-amber-400 hover:bg-black/60 rounded-2xl cursor-pointer transition-all text-left shadow-md"
             >
               <div className="flex justify-between items-center">
                 <span className="text-amber-400 font-bold text-xs flex items-center gap-1.5">
                   <Settings className="w-4 h-4" />
-                  Sudhan — Admin Executive
+                  Admin — Admin Executive
                 </span>
                 <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">OPERATIONS</span>
               </div>
-              <span className="text-gray-400 block text-[11px] mt-1">sudhan@murugan.com • Visit logs, invoicing & field data management</span>
+              <span className="text-gray-400 block text-[11px] mt-1">admin@murugan.com • Visit logs, invoicing & field data management</span>
             </div>
 
             {/* Canvassers */}

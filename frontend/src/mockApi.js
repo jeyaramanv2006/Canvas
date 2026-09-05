@@ -71,38 +71,38 @@ const mockUsers = [
   // ── C-Suite ────────────────────────────────────────────────────────────────
   {
     id: 10,
-    email: "arjun@murugan.com",
-    aliases: ["ceo@murugan.com", "arjun@murugan.com"],
+    email: "sudhan@murugan.com",
+    aliases: ["ceo@murugan.com", "sudhan@murugan.com"],
     password: "password",
-    name: "Arjun",
+    name: "Sudhan",
     role: "ceo",
     roleTitle: "Chief Executive Officer"
   },
   {
     id: 11,
-    email: "priya@murugan.com",
-    aliases: ["cfo@murugan.com", "priya@murugan.com"],
+    email: "abhishek@murugan.com",
+    aliases: ["cfo@murugan.com", "abhishek@murugan.com"],
     password: "password",
-    name: "Priya",
+    name: "Abhishek",
     role: "cfo",
     roleTitle: "Chief Financial Officer"
   },
   {
     id: 12,
-    email: "karthik@murugan.com",
-    aliases: ["cco@murugan.com", "karthik@murugan.com"],
+    email: "varshini@murugan.com",
+    aliases: ["cco@murugan.com", "varshini@murugan.com"],
     password: "password",
-    name: "Karthik",
+    name: "Varshini",
     role: "cco",
     roleTitle: "Chief Commercial Officer"
   },
   // ── Operations ─────────────────────────────────────────────────────────────
   {
     id: 4,
-    email: "sudhan@murugan.com",
-    aliases: ["manager@murugan.com", "sudhan@murugan.com", "admin@murugan.com"],
+    email: "admin@murugan.com",
+    aliases: ["manager@murugan.com", "admin@murugan.com"],
     password: "password",
-    name: "Sudhan",
+    name: "Admin",
     role: "admin_exec",
     roleTitle: "Admin Executive"
   },
