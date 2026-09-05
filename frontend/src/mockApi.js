@@ -68,15 +68,45 @@ export function calculateCommissionSlab(amount) {
 }
 
 const mockUsers = [
+  // ── C-Suite ────────────────────────────────────────────────────────────────
+  {
+    id: 10,
+    email: "arjun@murugan.com",
+    aliases: ["ceo@murugan.com", "arjun@murugan.com"],
+    password: "password",
+    name: "Arjun",
+    role: "ceo",
+    roleTitle: "Chief Executive Officer"
+  },
+  {
+    id: 11,
+    email: "priya@murugan.com",
+    aliases: ["cfo@murugan.com", "priya@murugan.com"],
+    password: "password",
+    name: "Priya",
+    role: "cfo",
+    roleTitle: "Chief Financial Officer"
+  },
+  {
+    id: 12,
+    email: "karthik@murugan.com",
+    aliases: ["cco@murugan.com", "karthik@murugan.com"],
+    password: "password",
+    name: "Karthik",
+    role: "cco",
+    roleTitle: "Chief Commercial Officer"
+  },
+  // ── Operations ─────────────────────────────────────────────────────────────
   {
     id: 4,
     email: "sudhan@murugan.com",
     aliases: ["manager@murugan.com", "sudhan@murugan.com", "admin@murugan.com"],
     password: "password",
     name: "Sudhan",
-    role: "admin",
-    roleTitle: "General Manager"
+    role: "admin_exec",
+    roleTitle: "Admin Executive"
   },
+  // ── Field Sales ────────────────────────────────────────────────────────────
   {
     id: 1,
     email: "gokul@murugan.com",

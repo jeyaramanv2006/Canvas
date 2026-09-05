@@ -3,7 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import CanvasserDashboard from './pages/CanvasserDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
-import { isAdmin, isCanvasser } from './lib/rbac';
+import CEODashboard from './pages/CEODashboard';
+import CFODashboard from './pages/CFODashboard';
+import CCODashboard from './pages/CCODashboard';
+import { getHomeRoute, isCanvasser } from './lib/rbac';
 
 // Auth Context
 export const AuthContext = React.createContext(null);
@@ -11,47 +14,54 @@ export const AuthContext = React.createContext(null);
 function App() {
   const [user, setUser] = React.useState(null);
 
-  const isFieldUser = user ? isCanvasser(user) : false;
-  const isManagementUser = user ? isAdmin(user) : false;
-
   return (
     <AuthContext.Provider value={{ user, setUser }}>
       <Router>
         <div className="min-h-screen bg-murugan-dark text-white font-sans selection:bg-murugan-accent selection:text-black">
           <Routes>
-            <Route 
-              path="/" 
+            {/* Root — redirect based on role */}
+            <Route
+              path="/"
               element={
                 !user ? (
                   <Login />
-                ) : isFieldUser ? (
-                  <Navigate to="/canvasser" />
                 ) : (
-                  <Navigate to="/manager" />
+                  <Navigate to={getHomeRoute(user)} replace />
                 )
-              } 
+              }
             />
-            <Route 
-              path="/canvasser" 
-              element={
-                user ? (
-                  <CanvasserDashboard />
-                ) : (
-                  <Navigate to="/" />
-                )
-              } 
+
+            {/* Canvasser */}
+            <Route
+              path="/canvasser"
+              element={user ? <CanvasserDashboard /> : <Navigate to="/" replace />}
             />
-            <Route 
-              path="/manager" 
-              element={
-                user ? (
-                  <ManagerDashboard />
-                ) : (
-                  <Navigate to="/" />
-                )
-              } 
+
+            {/* Admin Executive (Operational) */}
+            <Route
+              path="/manager"
+              element={user ? <ManagerDashboard /> : <Navigate to="/" replace />}
             />
-            <Route path="*" element={<Navigate to="/" />} />
+
+            {/* CEO */}
+            <Route
+              path="/ceo"
+              element={user ? <CEODashboard /> : <Navigate to="/" replace />}
+            />
+
+            {/* CFO */}
+            <Route
+              path="/cfo"
+              element={user ? <CFODashboard /> : <Navigate to="/" replace />}
+            />
+
+            {/* CCO */}
+            <Route
+              path="/cco"
+              element={user ? <CCODashboard /> : <Navigate to="/" replace />}
+            />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </Router>
