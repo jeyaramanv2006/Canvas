@@ -85,9 +85,9 @@ const OPS_KPIS = [
 
 const TARGET_STATUS = [
   { kpi: 'Sales Revenue', actual: 32, target: 35, unit: 'L', ach: 91 },
-  { kpi: 'Gross Profit',  actual: 11, target: 12, unit: 'L', ach: 92 },
-  { kpi: 'Margin %',      actual: 34, target: 34, unit: '%', ach: 100 },
-  { kpi: 'Collections',   actual: 23, target: 25, unit: 'L', ach: 92 },
+  { kpi: 'Gross Profit', actual: 11, target: 12, unit: 'L', ach: 92 },
+  { kpi: 'Margin %', actual: 34, target: 34, unit: '%', ach: 100 },
+  { kpi: 'Collections', actual: 23, target: 25, unit: 'L', ach: 92 },
 ];
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ export default function CEODashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setUser(null)}
                 className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition text-xs font-semibold text-gray-300 hover:text-white flex items-center gap-1.5 shadow-sm"
                 title="Sign Out"
@@ -165,8 +165,8 @@ export default function CEODashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     "px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 relative",
-                    isActive 
-                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]" 
+                    isActive
+                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]"
                       : "bg-[#1c1d25] text-gray-400 hover:text-white hover:bg-[#252632] border border-white/5"
                   )}
                 >
@@ -181,10 +181,10 @@ export default function CEODashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        
+
         {activeTab === 'ceo_overview' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            
+
             {/* Top Hero KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {HERO_KPIS.map((kpi) => {
@@ -219,7 +219,7 @@ export default function CEODashboard() {
 
             {/* Charts & Target Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
+
               {/* Sales & GP Trend Chart */}
               <div className="lg:col-span-2 bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
                 <div className="flex justify-between items-center">
@@ -242,7 +242,7 @@ export default function CEODashboard() {
                       <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} tickLine={false} />
                       <YAxis stroke="#9ca3af" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}L`} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Legend 
+                      <Legend
                         wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
                         formatter={(val) => <span className="text-gray-300 font-semibold">{val}</span>}
                       />

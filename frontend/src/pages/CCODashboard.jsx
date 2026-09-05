@@ -1,8 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  LogOut, TrendingUp, Construction, BarChart3, Users, Target, 
-  MapPin, Sparkles, Receipt, History, Trophy 
+import {
+  LogOut, TrendingUp, Construction, BarChart3, Users, Target,
+  MapPin, Sparkles, Receipt, History, Trophy
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
@@ -13,10 +13,10 @@ import { cn } from '../lib/utils';
 const PLANNED_PANELS = [
   { icon: BarChart3, label: 'Canvassing Analytics', desc: 'Visit volume, district coverage, and field activity heatmaps', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
   { icon: TrendingUp, label: 'Conversion Rate Funnel', desc: 'Visits → Sample Sent → Quote Given → Won pipeline analytics', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-  { icon: MapPin,     label: 'Field Operations KPIs', desc: 'District-wise performance, top zones, and coverage gaps', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
-  { icon: Users,      label: 'Team Performance',      desc: 'Canvasser productivity, rankings, and incentive tracking', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-  { icon: Target,     label: 'Sales Pipeline Metrics', desc: 'Revenue generated from field leads, order win rate, and pipeline value', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
-  { icon: Sparkles,   label: 'Revenue Attribution',   desc: 'Commission attribution, canvasser-generated revenue, and ROI per visit', color: 'text-teal-400 bg-teal-500/10 border-teal-500/20' },
+  { icon: MapPin, label: 'Field Operations KPIs', desc: 'District-wise performance, top zones, and coverage gaps', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+  { icon: Users, label: 'Team Performance', desc: 'Canvasser productivity, rankings, and incentive tracking', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+  { icon: Target, label: 'Sales Pipeline Metrics', desc: 'Revenue generated from field leads, order win rate, and pipeline value', color: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+  { icon: Sparkles, label: 'Revenue Attribution', desc: 'Commission attribution, canvasser-generated revenue, and ROI per visit', color: 'text-teal-400 bg-teal-500/10 border-teal-500/20' },
 ];
 
 export default function CCODashboard() {
@@ -56,7 +56,7 @@ export default function CCODashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setUser(null)}
                 className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition text-xs font-semibold text-gray-300 hover:text-white flex items-center gap-1.5 shadow-sm"
                 title="Sign Out"
@@ -78,8 +78,8 @@ export default function CCODashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     "px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 relative",
-                    isActive 
-                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]" 
+                    isActive
+                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]"
                       : "bg-[#1c1d25] text-gray-400 hover:text-white hover:bg-[#252632] border border-white/5"
                   )}
                 >
@@ -94,10 +94,10 @@ export default function CCODashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        
+
         {activeTab === 'cco_overview' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            
+
             {/* Banner Card */}
             <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-8 rounded-3xl border border-white/10 shadow-2xl text-center space-y-4">
               <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full px-4 py-1.5 text-xs font-bold">

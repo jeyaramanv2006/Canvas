@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { 
+import {
   LogOut, Users, Receipt, History, Trophy
 } from 'lucide-react';
 import { AuthContext } from '../App';
@@ -48,7 +48,7 @@ export default function ManagerDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setUser(null)}
                 className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition text-xs font-semibold text-gray-300 hover:text-white flex items-center gap-1.5 shadow-sm"
                 title="Sign Out"
@@ -70,8 +70,8 @@ export default function ManagerDashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     "px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 relative",
-                    isActive 
-                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]" 
+                    isActive
+                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]"
                       : "bg-[#1c1d25] text-gray-400 hover:text-white hover:bg-[#252632] border border-white/5"
                   )}
                 >

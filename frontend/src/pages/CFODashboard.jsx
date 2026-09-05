@@ -4,7 +4,8 @@ import {
   LogOut, AlertTriangle, TrendingUp, TrendingDown, IndianRupee,
   Wallet, CreditCard, Package, Users, BarChart3, Landmark,
   Receipt, History, Trophy, Bell, ChevronDown, CheckCircle2,
-  Calendar, Layers, Sparkles, Filter, X
+  Calendar, Layers, Sparkles, Filter, X, ArrowUpRight, ArrowDownRight,
+  Info, HelpCircle, BookOpen, AlertCircle, Eye
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
@@ -15,93 +16,31 @@ import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import FinancialDrilldownModal from '../components/FinancialDrilldownModal';
+import { CFO_REPORTS_DATA } from '../data/cfoDrilldownData';
 import { cn } from '../lib/utils';
 
-// ─── Thresholds ───────────────────────────────────────────────────────────────
+// Thresholds for Red Alert Notification
 const THRESHOLDS = {
-  GP_PCT_MIN: 30,       // Alert if GP% falls below 30%
-  GP_DROP_MAX_PCT: 15,  // Alert if GP drops >15% vs last month
-  TARGET_ACH_MIN: 85,   // Alert if achievement% < 85%
+  GP_PCT_MIN: 30,
+  GP_DROP_MAX_PCT: 15,
+  TARGET_ACH_MIN: 85,
 };
-
-// ─── Mock Financial Data ─────────────────────────────────────────────────────
-const MONTHLY = [
-  { month: 'Jan', sales: 18, cogs: 10.8, gp: 7.2,  gp_pct: 40, collection: 16, receivables: 8,  overdue: 2, inventory: 22, payables: 5,  cash_in: 16, cash_out: 14, net_cf: 2  },
-  { month: 'Feb', sales: 20, cogs: 12.4, gp: 7.6,  gp_pct: 38, collection: 17, receivables: 9,  overdue: 2, inventory: 23, payables: 5,  cash_in: 18, cash_out: 16, net_cf: 2  },
-  { month: 'Mar', sales: 22, cogs: 13.9, gp: 8.1,  gp_pct: 37, collection: 18, receivables: 10, overdue: 3, inventory: 25, payables: 6,  cash_in: 20, cash_out: 18, net_cf: 2  },
-  { month: 'Apr', sales: 19, cogs: 11.8, gp: 7.0,  gp_pct: 37, collection: 16, receivables: 10, overdue: 3, inventory: 27, payables: 6,  cash_in: 19, cash_out: 21, net_cf: -2 },
-  { month: 'May', sales: 27, cogs: 17.8, gp: 9.2,  gp_pct: 34, collection: 20, receivables: 10, overdue: 3, inventory: 28, payables: 7,  cash_in: 21, cash_out: 18, net_cf: 3  },
-  { month: 'Jun', sales: 32, cogs: 21.0, gp: 11.0, gp_pct: 34, collection: 23, receivables: 12, overdue: 4, inventory: 30, payables: 8,  cash_in: 24, cash_out: 21, net_cf: 3  },
-];
-
-const THIS_MONTH = MONTHLY[5];
-const LAST_MONTH = MONTHLY[4];
-
-const KPI_TARGETS = {
-  sales: 35, gross_profit: 12, gp_pct: 34, collection: 25,
-  receivables: 10, overdue: 3, inventory: 28, payables: 7,
-  cash_balance: 1.5, bank_balance: 8,
-};
-
-const AGEING = [
-  { bucket: '0–30 Days',  amount: 5.0, fill: '#10b981' },
-  { bucket: '31–60 Days', amount: 2.5, fill: '#3b82f6' },
-  { bucket: '61–90 Days', amount: 1.5, fill: '#f59e0b' },
-  { bucket: '90+ Days',   amount: 4.0, fill: '#ef4444' },
-];
-
-const CATEGORY_SALES = [
-  { cat: 'Socks', sales: 14.2, gp: 5.1, gp_pct: 36, color: '#f59e0b' },
-  { cat: 'Belts', sales: 10.8, gp: 3.8, gp_pct: 35, color: '#10b981' },
-  { cat: 'Ties',  sales: 7.0,  gp: 2.1, gp_pct: 30, color: '#3b82f6' },
-];
-
-const AVT_ROWS = [
-  { kpi: 'Sales (L)',          actual: THIS_MONTH.sales,       target: KPI_TARGETS.sales,         unit: 'L' },
-  { kpi: 'Gross Profit (L)',   actual: THIS_MONTH.gp,          target: KPI_TARGETS.gross_profit,  unit: 'L' },
-  { kpi: 'GP %',               actual: THIS_MONTH.gp_pct,      target: KPI_TARGETS.gp_pct,        unit: '%' },
-  { kpi: 'Collection (L)',     actual: THIS_MONTH.collection,  target: KPI_TARGETS.collection,    unit: 'L' },
-  { kpi: 'Inventory (L)',      actual: THIS_MONTH.inventory,   target: KPI_TARGETS.inventory,     unit: 'L' },
-  { kpi: 'Overdue (L)',        actual: THIS_MONTH.overdue,     target: KPI_TARGETS.overdue,       unit: 'L', lowerIsBetter: true },
-  { kpi: 'Payables (L)',       actual: THIS_MONTH.payables,    target: KPI_TARGETS.payables,      unit: 'L', lowerIsBetter: true },
-  { kpi: 'Cash Balance (L)',   actual: 1.0,                    target: KPI_TARGETS.cash_balance,  unit: 'L' },
-  { kpi: 'Bank Balance (L)',   actual: 9.0,                    target: KPI_TARGETS.bank_balance,  unit: 'L' },
-];
-
-// ─── Alert Engine ─────────────────────────────────────────────────────────────
-function computeAlerts() {
-  const alerts = [];
-  if (THIS_MONTH.gp_pct < THRESHOLDS.GP_PCT_MIN) {
-    alerts.push({ key: 'gp_pct', msg: `GP% is ${THIS_MONTH.gp_pct}% — below threshold of ${THRESHOLDS.GP_PCT_MIN}%`, severity: 'critical' });
-  }
-  const gpDropPct = ((LAST_MONTH.gp - THIS_MONTH.gp) / LAST_MONTH.gp) * 100;
-  if (gpDropPct > THRESHOLDS.GP_DROP_MAX_PCT) {
-    alerts.push({ key: 'gp_drop', msg: `Gross Profit dropped ${gpDropPct.toFixed(1)}% vs last month`, severity: 'critical' });
-  }
-  AVT_ROWS.forEach((r) => {
-    const ach = r.lowerIsBetter
-      ? r.actual <= r.target ? 100 : Math.round((r.target / r.actual) * 100)
-      : Math.round((r.actual / r.target) * 100);
-    if (!r.lowerIsBetter && ach < THRESHOLDS.TARGET_ACH_MIN) {
-      alerts.push({ key: r.kpi, msg: `${r.kpi}: Achievement ${ach}% — below ${THRESHOLDS.TARGET_ACH_MIN}% target`, severity: 'warning' });
-    }
-  });
-  if (THIS_MONTH.overdue >= 4) {
-    alerts.push({ key: 'overdue', msg: `Overdue is ₹${THIS_MONTH.overdue}L — High. Immediate collection action required.`, severity: 'critical' });
-  }
-  return alerts;
-}
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-2xl">
+    <div className="bg-[#18181b] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-2xl z-50">
       <p className="text-gray-400 mb-1 font-semibold">{label}</p>
       {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }} className="font-bold">
-          {p.name}: {typeof p.value === 'number' ? `₹${p.value}L` : p.value}
+        <p key={p.name} style={{ color: p.color }} className="font-bold flex items-center justify-between gap-3">
+          <span>{p.name}:</span>
+          <span>{typeof p.value === 'number' ? (p.name.includes('%') ? `${p.value}%` : `₹${p.value}L`) : p.value}</span>
         </p>
       ))}
+      <p className="text-[10px] text-amber-400/80 pt-1 border-t border-white/5 mt-1">
+        💡 Click to drill down level-by-level
+      </p>
     </div>
   );
 };
@@ -109,11 +48,22 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function CFODashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('cfo_overview'); // 'cfo_overview', 'invoicing', 'logs', 'team'
-  const [cfoSubTab, setCfoSubTab] = useState('summary'); // 'summary', 'trends', 'avt'
   const [showAlertsDrawer, setShowAlertsDrawer] = useState(false);
 
-  const alerts = useMemo(() => computeAlerts(), []);
-  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+  // Drilldown Modal State
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [drilldownMetric, setDrilldownMetric] = useState('sales_trend');
+  const [drilldownMonth, setDrilldownMonth] = useState('Jun');
+  const [drilldownBucket, setDrilldownBucket] = useState(null);
+  const [drilldownKPI, setDrilldownKPI] = useState(null);
+
+  const openDrilldown = (metric, month = 'Jun', bucket = null, kpi = null) => {
+    setDrilldownMetric(metric);
+    setDrilldownMonth(month);
+    setDrilldownBucket(bucket);
+    setDrilldownKPI(kpi);
+    setDrilldownOpen(true);
+  };
 
   const navTabs = [
     { id: 'cfo_overview', label: 'CFO Financial Strategy', icon: Landmark },
@@ -141,7 +91,7 @@ export default function CFODashboard() {
                 </div>
                 <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{user?.name} ({user?.roleTitle || 'Chief Financial Officer'})</span>
+                  <span>{user?.name || 'Abhishek'} ({user?.roleTitle || 'Chief Financial Officer'})</span>
                   <span className="text-gray-500">•</span>
                   <span className="text-gray-400">P&L, Margins, Cash Flow & Financial Governance</span>
                 </p>
@@ -149,17 +99,15 @@ export default function CFODashboard() {
             </div>
 
             <div className="flex items-center gap-3">
-              {alerts.length > 0 && (
-                <button
-                  onClick={() => setShowAlertsDrawer(true)}
-                  className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl transition text-xs font-bold text-rose-300 flex items-center gap-1.5 shadow-sm"
-                >
-                  <Bell className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
-                  <span>{alerts.length} Financial Alerts</span>
-                </button>
-              )}
+              <button
+                onClick={() => setShowAlertsDrawer(true)}
+                className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl transition text-xs font-bold text-rose-300 flex items-center gap-1.5 shadow-sm"
+              >
+                <Bell className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
+                <span>Financial Alerts (Overdue ₹4L)</span>
+              </button>
 
-              <button 
+              <button
                 onClick={() => setUser(null)}
                 className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition text-xs font-semibold text-gray-300 hover:text-white flex items-center gap-1.5 shadow-sm"
                 title="Sign Out"
@@ -181,8 +129,8 @@ export default function CFODashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     "px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 relative",
-                    isActive 
-                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]" 
+                    isActive
+                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-xl shadow-amber-400/20 font-black scale-[1.02]"
                       : "bg-[#1c1d25] text-gray-400 hover:text-white hover:bg-[#252632] border border-white/5"
                   )}
                 >
@@ -197,254 +145,483 @@ export default function CFODashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        
+
         {activeTab === 'cfo_overview' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            
-            {/* CFO Sub-navigation Pills */}
-            <div className="flex items-center justify-between flex-wrap gap-3 bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-3 rounded-2xl border border-white/10 shadow-lg">
-              <div className="flex space-x-2">
-                {[
-                  { id: 'summary', label: 'Executive P&L Summary' },
-                  { id: 'trends', label: 'Trend & Cash Flow Analytics' },
-                  { id: 'avt', label: 'Actual vs Target Benchmarks' }
-                ].map(sub => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setCfoSubTab(sub.id)}
-                    className={cn(
-                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      cfoSubTab === sub.id
-                        ? "bg-amber-400 text-black shadow-md shadow-amber-400/20"
-                        : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5"
-                    )}
+
+            {/* ════════════ 8-REPORT DASHBOARD GRID (2x4) ════════════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* ──────────────── 1. Sales Trend — Month-wise ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-amber-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold font-mono">1</span>
+                      Sales Trend — Month-wise
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-bold">₹ Lakh</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Shows month-wise total sales performance.</p>
+                </div>
+
+                <div className="h-56 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={CFO_REPORTS_DATA.sales_trend}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('sales_trend', e.activePayload[0].payload.month);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                      <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={v => `${v}L`} domain={[0, 40]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="sales"
+                        name="Sales (₹ Lakh)"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={{ r: 5, fill: '#3b82f6', stroke: '#ffffff', strokeWidth: 2 }}
+                        activeDot={{ r: 7, fill: '#60a5fa' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div
+                  onClick={() => openDrilldown('sales_trend', 'Jun')}
+                  className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-amber-400 font-black">₹32L</span></p>
+                    <p className="text-gray-400 text-[11px]">Last Month (May): ₹27L</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
+                      ↑ 18.5%
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ──────────────── 2. Gross Profit Trend ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">2</span>
+                      Gross Profit Trend
+                    </h3>
+                    <div className="flex items-center gap-3 text-[10px] font-bold">
+                      <span className="text-emerald-400 flex items-center gap-1">■ GP (₹ Lakh)</span>
+                      <span className="text-emerald-300 flex items-center gap-1">● GP %</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Shows month-wise Gross Profit (₹) and GP% trend.</p>
+                </div>
+
+                <div className="h-56 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={CFO_REPORTS_DATA.gp_trend}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('gp_trend', e.activePayload[0].payload.month);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                      <YAxis yAxisId="left" stroke="#9ca3af" fontSize={11} tickFormatter={v => `${v}L`} domain={[0, 20]} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={11} tickFormatter={v => `${v}%`} domain={[0, 50]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar yAxisId="left" dataKey="gp" name="Gross Profit (₹ Lakh)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      <Line yAxisId="right" type="monotone" dataKey="gp_pct" name="GP %" stroke="#34d399" strokeWidth={3} dot={{ r: 4 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div
+                  onClick={() => openDrilldown('gp_trend', 'Jun')}
+                  className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-emerald-400 font-black">₹11.0L (34%)</span></p>
+                    <p className="text-gray-400 text-[11px]">Last Month (May): ₹9.2L (34%)</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
+                      ↑ 19.6% (₹)
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">GP% 0 pp</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ──────────────── 3. Collection vs Sales ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-blue-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold font-mono">3</span>
+                      Collection vs Sales
+                    </h3>
+                    <div className="flex items-center gap-3 text-[10px] font-bold">
+                      <span className="text-blue-400">■ Sales (₹ Lakh)</span>
+                      <span className="text-amber-400">■ Collection (₹ Lakh)</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Compares sales booked vs cash collected.</p>
+                </div>
+
+                <div className="h-56 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={CFO_REPORTS_DATA.collection_vs_sales}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('collection_vs_sales', e.activePayload[0].payload.month);
+                        }
+                      }}
+                      className="cursor-pointer"
+                      barGap={4}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                      <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={v => `${v}L`} domain={[0, 40]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="sales" name="Sales (₹ Lakh)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="collection" name="Collection (₹ Lakh)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div
+                  onClick={() => openDrilldown('collection_vs_sales', 'Jun')}
+                  className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                >
+                  <div>
+                    <p className="font-bold text-white">
+                      This Month (Jun): Sales <strong className="font-mono text-blue-400">₹32L</strong> | Collection <strong className="font-mono text-amber-400">₹23L</strong>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                      Collection % of Sales: 72%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ──────────────── 4. Receivables / Overdue ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-purple-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold font-mono">4</span>
+                      Receivables / Overdue
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-bold">Ageing Distribution</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Shows total receivables and overdue amount.</p>
+                </div>
+
+                {/* Dual KPI Mini Cards */}
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div
+                    onClick={() => openDrilldown('receivables_ageing', 'Jun', '0-30 Days')}
+                    className="p-3 bg-black/40 rounded-2xl border border-white/10 cursor-pointer hover:border-purple-400 transition"
                   >
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs text-gray-400 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span>Period: <strong>June 2026 (Live Close)</strong></span>
-              </div>
-            </div>
-
-            {/* View 1: Summary */}
-            {cfoSubTab === 'summary' && (
-              <div className="space-y-6">
-                {/* 5 Core Financial Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                  {[
-                    { label: 'Revenue (Sales)', val: `₹${THIS_MONTH.sales}L`, sub: '+18.5% MoM', icon: IndianRupee, color: 'text-amber-400' },
-                    { label: 'COGS Expense', val: `₹${THIS_MONTH.cogs}L`, sub: '65.6% of Rev', icon: Layers, color: 'text-rose-400' },
-                    { label: 'Gross Profit', val: `₹${THIS_MONTH.gp}L`, sub: '+19.6% MoM', icon: TrendingUp, color: 'text-emerald-400' },
-                    { label: 'Gross Margin %', val: `${THIS_MONTH.gp_pct}%`, sub: 'Target: 34%', icon: BarChart3, color: 'text-purple-400' },
-                    { label: 'Collections Done', val: `₹${THIS_MONTH.collection}L`, sub: '71.8% Velocity', icon: Wallet, color: 'text-blue-400' },
-                  ].map(c => {
-                    const Icon = c.icon;
-                    return (
-                      <div key={c.label} className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-white/10 shadow-xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-gray-400">{c.label}</span>
-                          <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-                            <Icon className={cn("w-3.5 h-3.5", c.color)} />
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <p className="text-xl sm:text-2xl font-black text-white">{c.val}</p>
-                          <span className="text-[10px] text-gray-400 font-semibold">{c.sub}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">Total Receivables</span>
+                    <p className="text-lg font-black text-white font-mono">₹12.0 Lakh</p>
+                    <span className="text-[10px] text-gray-400">↑ ₹2.0L vs Last Month</span>
+                  </div>
+                  <div
+                    onClick={() => openDrilldown('receivables_ageing', 'Jun', '90+ Days')}
+                    className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/30 cursor-pointer hover:border-rose-400 transition"
+                  >
+                    <span className="text-[10px] font-bold text-rose-300 uppercase flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Overdue
+                    </span>
+                    <p className="text-lg font-black text-rose-400 font-mono">₹4.0 Lakh</p>
+                    <span className="text-[10px] text-rose-300">↑ ₹1.0L vs Last Month</span>
+                  </div>
                 </div>
 
-                {/* Working Capital & Balance Snapshot */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  {[
-                    { label: 'Receivables (AR)', val: `₹${THIS_MONTH.receivables}L`, sub: 'Total outstanding' },
-                    { label: 'Overdue (>30d)', val: `₹${THIS_MONTH.overdue}L`, sub: 'Alert: High', alert: true },
-                    { label: 'Payables (AP)', val: `₹${THIS_MONTH.payables}L`, sub: 'Vendor dues' },
-                    { label: 'Net Cash Flow', val: `+₹${THIS_MONTH.net_cf}L`, sub: 'Surplus generated' },
-                  ].map(wc => (
-                    <div key={wc.label} className={cn(
-                      "p-4 rounded-2xl border shadow-md flex items-center justify-between",
-                      wc.alert 
-                        ? "bg-rose-500/10 border-rose-500/30 text-rose-300" 
-                        : "bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] border-white/10 text-white"
-                    )}>
-                      <div>
-                        <p className="text-[11px] font-bold text-gray-400">{wc.label}</p>
-                        <p className="text-lg font-black mt-0.5">{wc.val}</p>
-                      </div>
-                      <span className="text-[10px] font-medium text-gray-400">{wc.sub}</span>
-                    </div>
-                  ))}
+                {/* Ageing Bar Chart */}
+                <div className="h-36 mt-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={CFO_REPORTS_DATA.receivables_ageing}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('receivables_ageing', 'Jun', e.activePayload[0].payload.bucket);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="bucket" stroke="#9ca3af" fontSize={10} />
+                      <YAxis stroke="#9ca3af" fontSize={10} tickFormatter={v => `${v}L`} domain={[0, 6]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="amount" name="Receivables (₹ Lakh)" radius={[4, 4, 0, 0]}>
+                        {CFO_REPORTS_DATA.receivables_ageing.map((entry, idx) => (
+                          <Cell key={`cell-${idx}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
 
-                {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Category Margin Breakdown */}
-                  <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-murugan-accent" />
-                      Product Category Sales & Profit Contribution
+                <div
+                  onClick={() => openDrilldown('receivables_ageing', 'Jun', '90+ Days')}
+                  className="mt-3 pt-2.5 border-t border-white/10 text-xs bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20 cursor-pointer hover:bg-rose-500/20 transition flex items-center justify-between"
+                >
+                  <p className="text-[11px] text-rose-300 font-bold">
+                    Overdue &gt; 90 Days is 33% of Total Receivables. Action needed to improve collections.
+                  </p>
+                  <ChevronDown className="w-3.5 h-3.5 text-rose-400 -rotate-90 flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* ──────────────── 5. Inventory Value ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-cyan-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold font-mono">5</span>
+                      Inventory Value
                     </h3>
-                    <div className="space-y-3 pt-2">
-                      {CATEGORY_SALES.map(cat => (
-                        <div key={cat.cat} className="p-3 bg-black/40 rounded-xl border border-white/5 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-bold text-white">{cat.cat}</p>
-                            <p className="text-[10px] text-gray-400">Sales: ₹{cat.sales}L • GP: ₹{cat.gp}L</p>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-xs font-black text-amber-400">{cat.gp_pct}% Margin</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="text-[10px] text-cyan-400 font-bold">■ Inventory Value (₹ Lakh)</span>
                   </div>
+                  <p className="text-xs text-gray-400">Shows month-wise inventory value.</p>
+                </div>
 
-                  {/* Ageing Breakdown */}
-                  <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-murugan-accent" />
-                      Accounts Receivable (AR) Ageing Breakdown
+                <div className="h-56 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={CFO_REPORTS_DATA.inventory_value}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('inventory_value', e.activePayload[0].payload.month);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                      <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={v => `${v}L`} domain={[0, 40]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="inventory" name="Inventory Value (₹ Lakh)" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div
+                  onClick={() => openDrilldown('inventory_value', 'Jun')}
+                  className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-cyan-400 font-black">₹30L</span></p>
+                    <p className="text-gray-400 text-[11px]">Last Month (May): ₹28L</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 font-extrabold text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg text-xs">
+                      ↑ ₹2.0L
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ──────────────── 6. Cash Flow Trend ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">6</span>
+                      Cash Flow Trend
                     </h3>
-                    <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={AGEING} layout="vertical">
-                          <XAxis type="number" stroke="#9ca3af" fontSize={11} tickFormatter={v => `₹${v}L`} />
-                          <YAxis type="category" dataKey="bucket" stroke="#9ca3af" fontSize={11} width={85} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Bar dataKey="amount" radius={[0, 6, 6, 0]}>
-                            {AGEING.map((entry, idx) => (
-                              <Cell key={`cell-${idx}`} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="flex items-center gap-2 text-[10px] font-bold">
+                      <span className="text-emerald-400">■ In</span>
+                      <span className="text-rose-400">■ Out</span>
+                      <span className="text-white">● Net</span>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-400">Shows cash in, cash out and net cash flow.</p>
+                </div>
+
+                <div className="h-56 mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={CFO_REPORTS_DATA.cash_flow_trend}
+                      onClick={(e) => {
+                        if (e && e.activePayload && e.activePayload[0]) {
+                          openDrilldown('cash_flow_trend', e.activePayload[0].payload.month);
+                        }
+                      }}
+                      className="cursor-pointer"
+                      barGap={2}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
+                      <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={v => `${v}L`} domain={[-10, 35]} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="cash_in" name="Cash In (₹ Lakh)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="cash_out" name="Cash Out (₹ Lakh)" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                      <Line type="monotone" dataKey="net_cf" name="Net Cash Flow (₹ Lakh)" stroke="#ffffff" strokeWidth={2.5} dot={{ r: 4 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div
+                  onClick={() => openDrilldown('cash_flow_trend', 'Jun')}
+                  className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                >
+                  <div>
+                    <p className="font-bold text-white">This Month (Jun): Net Cash Flow <strong className="text-emerald-400 font-mono">₹3L (Positive)</strong></p>
+                    <p className="text-[11px] text-gray-400">Last Month (May): Net Cash Flow ₹3L (Positive)</p>
+                  </div>
+                  <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    Strong Liquidity
+                  </span>
                 </div>
               </div>
-            )}
 
-            {/* View 2: Trends */}
-            {cfoSubTab === 'trends' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-murugan-accent" />
-                    Monthly Revenue, COGS & Gross Margin Trajectory (H1 2026)
-                  </h3>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={MONTHLY}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                        <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
-                        <YAxis yAxisId="left" stroke="#9ca3af" fontSize={11} tickFormatter={v => `₹${v}L`} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={11} tickFormatter={v => `${v}%`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Bar yAxisId="left" dataKey="sales" name="Sales Revenue" fill="#eab308" radius={[4, 4, 0, 0]} />
-                        <Bar yAxisId="left" dataKey="cogs" name="COGS" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                        <Line yAxisId="right" type="monotone" dataKey="gp_pct" name="GP % Margin" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+              {/* ──────────────── 7. This Month vs Last Month ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-blue-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold font-mono">7</span>
+                      This Month vs Last Month
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-bold">10 Key KPIs</span>
                   </div>
+                  <p className="text-xs text-gray-400">Compares key numbers with last month.</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-murugan-accent" />
-                    Cash Inflow vs Outflow Dynamics (₹ Lakhs)
-                  </h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={MONTHLY}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                        <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} />
-                        <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={v => `₹${v}L`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Line type="monotone" dataKey="cash_in" name="Cash In (Collections)" stroke="#10b981" strokeWidth={2.5} />
-                        <Line type="monotone" dataKey="cash_out" name="Cash Out (Disbursements)" stroke="#f97316" strokeWidth={2.5} />
-                        <Line type="monotone" dataKey="net_cf" name="Net Cash Flow" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4 4" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* View 3: Actual vs Target */}
-            {cfoSubTab === 'avt' && (
-              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-murugan-accent" />
-                    Financial Benchmarks: Actual vs Target (June 2026)
-                  </h3>
-                  <p className="text-xs text-gray-400">Tolerance threshold: Minimum 85% achievement required</p>
-                </div>
-
-                <div className="overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full text-left border-collapse text-xs sm:text-sm min-w-[600px]">
-                    <thead className="bg-black/40">
-                      <tr className="border-b border-white/10 text-xs font-semibold text-gray-400 uppercase">
-                        <th className="py-3 px-4">Financial KPI</th>
-                        <th className="py-3 px-4">Actual</th>
-                        <th className="py-3 px-4">Target Budget</th>
-                        <th className="py-3 px-4">Achievement %</th>
-                        <th className="py-3 px-4">Status</th>
+                <div className="overflow-x-auto rounded-2xl border border-white/10 mt-4">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-[#101116] text-gray-400 uppercase text-[10px] border-b border-white/10">
+                      <tr>
+                        <th className="py-2.5 px-3">KPI</th>
+                        <th className="py-2.5 px-3 font-mono">This Month (Jun)</th>
+                        <th className="py-2.5 px-3 font-mono">Last Month (May)</th>
+                        <th className="py-2.5 px-3">Change</th>
+                        <th className="py-2.5 px-3 text-right">% Change</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 bg-black/20">
-                      {AVT_ROWS.map((row) => {
-                        const ach = row.lowerIsBetter
-                          ? row.actual <= row.target ? 100 : Math.round((row.target / row.actual) * 100)
-                          : Math.round((row.actual / row.target) * 100);
-                        const isAlert = !row.lowerIsBetter && ach < THRESHOLDS.TARGET_ACH_MIN;
-
-                        return (
-                          <tr key={row.kpi} className="hover:bg-white/5 transition-colors">
-                            <td className="py-3.5 px-4 font-bold text-white">{row.kpi}</td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-white">{row.actual} {row.unit}</td>
-                            <td className="py-3.5 px-4 font-mono text-gray-400">{row.target} {row.unit}</td>
-                            <td className="py-3.5 px-4">
-                              <span className={cn(
-                                "text-[11px] font-extrabold px-2 py-0.5 rounded-full border",
-                                ach >= 90 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
-                                ach >= 80 ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
-                                "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                              )}>
-                                {ach}%
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              {isAlert ? (
-                                <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3" /> Underperforming
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3" /> On Track
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {CFO_REPORTS_DATA.mom_comparison.map(row => (
+                        <tr
+                          key={row.kpi}
+                          onClick={() => openDrilldown('mom_comparison', 'Jun', null, row)}
+                          className="hover:bg-white/5 transition-colors cursor-pointer group/row"
+                        >
+                          <td className="py-2 px-3 font-bold text-white group-hover/row:text-amber-300 transition-colors flex items-center gap-1.5">
+                            {row.kpi}
+                            {row.alert && <AlertTriangle className="w-3 h-3 text-rose-400" />}
+                          </td>
+                          <td className="py-2 px-3 font-mono font-bold text-white">{row.thisMonth}</td>
+                          <td className="py-2 px-3 font-mono text-gray-400">{row.lastMonth}</td>
+                          <td className="py-2 px-3 font-mono font-bold text-gray-200">{row.change}</td>
+                          <td className="py-2 px-3 text-right">
+                            <span className={cn(
+                              "text-[10px] font-extrabold px-1.5 py-0.5 rounded",
+                              row.positive ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                            )}>
+                              {row.pctChange}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
+
+                <p className="text-[11px] text-gray-400 pt-3 border-t border-white/10 mt-3 text-center">
+                  Helps to understand month-on-month performance. Click row to drill down into variance.
+                </p>
               </div>
-            )}
+
+              {/* ──────────────── 8. Actual vs Target ──────────────── */}
+              <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">8</span>
+                      Actual vs Target
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-bold">Target Fulfillment</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Shows actual performance vs target.</p>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-white/10 mt-4">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-[#101116] text-gray-400 uppercase text-[10px] border-b border-white/10">
+                      <tr>
+                        <th className="py-2.5 px-3">KPI</th>
+                        <th className="py-2.5 px-3 font-mono">Target (Jun)</th>
+                        <th className="py-2.5 px-3 font-mono">Actual (Jun)</th>
+                        <th className="py-2.5 px-3">Achievement</th>
+                        <th className="py-2.5 px-3 text-right">Gap</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 bg-black/20">
+                      {CFO_REPORTS_DATA.actual_vs_target.map(row => (
+                        <tr
+                          key={row.kpi}
+                          onClick={() => openDrilldown('actual_vs_target', 'Jun', null, row)}
+                          className="hover:bg-white/5 transition-colors cursor-pointer group/row"
+                        >
+                          <td className="py-2.5 px-3 font-bold text-white group-hover/row:text-emerald-300 transition-colors">{row.kpi}</td>
+                          <td className="py-2.5 px-3 font-mono text-gray-400">{row.target}</td>
+                          <td className="py-2.5 px-3 font-mono font-black text-white">{row.actual}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={cn(
+                              "text-[10px] font-extrabold px-2 py-0.5 rounded-full border",
+                              row.rawAch >= 90 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
+                                "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                            )}>
+                              {row.achievement}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-gray-300">
+                            {row.gap}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="pt-3 border-t border-white/10 mt-3 space-y-1 text-center">
+                  <p className="text-[10px] text-gray-400 font-mono">
+                    Achievement % = (Actual / Target) × 100
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    Helps to track target achievement and identify gap. Click row for segment audit.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+
 
           </motion.div>
         )}
 
+        {/* Operational Modules (Inherited from Admin) */}
         {activeTab === 'invoicing' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
             <InvoicingModule currentUser={user} />
@@ -465,23 +642,33 @@ export default function CFODashboard() {
 
       </main>
 
-      {/* Alerts Drawer Modal */}
+      {/* Interactive Hierarchical Drill-down Modal */}
+      <FinancialDrilldownModal
+        isOpen={drilldownOpen}
+        onClose={() => setDrilldownOpen(false)}
+        initialMetric={drilldownMetric}
+        initialMonth={drilldownMonth}
+        initialBucket={drilldownBucket}
+        initialKPI={drilldownKPI}
+      />
+
+      {/* Red Alert Drawer Modal */}
       <AnimatePresence>
         {showAlertsDrawer && (
-          <div 
+          <div
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setShowAlertsDrawer(false)}
           >
-            <div 
-              className="bg-gradient-to-br from-[#1c1d27] via-[#161720] to-[#121319] border border-white/20 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4"
+            <div
+              className="bg-gradient-to-br from-[#1c1d27] via-[#161720] to-[#121319] border border-white/20 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-white"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-rose-400" />
-                  <h3 className="font-bold text-base text-white">Financial Threshold Alerts</h3>
+                  <h3 className="font-bold text-base text-white">Executive Red Alert Summary</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowAlertsDrawer(false)}
                   className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
                 >
@@ -490,20 +677,37 @@ export default function CFODashboard() {
               </div>
 
               <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                {alerts.map((a, i) => (
-                  <div key={i} className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-2.5">
-                    <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-rose-200 font-medium">{a.msg}</p>
-                  </div>
-                ))}
+                <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-200 font-medium">
+                    Overdue accounts total <strong>₹4.0 Lakh</strong> across 4 institutions. Overdue &gt; 90 days represents 33% of total receivables. Immediate dispatch of legal demand letters required.
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-200 font-medium">
+                    Collection % of Sales is currently at <strong>72%</strong> (₹23L collected vs ₹32L billed). Field recovery focus recommended.
+                  </p>
+                </div>
               </div>
 
-              <button
-                onClick={() => setShowAlertsDrawer(false)}
-                className="w-full py-2.5 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl transition"
-              >
-                Acknowledge & Close
-              </button>
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setShowAlertsDrawer(false);
+                    openDrilldown('receivables_ageing', 'Jun', '90+ Days');
+                  }}
+                  className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs rounded-xl transition"
+                >
+                  Drill Down into Overdue Invoices
+                </button>
+                <button
+                  onClick={() => setShowAlertsDrawer(false)}
+                  className="py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
         )}
