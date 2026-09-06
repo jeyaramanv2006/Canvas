@@ -144,7 +144,7 @@ export function getCanvasserLeaderboard(req, res) {
   try {
     const visits = db.prepare('SELECT * FROM visits').all();
     const invoices = db.prepare('SELECT * FROM invoices').all();
-    const canvassers = db.prepare("SELECT * FROM users WHERE role = 'canvasser'").all();
+    const canvassers = db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all();
 
     const leaderboard = canvassers.map(c => {
       const cVisits = visits.filter(v => v.canvasser_id === c.id);

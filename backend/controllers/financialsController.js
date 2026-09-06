@@ -68,7 +68,7 @@ export function getQuotations(req, res) {
     let query = 'SELECT * FROM quotations';
     const params = [];
 
-    if (user.role === 'canvasser') {
+    if (['canvasser', 'cvs'].includes(user.role)) {
       query += ' WHERE canvasser_id = ?';
       params.push(user.id);
     }
@@ -127,7 +127,7 @@ export function createQuotation(req, res) {
         Number(body.visit_id),
         user.id,
         user.name,
-        user.role === 'canvasser' ? 'Canvasser' : 'Admin',
+        ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Admin',
         'UPDATE',
         JSON.stringify([{ field: 'Outcome Status', from: 'Previous', to: 'Quote Given (Linked to ' + id + ')' }]),
         now
@@ -151,7 +151,7 @@ export function getInvoices(req, res) {
     let query = 'SELECT * FROM invoices';
     const params = [];
 
-    if (user.role === 'canvasser') {
+    if (['canvasser', 'cvs'].includes(user.role)) {
       query += ' WHERE canvasser_id = ?';
       params.push(user.id);
     }
@@ -218,7 +218,7 @@ export function createInvoice(req, res) {
         Number(body.visit_id),
         user.id,
         user.name,
-        user.role === 'canvasser' ? 'Canvasser' : 'Admin',
+        ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Admin',
         'UPDATE',
         JSON.stringify([{ field: 'Outcome Status', from: 'Previous', to: 'Won (Converted to ' + id + ')' }]),
         now
@@ -275,7 +275,7 @@ export function recordPayment(req, res) {
       payment_method,
       reference_number,
       user.name || 'Accounts Admin',
-      user.role === 'canvasser' ? 'Canvasser' : 'Finance Admin',
+      ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Finance Admin',
       now
     );
 
