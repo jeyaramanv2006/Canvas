@@ -381,6 +381,56 @@ export function decideApproval(req, res) {
       `).run(targetData.new_username, targetData.new_role, targetData.new_role_title, targetData.user_id);
     } else if (action.action_type === 'DELETE') {
       db.prepare(`UPDATE users SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+    } else if (action.action_type === 'SCHOOL_CREATE') {
+      db.prepare(`
+        INSERT OR REPLACE INTO master_schools 
+        (id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+      `).run(
+        targetData.id,
+        targetData.school_name,
+        targetData.district,
+        targetData.block_or_cluster || 'General Block',
+        targetData.zone || 'Tamil Nadu',
+        targetData.board || 'Matriculation',
+        targetData.area || '',
+        targetData.student_strength || null,
+        targetData.contact_person || null,
+        targetData.phone || null,
+        targetData.priority || 'Medium'
+      );
+    } else if (action.action_type === 'SCHOOL_EDIT') {
+      db.prepare(`
+        UPDATE master_schools SET
+          school_name = COALESCE(?, school_name),
+          district = COALESCE(?, district),
+          block_or_cluster = COALESCE(?, block_or_cluster),
+          zone = COALESCE(?, zone),
+          board = COALESCE(?, board),
+          area = COALESCE(?, area),
+          student_strength = COALESCE(?, student_strength),
+          contact_person = COALESCE(?, contact_person),
+          phone = COALESCE(?, phone),
+          priority = COALESCE(?, priority),
+          status = COALESCE(?, status),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        targetData.school_name,
+        targetData.district,
+        targetData.block_or_cluster,
+        targetData.zone,
+        targetData.board,
+        targetData.area,
+        targetData.student_strength,
+        targetData.contact_person,
+        targetData.phone,
+        targetData.priority,
+        targetData.status,
+        targetData.id
+      );
+    } else if (action.action_type === 'SCHOOL_DELETE') {
+      db.prepare(`DELETE FROM master_schools WHERE id = ?`).run(targetData.id);
     }
 
     // Update pending action record to APPROVED

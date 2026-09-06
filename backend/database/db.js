@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import { loadAndParseSchoolsFromCSVs } from './seedSchools.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,27 @@ db.exec('PRAGMA foreign_keys = ON;');
 
 // Initialize database schema
 export function initDB() {
+  // 0. Master Schools Catalog Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS master_schools (
+      id TEXT PRIMARY KEY,
+      school_name TEXT NOT NULL,
+      district TEXT NOT NULL,
+      block_or_cluster TEXT,
+      zone TEXT,
+      board TEXT,
+      area TEXT,
+      student_strength INTEGER,
+      contact_person TEXT,
+      phone TEXT,
+      priority TEXT DEFAULT 'Medium',
+      status TEXT DEFAULT 'ACTIVE',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_master_schools_district ON master_schools(district);
+    CREATE INDEX IF NOT EXISTS idx_master_schools_name ON master_schools(school_name);
+  `);
   // 1. Users Table (Strict username as <name>@<role>)
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -385,4 +407,241 @@ function seedDefaultData() {
       );
     }
   }
+
+  // Seed Initial Quotations
+  const quoteCount = db.prepare('SELECT COUNT(*) as count FROM quotations').get().count;
+  if (quoteCount === 0) {
+    const insertQuote = db.prepare(`
+      INSERT INTO quotations (
+        id, visit_id, canvasser_id, canvasser_name, school_name,
+        district, contact_person, phone, items, subtotal,
+        tax_amount, discount_amount, grand_total, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const now = Date.now();
+    const quotes = [
+      {
+        id: 'QTN-2026-089',
+        visit_id: 1,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: "St. John's Higher Secondary School",
+        district: 'Coimbatore',
+        contact_person: 'Mr. Ramesh (Principal)',
+        phone: '9876543210',
+        items: JSON.stringify([
+          { id: 1, name: 'Socks (Cotton Combed)', category: 'Hosiery', quantity: 1200, unit_price: 38, unit: 'pair', discount_pct: 5, gst_rate: 18, total: 51086.4 },
+          { id: 3, name: 'School Belts with Metal Crest', category: 'Accessories', quantity: 1200, unit_price: 55, unit: 'pcs', discount_pct: 0, gst_rate: 18, total: 77880 }
+        ]),
+        subtotal: 109320,
+        tax_amount: 19646.4,
+        discount_amount: 2280,
+        grand_total: 128966.4,
+        status: 'Sent',
+        created_at: new Date(now - 86400000 * 2).toISOString()
+      },
+      {
+        id: 'QTN-2026-092',
+        visit_id: 2,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'Vivekananda Arts & Science College',
+        district: 'Madurai',
+        contact_person: 'Mrs. Priya (Admin Officer)',
+        phone: '9876543211',
+        items: JSON.stringify([
+          { id: 6, name: 'School Backpack / College Bags', category: 'Bags', quantity: 800, unit_price: 310, unit: 'pcs', discount_pct: 8, gst_rate: 18, total: 269222.4 },
+          { id: 4, name: 'School Tie (Sublimation Crest)', category: 'Accessories', quantity: 800, unit_price: 42, unit: 'pcs', discount_pct: 5, gst_rate: 18, total: 37665.6 }
+        ]),
+        subtotal: 260080,
+        tax_amount: 46808,
+        discount_amount: 21520,
+        grand_total: 306888,
+        status: 'Under Review',
+        created_at: new Date(now - 86400000 * 4).toISOString()
+      }
+    ];
+
+    for (const q of quotes) {
+      insertQuote.run(
+        q.id, q.visit_id, q.canvasser_id, q.canvasser_name, q.school_name,
+        q.district, q.contact_person, q.phone, q.items, q.subtotal,
+        q.tax_amount, q.discount_amount, q.grand_total, q.status, q.created_at
+      );
+    }
+  }
+
+  // Seed Initial Invoices & Payments
+  const invoiceCount = db.prepare('SELECT COUNT(*) as count FROM invoices').get().count;
+  if (invoiceCount === 0) {
+    const insertInvoice = db.prepare(`
+      INSERT INTO invoices (
+        id, quotation_id, visit_id, canvasser_id, canvasser_name,
+        school_name, district, contact_person, phone, items,
+        subtotal, tax_amount, discount_amount, grand_total,
+        paid_amount, outstanding_balance, payment_status, due_date, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertPayment = db.prepare(`
+      INSERT INTO payments (
+        id, invoice_id, school_name, amount, payment_method,
+        reference_number, recorded_by_name, recorded_by_role, recorded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const now = Date.now();
+    const invoices = [
+      {
+        id: 'INV-2026-001',
+        quotation_id: null,
+        visit_id: 3,
+        canvasser_id: 2,
+        canvasser_name: 'Murugan',
+        school_name: 'PSG Public Matriculation School',
+        district: 'Coimbatore',
+        contact_person: 'Dr. Kavin (Correspondent)',
+        phone: '9876543212',
+        items: JSON.stringify([
+          { id: 5, name: 'Sports Shoes (Non-marking Rubber Sole)', category: 'Footwear', quantity: 2000, unit_price: 360, unit: 'pair', discount_pct: 5, gst_rate: 18, total: 807120 },
+          { id: 7, name: 'Track Pants with Side Stripes', category: 'Sportswear', quantity: 2000, unit_price: 210, unit: 'pcs', discount_pct: 5, gst_rate: 18, total: 470820 }
+        ]),
+        subtotal: 1083000,
+        tax_amount: 194940,
+        discount_amount: 57000,
+        grand_total: 1277940,
+        paid_amount: 500000,
+        outstanding_balance: 777940,
+        payment_status: 'Partially Paid',
+        due_date: new Date(now + 86400000 * 15).toISOString().split('T')[0],
+        created_at: new Date(now - 86400000 * 5).toISOString(),
+        payment: {
+          id: 'PAY-1001',
+          amount: 500000,
+          payment_method: 'Bank Transfer (NEFT)',
+          reference_number: 'UTIBR5202608149872',
+          recorded_at: new Date(now - 86400000 * 3).toISOString()
+        }
+      },
+      {
+        id: 'INV-2026-002',
+        quotation_id: null,
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'Holy Cross Girls Higher Secondary',
+        district: 'Tirupur',
+        contact_person: 'Sr. Mary (Headmistress)',
+        phone: '9876543213',
+        items: JSON.stringify([
+          { id: 1, name: 'Socks (Cotton Combed)', category: 'Hosiery', quantity: 1500, unit_price: 38, unit: 'pair', discount_pct: 0, gst_rate: 18, total: 67260 },
+          { id: 2, name: 'School Uniform (Shirt + Trouser/Skirt)', category: 'Apparel', quantity: 250, unit_price: 480, unit: 'set', discount_pct: 0, gst_rate: 18, total: 141600 }
+        ]),
+        subtotal: 177000,
+        tax_amount: 31860,
+        discount_amount: 0,
+        grand_total: 208860,
+        paid_amount: 208860,
+        outstanding_balance: 0,
+        payment_status: 'Fully Paid',
+        due_date: new Date(now - 86400000 * 2).toISOString().split('T')[0],
+        created_at: new Date(now - 86400000 * 8).toISOString(),
+        payment: {
+          id: 'PAY-1002',
+          amount: 208860,
+          payment_method: 'UPI (GPay)',
+          reference_number: 'UPI/62391098234',
+          recorded_at: new Date(now - 86400000 * 1).toISOString()
+        }
+      },
+      {
+        id: 'INV-2026-003',
+        quotation_id: null,
+        visit_id: null,
+        canvasser_id: 3,
+        canvasser_name: 'Suhas',
+        school_name: 'Kongu Vellalar Matric School',
+        district: 'Salem',
+        contact_person: 'Mr. Saravanan',
+        phone: '9876543214',
+        items: JSON.stringify([
+          { id: 2, name: 'School Uniform (Shirt + Trouser/Skirt)', category: 'Apparel', quantity: 600, unit_price: 480, unit: 'set', discount_pct: 5, gst_rate: 18, total: 322848 }
+        ]),
+        subtotal: 273600,
+        tax_amount: 49248,
+        discount_amount: 14400,
+        grand_total: 322848,
+        paid_amount: 100000,
+        outstanding_balance: 222848,
+        payment_status: 'Partially Paid',
+        due_date: new Date(now + 86400000 * 7).toISOString().split('T')[0],
+        created_at: new Date(now - 86400000 * 1).toISOString(),
+        payment: {
+          id: 'PAY-1003',
+          amount: 100000,
+          payment_method: 'Cheque',
+          reference_number: 'CHQ-882910',
+          recorded_at: new Date(now - 86400000 * 1).toISOString()
+        }
+      }
+    ];
+
+    for (const inv of invoices) {
+      insertInvoice.run(
+        inv.id, inv.quotation_id, inv.visit_id, inv.canvasser_id, inv.canvasser_name,
+        inv.school_name, inv.district, inv.contact_person, inv.phone, inv.items,
+        inv.subtotal, inv.tax_amount, inv.discount_amount, inv.grand_total,
+        inv.paid_amount, inv.outstanding_balance, inv.payment_status, inv.due_date, inv.created_at
+      );
+
+      if (inv.payment) {
+        insertPayment.run(
+          inv.payment.id,
+          inv.id,
+          inv.school_name,
+          inv.payment.amount,
+          inv.payment.payment_method,
+          inv.payment.reference_number,
+          'Sudhan (CEO)',
+          'Management',
+          inv.payment.recorded_at
+        );
+      }
+    }
+  }
+
+  // Seed Master Schools from CSVs
+  try {
+    const schoolCount = db.prepare('SELECT COUNT(*) as count FROM master_schools').get().count;
+    if (schoolCount < 100) {
+      console.log('🔄 Loading master school catalog into SQLite database...');
+      const parsedSchools = loadAndParseSchoolsFromCSVs();
+      const insertSchool = db.prepare(`
+        INSERT OR REPLACE INTO master_schools 
+        (id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+      `);
+
+      for (const s of parsedSchools) {
+        insertSchool.run(
+          s.id,
+          s.school_name,
+          s.district,
+          s.block_or_cluster,
+          s.zone,
+          s.board,
+          s.area,
+          s.student_strength,
+          s.contact_person,
+          s.phone,
+          s.priority
+        );
+      }
+      console.log(`✅ Loaded ${parsedSchools.length} master schools into SQLite canvas.db!`);
+    }
+  } catch (err) {
+    console.warn('Error seeding master schools:', err.message);
+  }
 }
+

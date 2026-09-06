@@ -9,6 +9,7 @@ import * as auditController from './controllers/auditController.js';
 import * as dashboardController from './controllers/dashboardController.js';
 import * as financialsController from './controllers/financialsController.js';
 import * as userManagementController from './controllers/userManagementController.js';
+import * as masterSchoolsController from './controllers/masterSchoolsController.js';
 
 dotenv.config();
 
@@ -67,6 +68,15 @@ app.get('/api/admin/dashboard', authenticateToken, dashboardController.getDashbo
 app.get('/api/dashboard/stats', authenticateToken, dashboardController.getDashboardStats);
 app.get('/api/admin/team', authenticateToken, dashboardController.getCanvasserLeaderboard);
 app.get('/api/leaderboard', authenticateToken, dashboardController.getCanvasserLeaderboard);
+app.get('/api/ceo/executive-mis', authenticateToken, dashboardController.getCEOExecutiveMIS);
+
+// ── Master Schools Institutional Catalog (SQLite) ───────────────────────────
+app.get('/api/master-schools', authenticateToken, masterSchoolsController.getMasterSchools);
+app.get('/api/master-schools/districts', authenticateToken, masterSchoolsController.getSchoolDistricts);
+app.get('/api/master-schools/:id', authenticateToken, masterSchoolsController.getMasterSchoolById);
+app.post('/api/master-schools', authenticateToken, requireAdmin, masterSchoolsController.createMasterSchool);
+app.put('/api/master-schools/:id', authenticateToken, requireAdmin, masterSchoolsController.updateMasterSchool);
+app.delete('/api/master-schools/:id', authenticateToken, requireAdmin, masterSchoolsController.deleteMasterSchool);
 
 // ── Financials: Products, Quotations, Invoices, Payments ─────────────────────
 app.get('/api/products', authenticateToken, financialsController.getProducts);
@@ -81,6 +91,7 @@ app.get('/api/invoices', authenticateToken, financialsController.getInvoices);
 app.post('/api/invoices', authenticateToken, financialsController.createInvoice);
 app.post('/api/invoices/:id/payment', authenticateToken, financialsController.recordPayment);
 app.get('/api/payments', authenticateToken, financialsController.getPayments);
+app.get('/api/cfo/analytics', authenticateToken, financialsController.getCFOAnalytics);
 
 // ── Error Handling Middleware ────────────────────────────────────────────────
 app.use((err, req, res, next) => {
