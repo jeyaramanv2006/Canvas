@@ -2,12 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDB } from './database/db.js';
-import { authenticateToken, requireAdmin } from './middleware/auth.js';
+import { authenticateToken, requireAdmin, requireCEO } from './middleware/auth.js';
 import * as authController from './controllers/authController.js';
 import * as visitsController from './controllers/visitsController.js';
 import * as auditController from './controllers/auditController.js';
 import * as dashboardController from './controllers/dashboardController.js';
 import * as financialsController from './controllers/financialsController.js';
+import * as userManagementController from './controllers/userManagementController.js';
 
 dotenv.config();
 
@@ -34,7 +35,16 @@ app.get('/api/health', (req, res) => {
 app.post('/api/login', authController.login);
 app.post('/api/auth/login', authController.login);
 app.get('/api/auth/me', authenticateToken, authController.getCurrentUser);
-app.get('/api/users', authenticateToken, authController.getUsers);
+
+// ── Strict Role-Based User Management & Approval Workflow ────────────────────
+app.get('/api/users', authenticateToken, userManagementController.getUsers);
+app.post('/api/users', authenticateToken, requireAdmin, userManagementController.createUser);
+app.put('/api/users/:id/role', authenticateToken, requireAdmin, userManagementController.updateUserRole);
+app.delete('/api/users/:id', authenticateToken, requireAdmin, userManagementController.deleteUser);
+
+// CEO Pending Approval Queue
+app.get('/api/approvals', authenticateToken, requireCEO, userManagementController.getPendingApprovals);
+app.post('/api/approvals/:id/decide', authenticateToken, requireCEO, userManagementController.decideApproval);
 
 // ── Visits Endpoints (Canvasser & Admin with Audit Trail) ─────────────────────
 app.get('/api/visits', authenticateToken, visitsController.getVisits);

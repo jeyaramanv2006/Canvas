@@ -6,6 +6,7 @@ export function generateToken(user) {
   return jwt.sign(
     {
       id: user.id,
+      username: user.username,
       email: user.email,
       name: user.name,
       role: user.role,
@@ -21,14 +22,13 @@ export function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    // If no token, check if client passed mock token or demo fallback
     return res.status(401).json({ error: 'Authentication token required' });
   }
 
   // Support demo mock tokens if passed during transition
   if (token.startsWith('mock-jwt-token-')) {
     const userId = parseInt(token.replace('mock-jwt-token-', ''), 10);
-    req.user = { id: userId, role: 'canvasser', name: 'User' };
+    req.user = { id: userId, role: 'cvs', name: 'User' };
     return next();
   }
 
@@ -42,9 +42,16 @@ export function authenticateToken(req, res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  const adminRoles = ['admin_exec', 'admin', 'manager', 'ceo', 'cfo', 'cco'];
+  const adminRoles = ['admin', 'admin_exec', 'manager', 'ceo', 'cfo', 'cco'];
   if (!req.user || !adminRoles.includes(req.user.role)) {
     return res.status(403).json({ error: 'Access denied: Executive / Admin role required' });
+  }
+  next();
+}
+
+export function requireCEO(req, res, next) {
+  if (!req.user || req.user.role !== 'ceo') {
+    return res.status(403).json({ error: 'Access denied: CEO authority required' });
   }
   next();
 }

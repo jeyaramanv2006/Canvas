@@ -34,7 +34,7 @@ export function getVisits(req, res) {
     const params = [];
 
     // RBAC: Canvassers only see their own visits
-    if (user.role === 'canvasser') {
+    if (['canvasser', 'cvs'].includes(user.role)) {
       query += ' AND canvasser_id = ?';
       params.push(user.id);
     } else if (canvasser_id) {
@@ -92,7 +92,7 @@ export function getVisitById(req, res) {
     }
 
     // RBAC check for canvassers
-    if (req.user.role === 'canvasser' && row.canvasser_id !== req.user.id) {
+    if (['canvasser', 'cvs'].includes(req.user.role) && row.canvasser_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied to this visit record' });
     }
 
@@ -171,7 +171,7 @@ export function createVisit(req, res) {
       newId,
       user.id,
       user.name || 'Staff',
-      user.role === 'canvasser' ? 'Canvasser' : 'Admin',
+      ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Admin',
       'CREATE',
       JSON.stringify(createDiff),
       now
@@ -199,7 +199,7 @@ export function updateVisit(req, res) {
     }
 
     // RBAC: Canvassers can only edit their own visits
-    if (user.role === 'canvasser' && current.canvasser_id !== user.id) {
+    if (['canvasser', 'cvs'].includes(user.role) && current.canvasser_id !== user.id) {
       return res.status(403).json({ error: 'Access denied: cannot edit other canvassers visits' });
     }
 
@@ -208,7 +208,7 @@ export function updateVisit(req, res) {
 
     const now = new Date().toISOString();
     const editorName = user.name || 'Staff';
-    const editorRole = (user.role === 'canvasser') ? 'Canvasser' : 'Admin';
+    const editorRole = (['canvasser', 'cvs'].includes(user.role)) ? 'Canvasser' : 'Admin';
 
     // Prepare update parameters
     const schoolName = updateData.school_name !== undefined ? updateData.school_name : current.school_name;
@@ -311,7 +311,7 @@ export function deleteVisit(req, res) {
       return res.status(404).json({ error: 'Visit not found' });
     }
 
-    if (user.role === 'canvasser' && current.canvasser_id !== user.id) {
+    if (['canvasser', 'cvs'].includes(user.role) && current.canvasser_id !== user.id) {
       return res.status(403).json({ error: 'Access denied: cannot delete other canvasser visits' });
     }
 
@@ -324,7 +324,7 @@ export function deleteVisit(req, res) {
       id,
       user.id,
       user.name || 'Staff',
-      user.role === 'canvasser' ? 'Canvasser' : 'Admin',
+      ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Admin',
       'DELETE',
       JSON.stringify([{ field: 'Record Status', from: current.school_name, to: 'Deleted' }]),
       now

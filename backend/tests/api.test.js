@@ -20,12 +20,12 @@ const server = app.listen(PORT, async () => {
     const canvasserLoginRes = await fetch(`${baseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'gokul@murugan.com', password: 'password' })
+      body: JSON.stringify({ username: 'gokul@cvs', password: 'password' })
     });
     assert.strictEqual(canvasserLoginRes.status, 200);
     const canvasserAuth = await canvasserLoginRes.json();
     assert.ok(canvasserAuth.token);
-    assert.strictEqual(canvasserAuth.user.role, 'canvasser');
+    assert.ok(['canvasser', 'cvs'].includes(canvasserAuth.user.role));
     const canvasserToken = canvasserAuth.token;
     console.log('  ✓ 2. POST /api/login (Canvasser) passed');
 
@@ -33,7 +33,7 @@ const server = app.listen(PORT, async () => {
     const adminLoginRes = await fetch(`${baseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@murugan.com', password: 'password' })
+      body: JSON.stringify({ username: 'admin@admin', password: 'password' })
     });
     assert.strictEqual(adminLoginRes.status, 200);
     const adminAuth = await adminLoginRes.json();
