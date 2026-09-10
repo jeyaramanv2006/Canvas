@@ -1,0 +1,12 @@
+{
+  "name": "canvas-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MG The One / Murugan Canvass Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "start:backend": "node backend/server.js"
+  }
+}

@@ -6,6 +6,7 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import CEODashboard from './pages/CEODashboard';
 import CFODashboard from './pages/CFODashboard';
 import CCODashboard from './pages/CCODashboard';
+import ForcePasswordResetModal from './components/ForcePasswordResetModal';
 import { getHomeRoute, isCanvasser } from './lib/rbac';
 
 // Auth Context
@@ -18,6 +19,7 @@ function App() {
     <AuthContext.Provider value={{ user, setUser }}>
       <Router>
         <div className="min-h-screen bg-murugan-dark text-white font-sans selection:bg-murugan-accent selection:text-black">
+          <ForcePasswordResetModal />
           <Routes>
             {/* Root — redirect based on role */}
             <Route

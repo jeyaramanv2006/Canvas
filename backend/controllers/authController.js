@@ -48,8 +48,12 @@ export function login(req, res) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    if (user.status === 'INACTIVE') {
-      return res.status(403).json({ error: 'Account has been deactivated. Please contact your CEO.' });
+    if (user.status === 'DELETED') {
+      return res.status(403).json({ error: 'This account has been permanently removed. Access is disabled.' });
+    }
+
+    if (user.status === 'PAUSED' || user.status === 'INACTIVE') {
+      return res.status(403).json({ error: 'Account has been temporarily paused by administration. Please contact your Admin or CEO.' });
     }
 
     const passwordValid = bcrypt.compareSync(password, user.password_hash);
@@ -68,7 +72,8 @@ export function login(req, res) {
         email: user.email,
         role: user.role,
         roleTitle: user.role_title,
-        status: user.status || 'ACTIVE'
+        status: user.status || 'ACTIVE',
+        requires_password_reset: Boolean(user.requires_password_reset)
       }
     });
   } catch (error) {
@@ -79,7 +84,7 @@ export function login(req, res) {
 
 export function getCurrentUser(req, res) {
   try {
-    const user = db.prepare('SELECT id, username, name, email, role, role_title, status FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -91,10 +96,49 @@ export function getCurrentUser(req, res) {
         email: user.email,
         role: user.role,
         roleTitle: user.role_title,
-        status: user.status || 'ACTIVE'
+        status: user.status || 'ACTIVE',
+        requires_password_reset: Boolean(user.requires_password_reset)
       }
     });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+export function resetUserPassword(req, res) {
+  try {
+    const actorId = req.user.id;
+    const { new_password } = req.body;
+
+    if (!new_password || new_password.trim().length < 4) {
+      return res.status(400).json({ error: 'New password must be at least 4 characters long' });
+    }
+
+    const newHash = bcrypt.hashSync(new_password.trim(), 10);
+    db.prepare(`
+      UPDATE users SET 
+        password_hash = ?, requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).run(newHash, actorId);
+
+    // Audit Log
+    db.prepare(`
+      INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      req.user.id,
+      req.user.name || 'User',
+      req.user.role || 'User',
+      'UPDATE',
+      JSON.stringify([{ field: 'Password Reset', from: 'Reset Required', to: 'Password Updated Successfully' }])
+    );
+
+    return res.json({
+      status: 'SUCCESS',
+      message: 'Password successfully updated!'
+    });
+  } catch (error) {
+    console.error('resetUserPassword error:', error);
     return res.status(500).json({ error: error.message });
   }
 }

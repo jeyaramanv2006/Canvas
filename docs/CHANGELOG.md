@@ -1,5 +1,103 @@
 # Changelog
 
+## [0.12.0] - Team Leaderboard Multi-Criteria Sorting, Itemized Per-Invoice Pay Calculation & Executive Development Overlays
+
+- **Non-Technical UI Phrasing & Plain-Language Copy Overhaul**:
+  - **Login Page Simplification** (`Login.jsx`): Removed all occurrences of the word "Email" from the login form and demo cards. Standardized to "Username" with format hint `<name>@<role>`. Replaced "Executive OS" with "School Uniforms & Institutional Canvassing Portal".
+  - **Removed Database & Backend Jargon**: Replaced technical terminology such as "SQLite synchronized", "telemetry", "terminal", "MIS dataset", "cloud database sync", and "role governance" with simple, natural business terminology ("School Directory", "Saved and Up to Date", "Summary Report", "Team Directory & User Roles").
+  - **Under Construction Overlay Plain English**: Simplified technical status checklists across CEO, CFO, and CCO overlays to plain-language milestones ("Commercial Reports Layout", "Financial Statements & Summary", "Executive Summary Cards").
+- **Executive Dashboards Under Active Construction Veils (CEO, CFO, CCO)**:
+  - **Above-The-Fold Compact Positioning**: Clamped the locked container height (`max-h-[560px]`) across CEO, CFO, and CCO dashboards so the entire **Under Active Construction** badge, title, status checklist, and dev preview buttons are visible immediately at the top without any page scrolling.
+  - **CEO Executive Command Center** (`CEODashboard.jsx`): Masked executive KPIs, MIS analytics, and financial summaries with quick Dev Preview toggle.
+  - **CFO Financial Strategy & Treasury** (`CFODashboard.jsx`): Masked 8-report financial models, P&L, GP%, and Receivables aging with quick Dev Preview toggle.
+  - **CCO Commercial Strategy & Pipeline** (`CCODashboard.jsx`): Masked commercial overview, funnel conversion, and territory market share modules.
+- **Per-Invoice Pay Calculation Engine**:
+  - For every invoice converted by a canvasser, their earned payout is computed as `invoice_grand_total * applied_slab_rate / 100`.
+  - Applied slab rate is determined by the canvasser's cumulative invoiced volume:
+    - ₹0 to ₹5,00,000: **1%**
+    - ₹5,00,001 to ₹10,00,000: **2%**
+    - ₹10,00,001 to ₹15,00,000: **3%**
+    - ₹15,00,001 to ₹20,00,000: **4%**
+    - Over ₹20,00,000: **5% (Max Cap)**
+  - Total pay earned is the exact sum of individual converted invoice payouts.
+- **Multi-Criteria Dynamic Leaderboard Sorting**:
+  - Added full ascending / descending sorting support across 6 key sales and operational metrics:
+    - **Pay Earned (₹)** (`pay`)
+    - **Schools Canvassed** (`visits`)
+    - **Invoices Converted** (`invoices`)
+    - **Total Invoiced Value (₹)** (`invoiced`)
+    - **Conversion Rate (%)** (`conversion`)
+    - **Average Deal Size (₹)** (`avg_deal`)
+  - Integrated quick-filter sort pills, click-to-sort column headers with directional sort arrows (`↑` / `↓`), and ascending/descending toggle.
+- **Itemized Converted Invoice Drawer**:
+  - Expanded canvasser rows in `<CanvasserLeaderboard.jsx>` with an animated breakdown drawer (`AnimatePresence`).
+  - Itemizes every converted invoice with School Name, District, Issue Date, Invoice Grand Total, Applied Slab Rate (%), and Exact Pay Earned (₹).
+- **Backend API & Multi-Criteria Query Support (`GET /api/dashboard/leaderboard`)**:
+  - Supports query parameters `?sort_by=pay|visits|invoices|invoiced|conversion|avg_deal` and `?order=desc|asc`.
+  - Returns calculated `convertedInvoices` array alongside aggregate metrics for high-speed client rendering.
+- **Automated Backend Test Suite (`backend/tests/leaderboard_and_pay_sorting.test.js`)**:
+  - 7 test scenarios validating default pay sorting, itemized invoice calculation mathematics, schools canvassed sorting, invoices converted sorting, revenue sorting, and conversion rate sorting.
+
+
+
+### Added & Enhanced
+- **Canvasser Field Contact Details & Strength Auto-Sync**:
+  - Automatically synchronizes and updates `contact_person`, `phone`, and `student_strength` into the `master_schools` database whenever a field canvasser logs a new visit or edits an existing visit.
+  - Matches institutions by `master_school_id` with fallback matching by `school_name` and `district`.
+- **Dedicated Student Strength Column & Dash Formatting**:
+  - Implemented a dedicated separate column for `Student Strength` in the Master Schools directory table.
+  - Formatted unrecorded / unknown student strength, contact person, and phone records with a clean dash `—` in the UI and `-` in CSV exports.
+  - Added explicit `Student Strength` input in Add/Edit School modals allowing empty inputs for unknowns.
+- **SQLite Relational Master Schools Backend (`master_schools` table)**:
+  - Backed statewide school catalog with persistent SQLite storage and complete field schema (`id`, `code`, `school_name`, `district`, `block_cluster`, `zone`, `board`, `area`, `contact_person`, `phone`, `email`, `student_strength`, `created_at`, `updated_at`).
+- **CEO & Admin Unified Access**:
+  - Embedded dedicated **Master Schools DB** workspace tab inside both CEO (`CEODashboard.jsx`) and Admin Executive (`ManagerDashboard.jsx`) portals.
+- **CEO Approval Workflow for School Mutations**:
+  - CEO creates, edits, and deletes schools directly and immediately in the database.
+  - Admin creates, edits, and deletes schools via queued requests (`SCHOOL_CREATE`, `SCHOOL_EDIT`, `SCHOOL_DELETE`) in `pending_user_actions` table, awaiting CEO approval.
+  - CEO receives requests in `PendingApprovalsDrawer.jsx` and approving immediately executes SQLite database mutations.
+- **Standard RFC 4180 CSV Export (`GET /api/master-schools/export`)**:
+  - Implemented streaming endpoint producing clean CSV with properly escaped commas/quotes, standard headers, and automatic browser download (`master_schools_catalog.csv`).
+  - Added "Export Database (CSV)" button directly in the Master Schools management table header with instant download.
+- **Automated Backend Test Suites**:
+  - `backend/tests/master_schools_governance.test.js`: 10 test cases for CEO/Admin governance, CRUD, approval queue, and CSV streaming.
+  - `backend/tests/school_strength_sync.test.js`: 9 test cases verifying unknown dash formatting, field canvasser visit creation sync, visit edit sync, and CSV export reflection.
+
+## [0.10.0] - User Directory & Role Governance, CEO Approval Queue, Account Lifecycle (Active/Paused/Deleted), and Mandatory Password Reset
+
+### Added & Enhanced
+- **User Directory Exclusive Scope**:
+  - Granted dedicated User Directory & Roles tab to **CEO** (`CEODashboard.jsx`) and **Admin Executive** (`ManagerDashboard.jsx`). Strictly blocked for other roles.
+- **Account State Lifecycle Management**:
+  - Supported `ACTIVE`, `PAUSED` (temporarily pauses login access, all progress preserved, resumable), and `DELETED` (permanently disables login, all past visits, invoices, and progress fully preserved in dataset).
+- **CEO Approval Workflow for Admin**:
+  - All Admin user actions (User Provisioning, Role Modification, Account Pause, Account Resume, Account Deletion) are routed to CEO Approval Queue (`pending_user_actions` table / `PendingApprovalsDrawer.jsx`).
+  - CEO commands execute immediately.
+  - Protected CEO account from being paused, deleted, or role-edited by non-CEO actors.
+- **Instant Password Reset Flow**:
+  - Allowed Admin and CEO to trigger instant Password Resets without approval delays.
+  - Added `ForcePasswordResetModal.jsx` prompting flagged users to enter and confirm their new password upon login.
+- **Strict Username Formatting**:
+  - Standardized username generation to strict `<name>@<role>` format (e.g. `murugan@cvs`, `sudhan@ceo`, `admin@admin`, `abhishek@cfo`, `varshini@cco`).
+  - Automatically updates login identifier when user role changes.
+- **Test Suite**:
+  - Created and validated comprehensive automated backend test suite (`backend/tests/user_lifecycle.test.js`) verifying all 13 lifecycle and governance scenarios.
+
+## [0.9.0] - Removed Fixed Product Catalog, Flexible Client Line Items, Murugan Watermark Printing, and Fixed Document View Button
+
+### Removed & Streamlined
+- **Fixed Product Catalog Master**: Removed the "Product Master" tab and hardcoded SKU catalog restrictions in `InvoicingModule.jsx` as per CEO requirements for complete client flexibility.
+- **Dynamic Line Items**: Implemented custom item builder allowing user-defined product names, HSN codes, sizes, units (prs, pcs, box, sets), quantities, unit rates, and GST rates for every individual Quotation and Tax Invoice.
+
+### Enhanced & Fixed
+- **Official Printable Format with Watermark (`InvoiceDocumentModal.jsx`)**:
+  - Implemented exact Murugan Enterprises corporate invoice & quotation layout.
+  - Added centered Murugan Enterprises watermark logo (`/assets/murugan_logo.png`) behind printable document content with `-webkit-print-color-adjust: exact` and A4 page optimization.
+  - Added official GSTIN (33KRQPS6169P1ZE), PAN (KRQPS6169P), Bank Details (SBI Current A/C 44909857955), and 5-point Terms & Conditions for Quotations.
+- **Fixed Document View & Action Buttons**:
+  - Resolved prop and data normalization issues (`initialData`, `documentData`, `visitData`) across `InvoicingModule.jsx` and `FieldVisitRegistry.jsx`.
+  - "View", "New Quotation", "New Tax Invoice", and "Convert" actions now work instantaneously across all tabs.
+
 ## [0.8.0] - Professional Enterprise Branding, Clean User Personas, Fixed Invoicing & Quotation UI, and Mobile/Desktop Number Visibility
 
 ### Changed & Refined

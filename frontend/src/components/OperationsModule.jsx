@@ -244,11 +244,11 @@ export default function OperationsModule({ currentUser }) {
 
             <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-white">4. End-of-Day (EOD) Sync Verification</span>
+                <span className="font-bold text-white">4. Daily Records Check</span>
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
-              <p className="text-gray-400">Guarantees that all field quotations and dispatches are synced to the cloud database.</p>
-              <span className="text-[10px] text-emerald-400 font-semibold block">Audit Status: 100% On-Time</span>
+              <p className="text-gray-400">Ensures all quotations, invoices, and visit logs are recorded and up to date.</p>
+              <span className="text-[10px] text-emerald-400 font-semibold block">Status: All Records Up to Date</span>
             </div>
           </div>
         </div>

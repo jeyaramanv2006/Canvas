@@ -69,6 +69,36 @@
   6. Remove Marketing Hub section completely from Canvasser and Admin interfaces.
 - **Rationale**: Exactly aligns with the client's operational hierarchy, incentivizes field sales through transparent tier upgrades, and streamlines CRM data entry.
 
+### DEC-008: Flexible Client Line Items, Removal of Fixed Product Master, and Standardized Watermark Document Printing
+- **Status**: CONFIRMED
+- **Context**: CEO stated that there is no fixed product catalog because apparel offerings, sizes, fabrics, and pricing are fully tailored per client institution. Quotations and invoices require custom line items rather than being locked to a rigid catalog. Additionally, printable invoices and quotations must strictly follow the official Murugan Enterprises format with full GSTIN, PAN, bank/terms details, itemized HSN breakdown, and a centered background watermark logo.
+- **Decision**:
+  1. Remove the "Product Master" tab and hardcoded catalog maintenance from the Invoicing Suite.
+  2. Implement a dynamic line-item builder allowing arbitrary items, custom descriptions, HSN codes, sizes, units, quantities, unit rates, and GST rates for both Quotations and Invoices.
+  3. Standardize printable document previews (`InvoiceDocumentModal.jsx`) to feature Murugan Enterprises corporate header, official bank details (for Invoices) or 5-point terms & conditions (for Quotations), itemized calculation breakdowns, and a centered background watermark logo (`/assets/murugan_logo.png`) that renders cleanly across screen previews and A4 printouts.
+  4. Fix document modal prop bindings and data normalization so all "View" and "Convert" actions work reliably.
+### DEC-009: Strict User Directory Governance, CEO Approval Queue, Account Lifecycle (Active/Paused/Deleted), and Immediate Password Reset
+- **Status**: CONFIRMED
+- **Context**: Access to the User Directory is strictly restricted to **CEO** and **Admin Executive**. System provision accounts using strict `<name>@<role>` username convention (e.g. `murugan@cvs`, `sudhan@ceo`, `admin@admin`). Admin actions (Create user, Delete user, Pause user, Resume user, Edit user role) must be routed to the CEO as approval requests for review (Accept/Reject). Admin cannot perform any of these actions on the CEO account. CEO actions execute immediately. Admin and CEO can trigger instant Password Reset for users without CEO approval queue, prompting users with a mandatory reset modal upon login. When users are deleted, historical visit progress and invoicing records remain preserved in the dataset while disabling login.
+- **Decision**:
+  1. Restrict User Directory access exclusively to CEO (`CEODashboard.jsx`) and Admin Executive (`ManagerDashboard.jsx`).
+  2. Implement full account state tracking: `ACTIVE`, `PAUSED` (temporarily pauses login, progress preserved, resumable), and `DELETED` (login permanently disabled, progress completely preserved).
+  3. Enforce CEO Approval Queue for all Admin-initiated user provisioning, role changes, pause, resume, and deletion actions.
+  4. Allow Admin to dispatch instant Password Resets without CEO approval.
+  5. Provide `ForcePasswordResetModal.jsx` prompting flagged users to enter a new password upon login.
+  6. Enforce strict `<name>@<role>` username generation and role synchronization.
+- **Rationale**: Establishes enterprise-grade role governance, protects data integrity and field progress, and ensures secure credential delegation.
+
+### DEC-010: Master Schools Database Governance, CEO Approval Queue, SQLite Persistence & RFC 4180 CSV Export
+- **Status**: CONFIRMED
+- **Context**: The master school database is backed by a relational SQLite backend (`master_schools` table) and accessible by both **CEO** and **Admin**. Both roles have full permissions to add new schools, edit existing school metadata, and delete schools. CEO modifications execute immediately in the database. Admin modifications are submitted as structured pending requests (`SCHOOL_CREATE`, `SCHOOL_EDIT`, `SCHOOL_DELETE`) into the CEO approval queue (`pending_user_actions` table / `PendingApprovalsDrawer.jsx`) requiring CEO acceptance before affecting the database. The database must support on-demand, standard RFC 4180 CSV export for reports and offline analysis.
+- **Decision**:
+  1. Maintain SQLite relational persistence for master schools with schema: `id`, `code`, `school_name`, `district`, `block_cluster`, `zone`, `board`, `area`, `contact_person`, `phone`, `email`, `student_strength`, `created_at`, `updated_at`.
+  2. Implement backend endpoint `GET /api/master-schools/export` that generates and streams clean RFC 4180 CSV with escaped quotes, headers, and standard filename (`master_schools_catalog.csv`).
+  3. Route Admin school mutations (Add, Edit, Delete) to the CEO approval queue, executing directly only upon CEO acceptance.
+  4. Provide full interactive management UI in both CEO (`CEODashboard.jsx`) and Admin (`ManagerDashboard.jsx`) dashboards with real-time statistics, search, district filters, creation modal, edit modal, deletion confirmation, and one-click CSV export.
+- **Rationale**: Guarantees data accuracy and integrity across statewide institutional data while giving leadership complete governance over catalog expansions.
+
 ---
 
 ## Decisions Required / Unresolved Questions

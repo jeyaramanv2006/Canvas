@@ -193,7 +193,7 @@ export default function CanvasserDashboard() {
       <div className="min-h-screen bg-murugan-dark flex items-center justify-center text-white">
         <div className="text-center space-y-3">
           <div className="w-8 h-8 border-2 border-murugan-accent border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 text-xs">Loading field canvassing terminal...</p>
+          <p className="text-gray-400 text-xs">Loading...</p>
         </div>
       </div>
     );
@@ -207,17 +207,18 @@ export default function CanvasserDashboard() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center font-black text-black text-sm shadow-md shadow-amber-400/20">
-                MC
+                MG
               </div>
               <div>
-                <h1 className="text-base font-extrabold text-white tracking-tight">Murugan Canvass</h1>
+                <h1 className="text-base font-extrabold text-white tracking-tight uppercase">MG The One</h1>
                 <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{user.name}</span>
+                  <span>{user?.name || 'Karthik'}</span>
                   <span className="text-gray-500">•</span>
-                  <span className="text-amber-400 font-semibold">{user.roleTitle || 'Field Sales'}</span>
+                  <span className="text-amber-400 font-semibold">{user?.roleTitle || 'Field Canvasser'}</span>
                 </p>
               </div>
+
             </div>
 
             {/* Desktop Navigation Tabs */}
