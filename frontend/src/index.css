@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +7,9 @@
 @layer base {
   body {
     @apply bg-murugan-dark text-white font-sans antialiased;
+    background-color: #0d0e12;
     overscroll-behavior: none;
+    min-height: 100vh;
   }
 }
 
@@ -15,12 +19,47 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: #111217; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #333; 
+  background: #27272e; 
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555; 
+  background: #3f3f46; 
+}
+
+/* Print Optimization for Invoices and Quotations (No Black Page / Clean White Print with Watermark) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header, nav, aside, button, .no-print {
+    display: none !important;
+  }
+
+  #printable-invoice {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    page-break-inside: avoid;
+  }
 }

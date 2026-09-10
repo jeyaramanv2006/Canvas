@@ -11,10 +11,15 @@ console.log(`Parsed ${schools.length} schools from all datasets.`);
 
 const outputPath = path.resolve(__dirname, '../../frontend/src/data/masterSchools.js');
 
+const uniqueDistricts = Array.from(new Set(schools.map(s => s.district).filter(Boolean))).sort();
+
 const fileContent = `// Murugan Canvass - Master Institutional Database for Schools
 // Verified and cataloged schools across all regions in Tamil Nadu (SQLite Synchronized)
 
 export const MASTER_SCHOOLS = ${JSON.stringify(schools, null, 2)};
+export const MASTER_SCHOOLS_DATABASE = MASTER_SCHOOLS;
+
+export const TAMIL_NADU_DISTRICTS = ${JSON.stringify(uniqueDistricts, null, 2)};
 
 export function searchMasterSchoolsLocal(query = '', district = 'all', limit = 20) {
   const cleanQ = (query || '').trim().toLowerCase();
@@ -41,4 +46,5 @@ export function getMasterSchoolById(id) {
 `;
 
 fs.writeFileSync(outputPath, fileContent, 'utf-8');
-console.log(`Successfully updated ${outputPath} with ${schools.length} verified schools!`);
+console.log(`Successfully updated ${outputPath} with ${schools.length} verified schools and ${uniqueDistricts.length} districts!`);
+

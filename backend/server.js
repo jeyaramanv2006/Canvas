@@ -36,16 +36,21 @@ app.get('/api/health', (req, res) => {
 app.post('/api/login', authController.login);
 app.post('/api/auth/login', authController.login);
 app.get('/api/auth/me', authenticateToken, authController.getCurrentUser);
+app.post('/api/auth/reset-password', authenticateToken, authController.resetUserPassword);
 
 // ── Strict Role-Based User Management & Approval Workflow ────────────────────
 app.get('/api/users', authenticateToken, userManagementController.getUsers);
 app.post('/api/users', authenticateToken, requireAdmin, userManagementController.createUser);
 app.put('/api/users/:id/role', authenticateToken, requireAdmin, userManagementController.updateUserRole);
 app.delete('/api/users/:id', authenticateToken, requireAdmin, userManagementController.deleteUser);
+app.post('/api/users/:id/pause', authenticateToken, requireAdmin, userManagementController.pauseUser);
+app.post('/api/users/:id/resume', authenticateToken, requireAdmin, userManagementController.resumeUser);
+app.post('/api/users/:id/reset-password', authenticateToken, requireAdmin, userManagementController.triggerPasswordReset);
 
 // CEO Pending Approval Queue
 app.get('/api/approvals', authenticateToken, requireCEO, userManagementController.getPendingApprovals);
 app.post('/api/approvals/:id/decide', authenticateToken, requireCEO, userManagementController.decideApproval);
+app.post('/api/approvals/:id/decision', authenticateToken, requireCEO, userManagementController.decideApproval);
 
 // ── Visits Endpoints (Canvasser & Admin with Audit Trail) ─────────────────────
 app.get('/api/visits', authenticateToken, visitsController.getVisits);
@@ -72,6 +77,7 @@ app.get('/api/ceo/executive-mis', authenticateToken, dashboardController.getCEOE
 
 // ── Master Schools Institutional Catalog (SQLite) ───────────────────────────
 app.get('/api/master-schools', authenticateToken, masterSchoolsController.getMasterSchools);
+app.get('/api/master-schools/export', authenticateToken, masterSchoolsController.exportMasterSchoolsCSV);
 app.get('/api/master-schools/districts', authenticateToken, masterSchoolsController.getSchoolDistricts);
 app.get('/api/master-schools/:id', authenticateToken, masterSchoolsController.getMasterSchoolById);
 app.post('/api/master-schools', authenticateToken, requireAdmin, masterSchoolsController.createMasterSchool);
@@ -99,7 +105,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', details: err.message });
 });
 
-if (process.env.NODE_ENV !== 'test') {
+const isMainModule = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].includes('server.js'));
+
+if (isMainModule && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 Murugan Canvass Backend Server running on http://localhost:${PORT}`);
   });

@@ -32,118 +32,94 @@ export function parseCSVLine(line) {
 }
 
 export function loadAndParseSchoolsFromCSVs() {
-  const userUploadDir = path.resolve('C:/Users/Jeyaraman/.gemini/antigravity-ide/brain/761e495d-776f-4a36-b9a9-0eef0b90bc0e/.user_uploaded');
-  
-  const files = [
-    'media_1788718991356.csv', // Full TN Sheet (all districts)
-    'media_1788718991352.csv', // Madurai cluster
-    'media_1788718991294.csv'  // Tenkasi cluster
+  const localCsvPath = path.join(__dirname, '../data/tn_schools_master.csv');
+  const candidatePaths = [
+    localCsvPath,
+    'C:/Users/Jeyaraman/.gemini/antigravity-ide/brain/521261f6-e87b-4d61-95f4-75618827b6f1/.user_uploaded/media_1788986419713.csv',
+    'C:/Users/Jeyaraman/.gemini/antigravity-ide/brain/761e495d-776f-4a36-b9a9-0eef0b90bc0e/.user_uploaded/media_1788718991356.csv'
   ];
+
+  let selectedPath = candidatePaths.find(p => fs.existsSync(p));
+  if (!selectedPath) {
+    console.warn('⚠️ No master schools CSV found in known paths.');
+    return [];
+  }
+
+  console.log(`📖 Loading Master Schools catalog from: ${selectedPath}`);
+  const content = fs.readFileSync(selectedPath, 'utf-8');
+  const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
 
   const schools = [];
   const seenKey = new Set();
   let counter = 1;
 
-  for (const fileName of files) {
-    const filePath = path.join(userUploadDir, fileName);
-    if (!fs.existsSync(filePath)) {
-      console.warn(`File not found: ${filePath}`);
-      continue;
-    }
+  let currentZone = 'Tamil Nadu';
+  let currentDistrict = 'Tamil Nadu';
+  let currentCluster = 'General Cluster';
 
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Skip header lines
+    if (line.includes('SCHOOL NAME') || line.includes('S.NO') || line.startsWith('S.No') || line.startsWith('S.NO,')) continue;
 
-    let currentZone = 'Tamil Nadu';
-    let currentDistrict = 'Tamil Nadu';
-    let currentCluster = '';
+    const cols = parseCSVLine(line);
+    if (!cols || cols.length < 5) continue;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      // Skip header lines
-      if (line.includes('SCHOOL NAME') || line.includes('S.NO') || line.startsWith('S.No')) continue;
+    // S.NO,ZONE ,DISTRICT,CLUSTER,SCHOOL NAME ,BOARD,STUDENT STRENGTH,PRIORITY,CORRESPONDENT/ PRINCIPAL,MOBILE NUMBERS,AREA,...
+    let zoneCol = cols[1] || '';
+    let districtCol = cols[2] || '';
+    let clusterCol = cols[3] || '';
+    let schoolNameCol = cols[4] || '';
+    let boardCol = cols[5] || '';
+    let strengthCol = cols[6] || '';
+    let priorityCol = cols[7] || '';
+    let contactCol = cols[8] || '';
+    let phoneCol = cols[9] || '';
+    let areaCol = cols[10] || '';
 
-      const cols = parseCSVLine(line);
-      if (!cols || cols.length < 5) continue;
+    // Carry forward hierarchical fields if row has empty zone/district/cluster
+    if (zoneCol && zoneCol.trim().length > 0) currentZone = zoneCol.trim();
+    if (districtCol && districtCol.trim().length > 0) currentDistrict = districtCol.trim();
+    if (clusterCol && clusterCol.trim().length > 0) currentCluster = clusterCol.trim();
 
-      let zoneCol = '';
-      let districtCol = '';
-      let clusterCol = '';
-      let schoolNameCol = '';
-      let boardCol = '';
-      let strengthCol = '';
-      let priorityCol = '';
-      let contactCol = '';
-      let phoneCol = '';
-      let areaCol = '';
+    const schoolName = (schoolNameCol || '').trim();
+    if (!schoolName || schoolName.toLowerCase() === 'school name') continue;
 
-      if (fileName === 'media_1788718991356.csv') {
-        // S.NO,ZONE ,DISTRICT,CLUSTER,SCHOOL NAME ,BOARD,STUDENT STRENGTH,PRIORITY,CORRESPONDENT/ PRINCIPAL,MOBILE NUMBERS,AREA,...
-        zoneCol = cols[1] || '';
-        districtCol = cols[2] || '';
-        clusterCol = cols[3] || '';
-        schoolNameCol = cols[4] || '';
-        boardCol = cols[5] || '';
-        strengthCol = cols[6] || '';
-        priorityCol = cols[7] || '';
-        contactCol = cols[8] || '';
-        phoneCol = cols[9] || '';
-        areaCol = cols[10] || '';
-      } else if (fileName === 'media_1788718991352.csv') {
-        // [0: S.No, 1: Zone, 2: District, 3: Block, 4: School, 5: Board, 6..]
-        zoneCol = cols[1] || '';
-        districtCol = cols[2] || '';
-        clusterCol = cols[3] || '';
-        schoolNameCol = cols[4] || '';
-        boardCol = cols[5] || '';
-      } else if (fileName === 'media_1788718991294.csv') {
-        // [0: empty, 1: empty, 2: District, 3: Block, 4: School, 5: Board, ... 10: Area]
-        districtCol = cols[2] || '';
-        clusterCol = cols[3] || '';
-        schoolNameCol = cols[4] || '';
-        boardCol = cols[5] || '';
-        areaCol = cols[10] || '';
-        zoneCol = 'South Tamil Nadu';
-      }
+    // Normalization
+    const normDistrict = currentDistrict || 'Tamil Nadu';
+    const normCluster = currentCluster || 'General Cluster';
+    const normZone = currentZone || 'Tamil Nadu';
+    
+    let normBoard = 'Matriculation';
+    const upperBoard = (boardCol || '').toUpperCase();
+    if (upperBoard.includes('CBSE')) normBoard = 'CBSE';
+    else if (upperBoard.includes('ICSE')) normBoard = 'ICSE';
+    else if (upperBoard.includes('STATE') || upperBoard.includes('SAMACHEER')) normBoard = 'State Board';
+    else if (upperBoard.includes('MATRIC')) normBoard = 'Matriculation';
+    else if (boardCol && boardCol.trim().length > 0) normBoard = boardCol.trim();
 
-      if (zoneCol && zoneCol.trim().length > 0) currentZone = zoneCol.trim();
-      if (districtCol && districtCol.trim().length > 0) currentDistrict = districtCol.trim();
-      if (clusterCol && clusterCol.trim().length > 0) currentCluster = clusterCol.trim();
+    const cleanArea = (areaCol || '').trim() || `${normCluster}, ${normDistrict}`;
+    const distCode = normDistrict.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'SCH';
+    const key = `${schoolName.toLowerCase()}_${normDistrict.toLowerCase()}`;
+    if (seenKey.has(key)) continue;
+    seenKey.add(key);
 
-      const schoolName = (schoolNameCol || '').trim();
-      if (!schoolName || schoolName.toLowerCase() === 'school name') continue;
+    const id = `SCH-${distCode}-${String(counter++).padStart(4, '0')}`;
 
-      // Normalization
-      const normDistrict = currentDistrict || 'Tamil Nadu';
-      const normCluster = currentCluster || 'General Cluster';
-      const normZone = currentZone || 'Tamil Nadu';
-      const normBoard = (boardCol || 'Matriculation').toUpperCase().includes('CBSE') 
-        ? 'CBSE' 
-        : (boardCol.toUpperCase().includes('ICSE') ? 'ICSE' : (boardCol.toUpperCase().includes('STATE') ? 'State Board' : 'Matriculation'));
-
-      // Clean district prefix for ID
-      const distCode = normDistrict.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'SCH';
-      const key = `${schoolName.toLowerCase()}_${normDistrict.toLowerCase()}`;
-      if (seenKey.has(key)) continue;
-      seenKey.add(key);
-
-      const id = `SCH-${distCode}-${String(counter++).padStart(4, '0')}`;
-
-      schools.push({
-        id,
-        school_name: schoolName,
-        district: normDistrict,
-        block_or_cluster: normCluster,
-        zone: normZone,
-        board: normBoard,
-        area: areaCol || `${normCluster}, ${normDistrict}`,
-        student_strength: parseInt(strengthCol, 10) || null,
-        contact_person: contactCol || null,
-        phone: phoneCol || null,
-        priority: priorityCol || 'Medium',
-        status: 'ACTIVE'
-      });
-    }
+    schools.push({
+      id,
+      school_name: schoolName,
+      district: normDistrict,
+      block_or_cluster: normCluster,
+      zone: normZone,
+      board: normBoard,
+      area: cleanArea,
+      student_strength: parseInt(strengthCol, 10) || null,
+      contact_person: contactCol ? contactCol.trim() : null,
+      phone: phoneCol ? phoneCol.trim() : null,
+      priority: priorityCol && priorityCol.trim() ? priorityCol.trim() : 'Medium',
+      status: 'ACTIVE'
+    });
   }
 
   return schools;

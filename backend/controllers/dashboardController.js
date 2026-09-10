@@ -6,7 +6,7 @@ export function calculateCommissionSlab(amount) {
   let tier = 1;
   let slabLabel = "1% (Tier 1: Up to ₹5L)";
   let nextTarget = 500000;
-  
+
   if (invoiced <= 0) {
     return {
       rate: 1,
@@ -50,7 +50,7 @@ export function calculateCommissionSlab(amount) {
   const commission = (invoiced * rate) / 100;
   const amountToNextTier = nextTarget ? Math.max(0, nextTarget - invoiced) : 0;
   const prevTierThreshold = tier === 1 ? 0 : (tier - 1) * 500000;
-  const progressPercent = nextTarget 
+  const progressPercent = nextTarget
     ? Math.min(100, Math.round(((invoiced - prevTierThreshold) / 500000) * 100))
     : 100;
 
@@ -75,8 +75,8 @@ export function getDashboardStats(req, res) {
     const ordersWon = visits.filter(v => v.outcome_status === 'Won').length;
     const ordersLost = visits.filter(v => v.outcome_status === 'Lost').length;
 
-    const winRate = (ordersWon + ordersLost) > 0 
-      ? Math.round((ordersWon / (ordersWon + ordersLost)) * 100) 
+    const winRate = (ordersWon + ordersLost) > 0
+      ? Math.round((ordersWon / (ordersWon + ordersLost)) * 100)
       : 0;
 
     const interestCounts = {
@@ -142,6 +142,7 @@ export function getDashboardStats(req, res) {
 
 export function getCanvasserLeaderboard(req, res) {
   try {
+    const { sort_by = 'pay', order = 'desc' } = req.query;
     const visits = db.prepare('SELECT * FROM visits').all();
     const invoices = db.prepare('SELECT * FROM invoices').all();
     const canvassers = db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all();
@@ -155,35 +156,82 @@ export function getCanvasserLeaderboard(req, res) {
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
       const slabInfo = calculateCommissionSlab(totalInvoiced);
 
+      // Itemized per-invoice pay calculation
+      const convertedInvoices = cInvoices.map(inv => {
+        const gTotal = Number(inv.grand_total) || 0;
+        const invoicePayout = (gTotal * slabInfo.rate) / 100;
+        return {
+          id: inv.id,
+          school_name: inv.school_name,
+          district: inv.district,
+          date: inv.created_at || inv.date,
+          grand_total: gTotal,
+          applied_rate: slabInfo.rate,
+          pay_earned: invoicePayout,
+          formatted_pay: `₹${invoicePayout.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+          payment_status: inv.payment_status || 'Unpaid'
+        };
+      });
+
+      const conversionRate = cVisits.length > 0 ? Math.round((cWon / cVisits.length) * 100) : 0;
+      const avgInvoiceValue = cInvoices.length > 0 ? Math.round(totalInvoiced / cInvoices.length) : 0;
+
       return {
         id: c.id,
         name: c.name,
         email: c.email,
         roleTitle: c.role_title || 'Field Sales Executive',
         totalVisits: cVisits.length,
+        schoolsCanvassed: cVisits.length,
         wonOrders: cWon,
+        invoicesConverted: cInvoices.length,
         hotLeads: cHot,
         totalInvoiced,
         totalCollected,
         invoicesCount: cInvoices.length,
+        convertedInvoices,
+        conversionRate,
+        avgInvoiceValue,
         formattedInvoiced: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
         formattedInvoicedFull: `₹${totalInvoiced.toLocaleString('en-IN')}`,
         commissionRate: slabInfo.rate,
         commissionTier: slabInfo.tier,
         slabLabel: slabInfo.slabLabel,
         commissionEarned: slabInfo.commission,
+        payEarned: slabInfo.commission,
         formattedCommission: slabInfo.formattedCommission,
+        formattedPayEarned: slabInfo.formattedCommission,
         amountToNextTier: slabInfo.amountToNextTier,
         progressPercent: slabInfo.progressPercent,
         nextTarget: slabInfo.nextTarget
       };
     });
 
-    leaderboard.sort((a, b) => b.totalInvoiced - a.totalInvoiced || b.totalVisits - a.totalVisits);
+    // Multi-criteria sorting
+    const isAsc = order === 'asc';
+    leaderboard.sort((a, b) => {
+      let diff = 0;
+      if (sort_by === 'pay' || sort_by === 'commission') {
+        diff = b.commissionEarned - a.commissionEarned || b.totalInvoiced - a.totalInvoiced;
+      } else if (sort_by === 'visits' || sort_by === 'schools') {
+        diff = b.totalVisits - a.totalVisits || b.wonOrders - a.wonOrders;
+      } else if (sort_by === 'invoices' || sort_by === 'won') {
+        diff = b.invoicesConverted - a.invoicesConverted || b.totalInvoiced - a.totalInvoiced;
+      } else if (sort_by === 'invoiced' || sort_by === 'revenue') {
+        diff = b.totalInvoiced - a.totalInvoiced || b.commissionEarned - a.commissionEarned;
+      } else if (sort_by === 'conversion') {
+        diff = b.conversionRate - a.conversionRate || b.wonOrders - a.wonOrders;
+      } else if (sort_by === 'avg_deal') {
+        diff = b.avgInvoiceValue - a.avgInvoiceValue || b.totalInvoiced - a.totalInvoiced;
+      } else {
+        diff = b.commissionEarned - a.commissionEarned || b.totalInvoiced - a.totalInvoiced;
+      }
+      return isAsc ? -diff : diff;
+    });
 
     const ranked = leaderboard.map((item, idx) => {
       let badge = '⚡ Field Executive';
-      if (idx === 0) badge = '🏆 #1 Top Closer';
+      if (idx === 0) badge = '🏆 #1 Top Earner';
       else if (idx === 1) badge = '🥈 Senior Canvasser';
       else if (idx === 2) badge = '🥉 Field Canvasser';
 
@@ -207,8 +255,10 @@ export function getCEOExecutiveMIS(req, res) {
     const invoices = db.prepare('SELECT * FROM invoices').all();
     const quotations = db.prepare('SELECT * FROM quotations').all();
     const payments = db.prepare('SELECT * FROM payments').all();
-    const users = db.prepare('SELECT id, name, role, status FROM users').all();
+    const users = db.prepare('SELECT id, name, role, role_title, status FROM users').all();
+    const products = db.prepare('SELECT * FROM products').all();
     const pendingApprovals = db.prepare("SELECT * FROM pending_user_actions WHERE status = 'PENDING'").all();
+    const totalMasterSchools = db.prepare("SELECT COUNT(*) as count FROM master_schools").get().count || 2480;
 
     // Financial Metrics
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
@@ -217,15 +267,18 @@ export function getCEOExecutiveMIS(req, res) {
 
     const estCOGS = totalInvoiced * 0.52; // ~48% gross margin
     const grossProfit = totalInvoiced - estCOGS;
-    const grossMarginPct = totalInvoiced > 0 ? ((grossProfit / totalInvoiced) * 100).toFixed(1) : 48.0;
+    const grossMarginPct = totalInvoiced > 0 ? ((grossProfit / totalInvoiced) * 100).toFixed(1) : '48.0';
     const opex = totalInvoiced * 0.24;
     const netProfit = grossProfit - opex;
-    const netMarginPct = totalInvoiced > 0 ? ((netProfit / totalInvoiced) * 100).toFixed(1) : 24.0;
+    const netMarginPct = totalInvoiced > 0 ? ((netProfit / totalInvoiced) * 100).toFixed(1) : '24.0';
 
     // Pipeline & Orders
     const ordersWon = visits.filter(v => v.outcome_status === 'Won').length + invoices.length;
     const hotLeads = visits.filter(v => v.interest_level === 'Hot').length;
     const warmLeads = visits.filter(v => v.interest_level === 'Warm').length;
+    const coldLeads = visits.filter(v => v.interest_level === 'Cold').length;
+    const notInterestedLeads = visits.filter(v => v.interest_level === 'Not Interested').length;
+
     const activeQuotesValue = quotations
       .filter(q => q.status !== 'Rejected' && q.status !== 'Cancelled')
       .reduce((sum, q) => sum + (Number(q.grand_total) || 0), 0);
@@ -233,10 +286,139 @@ export function getCEOExecutiveMIS(req, res) {
     const estimatedLeadValue = (hotLeads * 120000) + (warmLeads * 65000);
     const totalPipelineValue = activeQuotesValue + estimatedLeadValue;
 
-    // Overdue Receivables
+    // Overdue & Aging Receivables
     const now = new Date();
-    const overdueInvoices = invoices.filter(i => (Number(i.outstanding_balance) || 0) > 0 && i.due_date && new Date(i.due_date) < now);
-    const overdueAmount = overdueInvoices.reduce((sum, i) => sum + Number(i.outstanding_balance), 0);
+    let overdueCount = 0;
+    let overdueAmount = 0;
+
+    const agingBuckets = {
+      current: { label: '0-30 Days', count: 0, amount: 0 },
+      days31_60: { label: '31-60 Days', count: 0, amount: 0 },
+      days61_90: { label: '61-90 Days', count: 0, amount: 0 },
+      days90Plus: { label: '90+ Days', count: 0, amount: 0 }
+    };
+
+    invoices.forEach(inv => {
+      const balance = Number(inv.outstanding_balance) || 0;
+      if (balance > 0) {
+        const createdDate = new Date(inv.created_at || Date.now());
+        const ageInDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+
+        if (inv.due_date && new Date(inv.due_date) < now) {
+          overdueCount++;
+          overdueAmount += balance;
+        }
+
+        if (ageInDays <= 30) {
+          agingBuckets.current.count++;
+          agingBuckets.current.amount += balance;
+        } else if (ageInDays <= 60) {
+          agingBuckets.days31_60.count++;
+          agingBuckets.days31_60.amount += balance;
+        } else if (ageInDays <= 90) {
+          agingBuckets.days61_90.count++;
+          agingBuckets.days61_90.amount += balance;
+        } else {
+          agingBuckets.days90Plus.count++;
+          agingBuckets.days90Plus.amount += balance;
+        }
+      }
+    });
+
+    // Overdue follow-up visits
+    const overdueFollowUps = visits.filter(v => {
+      if (!v.follow_up_date) return false;
+      return new Date(v.follow_up_date) < now && v.outcome_status !== 'Won' && v.outcome_status !== 'Lost';
+    });
+
+    // Canvassers & Commissions
+    const canvassers = users.filter(u => ['canvasser', 'cvs'].includes(u.role) && u.status !== 'INACTIVE');
+    let totalCommissionsPayable = 0;
+    const canvasserRoster = canvassers.map(c => {
+      const cVisits = visits.filter(v => v.canvasser_id === c.id);
+      const cWon = cVisits.filter(v => v.outcome_status === 'Won').length;
+      const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
+      const cInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
+      const slabInfo = calculateCommissionSlab(cInvoiced);
+      totalCommissionsPayable += slabInfo.commission;
+
+      return {
+        id: c.id,
+        name: c.name,
+        roleTitle: c.role_title || 'Field Sales Executive',
+        visits: cVisits.length,
+        won: cWon,
+        invoiced: cInvoiced,
+        commission: slabInfo.commission,
+        commissionFormatted: slabInfo.formattedCommission,
+        rate: slabInfo.rate,
+        tier: slabInfo.tier,
+        slabLabel: slabInfo.slabLabel
+      };
+    }).sort((a, b) => b.invoiced - a.invoiced);
+
+    // Customer & School Analytics
+    const uniqueVisitedSchools = new Set(visits.map(v => v.school_name)).size;
+    const clientRevenueMap = {};
+    invoices.forEach(i => {
+      if (!clientRevenueMap[i.school_name]) {
+        clientRevenueMap[i.school_name] = {
+          name: i.school_name,
+          district: i.district,
+          totalBilled: 0,
+          totalPaid: 0,
+          outstanding: 0,
+          invoiceCount: 0
+        };
+      }
+      clientRevenueMap[i.school_name].totalBilled += Number(i.grand_total) || 0;
+      clientRevenueMap[i.school_name].totalPaid += Number(i.paid_amount) || 0;
+      clientRevenueMap[i.school_name].outstanding += Number(i.outstanding_balance) || 0;
+      clientRevenueMap[i.school_name].invoiceCount += 1;
+    });
+    const topCustomers = Object.values(clientRevenueMap)
+      .sort((a, b) => b.totalBilled - a.totalBilled);
+
+    // Product Demand Breakdown
+    const productDemand = {};
+    visits.forEach(v => {
+      let pInterests = [];
+      try {
+        pInterests = typeof v.product_interests === 'string' ? JSON.parse(v.product_interests) : v.product_interests;
+      } catch (e) {
+        pInterests = [];
+      }
+      if (Array.isArray(pInterests)) {
+        pInterests.forEach(p => {
+          productDemand[p] = (productDemand[p] || 0) + 1;
+        });
+      }
+    });
+
+    // Monthly Trend Aggregation
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyDataMap = {};
+    months.forEach((m, idx) => {
+      monthlyDataMap[idx] = { month: m, billed: 0, collected: 0, visits: 0 };
+    });
+    invoices.forEach(inv => {
+      const d = new Date(inv.created_at || Date.now());
+      const mIdx = d.getMonth();
+      if (monthlyDataMap[mIdx]) monthlyDataMap[mIdx].billed += Number(inv.grand_total) || 0;
+    });
+    payments.forEach(p => {
+      const d = new Date(p.recorded_at || Date.now());
+      const mIdx = d.getMonth();
+      if (monthlyDataMap[mIdx]) monthlyDataMap[mIdx].collected += Number(p.amount) || 0;
+    });
+    visits.forEach(v => {
+      const d = new Date(v.created_at || Date.now());
+      const mIdx = d.getMonth();
+      if (monthlyDataMap[mIdx]) monthlyDataMap[mIdx].visits += 1;
+    });
+
+    const currentMonthIdx = now.getMonth();
+    const monthlyTrend = Object.values(monthlyDataMap).slice(0, Math.max(currentMonthIdx + 1, 6));
 
     // Format helpers
     const formatL = (val) => `₹${(val / 100000).toFixed(2)}L`;
@@ -250,7 +432,7 @@ export function getCEOExecutiveMIS(req, res) {
           rawValue: totalInvoiced,
           change: '+18.4%',
           trend: 'up',
-          subtext: `vs ₹${((totalInvoiced * 0.85) / 100000).toFixed(2)}L last month`,
+          subtext: `Target: ₹35.00L (${totalInvoiced > 0 ? Math.round((totalInvoiced / 3500000) * 100) : 0}% Achieved)`,
           status: 'success'
         },
         {
@@ -260,7 +442,7 @@ export function getCEOExecutiveMIS(req, res) {
           rawValue: grossProfit,
           change: `${grossMarginPct}%`,
           trend: 'up',
-          subtext: 'Target 45% margin',
+          subtext: `Blended margin across uniform & hosiery lines`,
           status: 'success'
         },
         {
@@ -270,17 +452,17 @@ export function getCEOExecutiveMIS(req, res) {
           rawValue: netProfit,
           change: `${netMarginPct}%`,
           trend: 'up',
-          subtext: 'Operational healthy',
+          subtext: 'Net operational earnings after opex & commissions',
           status: 'success'
         },
         {
           id: 'kpi_cash',
-          title: 'Cash In / Collections',
+          title: 'Cash Inflow (Collections)',
           value: formatL(totalCollected),
           rawValue: totalCollected,
           change: `${totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : 0}%`,
           trend: 'up',
-          subtext: `${payments.length} transactions settled`,
+          subtext: `${payments.length} transactions cleared`,
           status: 'success'
         },
         {
@@ -290,17 +472,17 @@ export function getCEOExecutiveMIS(req, res) {
           rawValue: totalReceivables,
           change: overdueInvoices.length > 0 ? `${overdueInvoices.length} Overdue` : 'Healthy',
           trend: overdueInvoices.length > 0 ? 'down' : 'neutral',
-          subtext: `Overdue: ${formatL(overdueAmount)}`,
+          subtext: `Overdue Amount: ${formatL(overdueAmount)}`,
           status: overdueInvoices.length > 0 ? 'warning' : 'success'
         },
         {
           id: 'kpi_orders',
-          title: 'Orders Won / Active',
+          title: 'Orders Won & Invoiced',
           value: `${ordersWon}`,
           rawValue: ordersWon,
           change: `+${invoices.length} Invoiced`,
           trend: 'up',
-          subtext: `Conversion Rate: ${visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0}%`,
+          subtext: `Win Rate: ${visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0}% of visited accounts`,
           status: 'success'
         },
         {
@@ -308,34 +490,110 @@ export function getCEOExecutiveMIS(req, res) {
           title: 'Live Sales Pipeline',
           value: formatL(totalPipelineValue),
           rawValue: totalPipelineValue,
-          change: `${quotations.length} Active Quotes`,
+          change: `${quotations.length} Quotes Issued`,
           trend: 'up',
-          subtext: `${hotLeads} Hot Leads, ${warmLeads} Warm`,
+          subtext: `${hotLeads} Hot Leads, ${warmLeads} Warm Leads`,
           status: 'success'
         }
       ],
-      salesSummary: {
-        totalVisits: visits.length,
-        hotLeads,
-        warmLeads,
-        quotationsCount: quotations.length,
+      sales: {
+        totalPipelineValue,
         activeQuotesValue,
-        ordersWon,
-        conversionRate: visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0
+        quotationsCount: quotations.length,
+        visitedCustomers: uniqueVisitedSchools,
+        convertedCustomers: topCustomers.length,
+        avgDealValue: invoices.length > 0 ? Math.round(totalInvoiced / invoices.length) : 0,
+        highestDealValue: invoices.reduce((max, i) => Math.max(max, Number(i.grand_total) || 0), 0),
+        winRate: visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0,
+        quarterlyTarget: 3500000,
+        targetProgress: totalInvoiced > 0 ? Math.min(100, Math.round((totalInvoiced / 3500000) * 100)) : 0
       },
-      financeSummary: {
+      finance: {
         totalInvoiced,
         totalCollected,
         totalReceivables,
-        collectionRate: totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 0,
-        overdueCount: overdueInvoices.length,
-        overdueAmount
+        collectionRate: totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : '0',
+        commissionsPayable: totalCommissionsPayable,
+        estimatedCOGS: estCOGS,
+        grossMarginPct,
+        netMarginPct,
+        agingBuckets,
+        overdueCount,
+        overdueAmount,
+        recentPayments: payments.slice(0, 5)
       },
-      pendingApprovalsCount: pendingApprovals.length,
-      activeUsersCount: users.filter(u => u.status === 'ACTIVE').length
+      operations: {
+        totalOrders: ordersWon,
+        sampleSentCount: visits.filter(v => v.outcome_status === 'Sample Sent').length,
+        quoteGivenCount: visits.filter(v => v.outcome_status === 'Quote Given').length,
+        activeInvoices: invoices.length,
+        overdueFollowUpsCount: overdueFollowUps.length,
+        overdueFollowUps: overdueFollowUps.slice(0, 5).map(v => ({
+          id: v.id,
+          school_name: v.school_name,
+          canvasser_name: v.canvasser_name,
+          follow_up_date: v.follow_up_date,
+          contact_person: v.contact_person,
+          phone: v.phone
+        }))
+      },
+      inventory: {
+        productsCatalogCount: products.length,
+        categories: Array.from(new Set(products.map(p => p.category))),
+        demandDistribution: Object.entries(productDemand).map(([product, count]) => ({ product, count })),
+        products: products
+      },
+      customers: {
+        masterSchoolsTotal: totalMasterSchools,
+        visitedCount: uniqueVisitedSchools,
+        penetrationRate: ((uniqueVisitedSchools / totalMasterSchools) * 100).toFixed(1),
+        topCustomers: topCustomers.slice(0, 6)
+      },
+      procurement: {
+        estCOGS,
+        cogsRatio: '52%',
+        avgMarginPerUnit: '48%',
+        topCategories: ['Apparel', 'Hosiery', 'Footwear', 'Accessories']
+      },
+      marketing: {
+        totalVisits: visits.length,
+        hotLeads,
+        warmLeads,
+        coldLeads,
+        notInterestedLeads,
+        leadConversionRate: visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0,
+        campaignsCount: 3,
+        estCAC: '₹1,450 / School',
+        estROI: '5.2x'
+      },
+      people: {
+        totalUsers: users.length,
+        activeUsers: users.filter(u => u.status === 'ACTIVE').length,
+        canvassersCount: canvassers.length,
+        canvasserRoster
+      },
+      management: {
+        pendingApprovalsCount: pendingApprovals.length,
+        pendingApprovals: pendingApprovals.slice(0, 5),
+        overdueInvoicesCount: overdueCount,
+        overdueInvoices: invoices.filter(i => (Number(i.outstanding_balance) || 0) > 0 && i.due_date && new Date(i.due_date) < now).slice(0, 5),
+        alertsCount: pendingApprovals.length + overdueCount + overdueFollowUps.length
+      },
+      reporting: {
+        monthlyTrend,
+        summary: {
+          totalBilled: totalInvoiced,
+          totalCollected,
+          totalOutstanding: totalReceivables,
+          grossProfit,
+          netProfit,
+          visitsTotal: visits.length
+        }
+      }
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
+
 

@@ -31,7 +31,7 @@ export function getMasterSchools(req, res) {
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    
+
     // Count total matching
     const countRow = db.prepare(`SELECT COUNT(*) as total FROM master_schools ${whereSql}`).get(...params);
     const total = countRow ? countRow.total : 0;
@@ -53,6 +53,72 @@ export function getMasterSchools(req, res) {
       schools
     });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// ── GET /api/master-schools/export ──────────────────────────────────────────
+export function exportMasterSchoolsCSV(req, res) {
+  try {
+    const schools = db.prepare(`
+      SELECT id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status, created_at, updated_at 
+      FROM master_schools 
+      WHERE status = 'ACTIVE'
+      ORDER BY district ASC, school_name ASC
+    `).all();
+
+    // Helper to escape CSV values
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const headers = [
+      'ID',
+      'School Name',
+      'District',
+      'Block or Cluster',
+      'Zone',
+      'Board',
+      'Area',
+      'Student Strength',
+      'Contact Person',
+      'Phone',
+      'Priority',
+      'Status',
+      'Created At',
+      'Updated At'
+    ];
+
+    const csvRows = [headers.map(escapeCsv).join(',')];
+
+    for (const s of schools) {
+      csvRows.push([
+        escapeCsv(s.id),
+        escapeCsv(s.school_name),
+        escapeCsv(s.district),
+        escapeCsv(s.block_or_cluster),
+        escapeCsv(s.zone),
+        escapeCsv(s.board),
+        escapeCsv(s.area),
+        escapeCsv(s.student_strength ? s.student_strength : '-'),
+        escapeCsv(s.contact_person && s.contact_person.trim() ? s.contact_person.trim() : '-'),
+        escapeCsv(s.phone && s.phone.trim() ? s.phone.trim() : '-'),
+        escapeCsv(s.priority),
+        escapeCsv(s.status),
+        escapeCsv(s.created_at),
+        escapeCsv(s.updated_at)
+      ].join(','));
+    }
+
+    const csvContent = csvRows.join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="master_schools_catalog.csv"');
+    return res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('exportMasterSchoolsCSV error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
@@ -87,7 +153,7 @@ export function getMasterSchoolById(req, res) {
 export function createMasterSchool(req, res) {
   try {
     const { school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority } = req.body;
-    
+
     if (!school_name || !district) {
       return res.status(400).json({ error: 'School Name and District are required' });
     }

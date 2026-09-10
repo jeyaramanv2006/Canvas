@@ -14,13 +14,15 @@ export function formatUsername(name, role) {
 export function getUsers(req, res) {
   try {
     const users = db.prepare(`
-      SELECT id, username, name, email, role, role_title, status, created_at 
+      SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at 
       FROM users 
-      WHERE status != 'INACTIVE'
       ORDER BY id ASC
     `).all();
 
-    return res.json(users);
+    return res.json(users.map(u => ({
+      ...u,
+      requires_password_reset: Boolean(u.requires_password_reset)
+    })));
   } catch (error) {
     console.error('getUsers error:', error);
     return res.status(500).json({ error: error.message });
@@ -40,9 +42,9 @@ export function createUser(req, res) {
     const username = formatUsername(name, role);
     const roleTitle = role_title || `${role.toUpperCase()} Member`;
 
-    // Check if exact username already exists
+    // Check if exact username already exists and is active
     const existing = db.prepare('SELECT id, status FROM users WHERE LOWER(username) = ?').get(username.toLowerCase());
-    if (existing && existing.status !== 'INACTIVE') {
+    if (existing && existing.status !== 'DELETED') {
       return res.status(400).json({ error: `Username "${username}" already exists. A unique username per role is required.` });
     }
 
@@ -52,17 +54,17 @@ export function createUser(req, res) {
       const email = `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@murugan.com`;
 
       let newUserId;
-      if (existing && existing.status === 'INACTIVE') {
+      if (existing) {
         db.prepare(`
           UPDATE users SET 
-            name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+            name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
         `).run(name, role.toLowerCase(), roleTitle, passwordHash, existing.id);
         newUserId = existing.id;
       } else {
         const stmt = db.prepare(`
-          INSERT INTO users (username, email, password_hash, name, role, role_title, status)
-          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')
+          INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
+          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
         `);
         const result = stmt.run(username, email, passwordHash, name, role.toLowerCase(), roleTitle);
         newUserId = Number(result.lastInsertRowid);
@@ -80,11 +82,14 @@ export function createUser(req, res) {
         JSON.stringify([{ field: 'User Provisioned', from: 'None', to: `Created ${username} (${roleTitle})` }])
       );
 
-      const createdUser = db.prepare('SELECT id, username, name, email, role, role_title, status, created_at FROM users WHERE id = ?').get(newUserId);
+      const createdUser = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(newUserId);
       return res.status(201).json({
         status: 'SUCCESS',
         message: `User ${username} created and activated immediately.`,
-        user: createdUser
+        user: {
+          ...createdUser,
+          requires_password_reset: Boolean(createdUser.requires_password_reset)
+        }
       });
     }
 
@@ -170,11 +175,14 @@ export function updateUserRole(req, res) {
         ])
       );
 
-      const updated = db.prepare('SELECT id, username, name, email, role, role_title, status, created_at FROM users WHERE id = ?').get(targetId);
+      const updated = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(targetId);
       return res.json({
         status: 'SUCCESS',
         message: `Role for ${targetUser.name} updated to ${new_role} (${newUsername}) immediately.`,
-        user: updated
+        user: {
+          ...updated,
+          requires_password_reset: Boolean(updated.requires_password_reset)
+        }
       });
     }
 
@@ -225,9 +233,9 @@ export function deleteUser(req, res) {
       return res.status(403).json({ error: 'Protected Account: The Chief Executive Officer cannot be deleted.' });
     }
 
-    // ── CEO: Execute delete immediately
+    // ── CEO: Execute delete immediately (Marks as DELETED, preserves all progress)
     if (actor.role === 'ceo') {
-      db.prepare(`UPDATE users SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+      db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
 
       // Audit Log
       db.prepare(`
@@ -238,12 +246,12 @@ export function deleteUser(req, res) {
         actor.name || 'CEO',
         'CEO',
         'DELETE',
-        JSON.stringify([{ field: 'Account Deactivated', from: targetUser.username, to: 'INACTIVE' }])
+        JSON.stringify([{ field: 'Account Status', from: targetUser.status, to: 'DELETED (Progress Preserved)' }])
       );
 
       return res.json({
         status: 'SUCCESS',
-        message: `User ${targetUser.username} deactivated immediately.`
+        message: `User ${targetUser.username} marked as DELETED. Access is disabled, historical progress is preserved.`
       });
     }
 
@@ -275,7 +283,171 @@ export function deleteUser(req, res) {
   }
 }
 
-// ── 5. List Pending Approvals (CEO Only) ──────────────────────────────────────
+// ── 5. Pause User / Stop (CEO Instant, Admin Queued) ────────────────────────
+export function pauseUser(req, res) {
+  try {
+    const actor = req.user;
+    const targetId = parseInt(req.params.id, 10);
+
+    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (targetUser.role === 'ceo') {
+      return res.status(403).json({ error: 'Protected Account: The Chief Executive Officer cannot be paused.' });
+    }
+
+    // ── CEO: Execute pause immediately
+    if (actor.role === 'ceo') {
+      db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+
+      db.prepare(`
+        INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(
+        actor.id,
+        actor.name || 'CEO',
+        'CEO',
+        'UPDATE',
+        JSON.stringify([{ field: 'Account Paused', from: targetUser.status, to: 'PAUSED' }])
+      );
+
+      return res.json({
+        status: 'SUCCESS',
+        message: `User ${targetUser.username} paused. Login access is temporarily paused, progress remains intact.`
+      });
+    }
+
+    // ── Admin: Queue into PendingUserActions
+    const targetData = JSON.stringify({
+      user_id: targetId,
+      username: targetUser.username,
+      name: targetUser.name,
+      role: targetUser.role
+    });
+
+    const stmt = db.prepare(`
+      INSERT INTO pending_user_actions (
+        action_type, target_user_id, target_user_data,
+        requested_by_id, requested_by_name, requested_by_role, status
+      ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+    `);
+
+    const result = stmt.run('PAUSE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+
+    return res.status(202).json({
+      status: 'PENDING',
+      message: `Pause request for "${targetUser.username}" submitted to CEO for approval.`,
+      action_id: Number(result.lastInsertRowid)
+    });
+  } catch (error) {
+    console.error('pauseUser error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// ── 6. Resume User (CEO Instant, Admin Queued) ───────────────────────────────
+export function resumeUser(req, res) {
+  try {
+    const actor = req.user;
+    const targetId = parseInt(req.params.id, 10);
+
+    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // ── CEO: Execute resume immediately
+    if (actor.role === 'ceo') {
+      db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+
+      db.prepare(`
+        INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(
+        actor.id,
+        actor.name || 'CEO',
+        'CEO',
+        'UPDATE',
+        JSON.stringify([{ field: 'Account Resumed', from: targetUser.status, to: 'ACTIVE' }])
+      );
+
+      return res.json({
+        status: 'SUCCESS',
+        message: `User ${targetUser.username} resumed. Login access has been restored.`
+      });
+    }
+
+    // ── Admin: Queue into PendingUserActions
+    const targetData = JSON.stringify({
+      user_id: targetId,
+      username: targetUser.username,
+      name: targetUser.name,
+      role: targetUser.role
+    });
+
+    const stmt = db.prepare(`
+      INSERT INTO pending_user_actions (
+        action_type, target_user_id, target_user_data,
+        requested_by_id, requested_by_name, requested_by_role, status
+      ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+    `);
+
+    const result = stmt.run('RESUME', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+
+    return res.status(202).json({
+      status: 'PENDING',
+      message: `Resume request for "${targetUser.username}" submitted to CEO for approval.`,
+      action_id: Number(result.lastInsertRowid)
+    });
+  } catch (error) {
+    console.error('resumeUser error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// ── 7. Trigger Password Reset (Instant for both Admin & CEO) ───────────────────
+export function triggerPasswordReset(req, res) {
+  try {
+    const actor = req.user;
+    const targetId = parseInt(req.params.id, 10);
+
+    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (targetUser.role === 'ceo' && actor.role !== 'ceo') {
+      return res.status(403).json({ error: 'Unauthorized: Cannot trigger password reset for Chief Executive Officer.' });
+    }
+
+    // Instant execution — sets requires_password_reset = 1
+    db.prepare(`UPDATE users SET requires_password_reset = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+
+    // Audit Log
+    db.prepare(`
+      INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      actor.id,
+      actor.name || 'Admin',
+      actor.role || 'Admin',
+      'UPDATE',
+      JSON.stringify([{ field: 'Password Reset Flagged', from: 'None', to: `Mandatory reset prompted for ${targetUser.username}` }])
+    );
+
+    return res.json({
+      status: 'SUCCESS',
+      message: `Password reset request triggered for ${targetUser.username}. The user will be prompted to reset their password.`
+    });
+  } catch (error) {
+    console.error('triggerPasswordReset error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// ── 8. List Pending Approvals (CEO Only) ──────────────────────────────────────
 export function getPendingApprovals(req, res) {
   try {
     const rows = db.prepare(`
@@ -305,7 +477,7 @@ export function getPendingApprovals(req, res) {
   }
 }
 
-// ── 6. Decide Pending Approval (Approve / Reject by CEO) ─────────────────────
+// ── 9. Decide Pending Approval (Approve / Reject by CEO) ─────────────────────
 export function decideApproval(req, res) {
   try {
     const actor = req.user;
@@ -351,7 +523,7 @@ export function decideApproval(req, res) {
 
       return res.json({
         status: 'REJECTED',
-        message: `Request #${actionId} (${action.action_type}) has been rejected and discarded.`
+        message: `Request #${actionId} (${action.action_type}) has been rejected.`
       });
     }
 
@@ -364,13 +536,13 @@ export function decideApproval(req, res) {
       if (existing) {
         db.prepare(`
           UPDATE users SET 
-            name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+            name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
         `).run(targetData.name, targetData.role, targetData.role_title, passwordHash, existing.id);
       } else {
         db.prepare(`
-          INSERT INTO users (username, email, password_hash, name, role, role_title, status)
-          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')
+          INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
+          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
         `).run(targetData.username, email, passwordHash, targetData.name, targetData.role, targetData.role_title);
       }
     } else if (action.action_type === 'ROLE_CHANGE') {
@@ -380,7 +552,11 @@ export function decideApproval(req, res) {
         WHERE id = ?
       `).run(targetData.new_username, targetData.new_role, targetData.new_role_title, targetData.user_id);
     } else if (action.action_type === 'DELETE') {
-      db.prepare(`UPDATE users SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+      db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+    } else if (action.action_type === 'PAUSE') {
+      db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+    } else if (action.action_type === 'RESUME') {
+      db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
     } else if (action.action_type === 'SCHOOL_CREATE') {
       db.prepare(`
         INSERT OR REPLACE INTO master_schools 
@@ -449,7 +625,7 @@ export function decideApproval(req, res) {
       actor.name || 'CEO',
       'CEO',
       action.action_type,
-      JSON.stringify([{ field: 'CEO Approval Executed', from: `Pending ${action.action_type}`, to: `APPROVED & Applied to Database: ${JSON.stringify(targetData)}` }])
+      JSON.stringify([{ field: 'CEO Approval Executed', from: `Pending ${action.action_type}`, to: `APPROVED & Applied to Database` }])
     );
 
     return res.json({

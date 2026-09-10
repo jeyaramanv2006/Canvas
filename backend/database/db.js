@@ -55,7 +55,8 @@ export function initDB() {
       name TEXT NOT NULL,
       role TEXT NOT NULL,           -- ceo, admin, cvs, cfo, cco
       role_title TEXT,
-      status TEXT DEFAULT 'ACTIVE', -- ACTIVE, INACTIVE
+      status TEXT DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, DELETED, INACTIVE
+      requires_password_reset INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -72,6 +73,9 @@ export function initDB() {
     if (!colNames.includes('status')) {
       db.exec(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'ACTIVE';`);
     }
+    if (!colNames.includes('requires_password_reset')) {
+      db.exec(`ALTER TABLE users ADD COLUMN requires_password_reset INTEGER DEFAULT 0;`);
+    }
     if (!colNames.includes('updated_at')) {
       db.exec(`ALTER TABLE users ADD COLUMN updated_at DATETIME;`);
     }
@@ -83,8 +87,8 @@ export function initDB() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS pending_user_actions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      action_type TEXT NOT NULL,          -- CREATE, ROLE_CHANGE, DELETE
-      target_user_id INTEGER,             -- NULL for CREATE, User ID for ROLE_CHANGE / DELETE
+      action_type TEXT NOT NULL,          -- CREATE, ROLE_CHANGE, DELETE, PAUSE, RESUME
+      target_user_id INTEGER,             -- NULL for CREATE, User ID for other actions
       target_user_data TEXT NOT NULL,     -- JSON string containing username, name, role, role_title, initial_password, etc.
       requested_by_id INTEGER NOT NULL,
       requested_by_name TEXT NOT NULL,
@@ -614,7 +618,7 @@ function seedDefaultData() {
   // Seed Master Schools from CSVs
   try {
     const schoolCount = db.prepare('SELECT COUNT(*) as count FROM master_schools').get().count;
-    if (schoolCount < 100) {
+    if (schoolCount < 2000) {
       console.log('🔄 Loading master school catalog into SQLite database...');
       const parsedSchools = loadAndParseSchoolsFromCSVs();
       const insertSchool = db.prepare(`

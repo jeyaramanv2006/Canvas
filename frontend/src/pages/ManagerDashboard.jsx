@@ -1,22 +1,26 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import {
-  LogOut, Users, Receipt, History, Trophy
+  LogOut, Users, Receipt, History, Trophy, Building2
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import UserManagementModule from '../components/UserManagementModule';
+import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryModule';
 import { getRoleConfig } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
 export default function ManagerDashboard() {
   const { user, setUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('invoicing'); // 'invoicing', 'logs', 'team'
+  const [activeTab, setActiveTab] = useState('schools'); // 'schools', 'users', 'invoicing', 'logs', 'team'
 
   const roleConfig = getRoleConfig(user);
 
   const navTabs = [
+    { id: 'schools', label: 'Master Schools DB', icon: Building2 },
+    { id: 'users', label: 'User Directory & Roles', icon: Users },
     { id: 'invoicing', label: 'Invoicing & Records', icon: Receipt },
     { id: 'logs', label: 'Central Visit Logs', icon: History },
     { id: 'team', label: 'Team Leaderboard', icon: Trophy }
@@ -30,22 +34,23 @@ export default function ManagerDashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 rounded-2xl flex items-center justify-center font-black text-black text-sm shadow-lg shadow-amber-400/20">
-                MC
+                MG
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-black tracking-tight text-white">Murugan Canvass</h1>
+                  <h1 className="text-base sm:text-lg font-black tracking-tight text-white uppercase">MG The One</h1>
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                     Admin Executive
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{user?.name} ({user?.roleTitle || 'Admin Executive'})</span>
+                  <span>{user?.name || 'Admin'} ({user?.roleTitle || 'Admin Executive'})</span>
                   <span className="text-gray-500">•</span>
-                  <span className="text-gray-400">Field Data & Operations</span>
+                  <span className="text-gray-400">Master Catalog, User Governance & Field Operations</span>
                 </p>
               </div>
+
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -86,6 +91,18 @@ export default function ManagerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {activeTab === 'schools' && (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+            <MasterSchoolsDirectoryModule currentUser={user} />
+          </motion.div>
+        )}
+
+        {activeTab === 'users' && (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+            <UserManagementModule currentUser={user} />
+          </motion.div>
+        )}
+
         {activeTab === 'invoicing' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
             <InvoicingModule currentUser={user} />

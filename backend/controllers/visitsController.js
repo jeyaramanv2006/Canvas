@@ -180,6 +180,36 @@ export function createVisit(req, res) {
     const createdRow = db.prepare('SELECT * FROM visits WHERE id = ?').get(newId);
     const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(newId);
 
+    // Auto-update master_schools table with field details (student_strength, contact_person, phone)
+    try {
+      const updates = [];
+      const updateParams = [];
+
+      if (body.student_strength && Number(body.student_strength) > 0) {
+        updates.push('student_strength = ?');
+        updateParams.push(Number(body.student_strength));
+      }
+      if (body.contact_person && body.contact_person.trim()) {
+        updates.push('contact_person = ?');
+        updateParams.push(body.contact_person.trim());
+      }
+      if (body.phone && body.phone.trim()) {
+        updates.push('phone = ?');
+        updateParams.push(body.phone.trim());
+      }
+
+      if (updates.length > 0) {
+        updates.push('updated_at = CURRENT_TIMESTAMP');
+        if (body.master_school_id) {
+          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, body.master_school_id);
+        } else if (body.school_name && body.district) {
+          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, body.school_name.trim(), body.district.trim());
+        }
+      }
+    } catch (err) {
+      console.warn('Could not auto-sync visit details to master_schools:', err.message);
+    }
+
     return res.status(201).json(formatVisitRow(createdRow, auditLogs));
   } catch (error) {
     console.error('createVisit error:', error);
@@ -293,6 +323,36 @@ export function updateVisit(req, res) {
 
     const updatedRow = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
     const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(id);
+
+    // Auto-update master_schools table with updated visit details (student_strength, contact_person, phone)
+    try {
+      const updates = [];
+      const updateParams = [];
+
+      if (studentStrength && Number(studentStrength) > 0) {
+        updates.push('student_strength = ?');
+        updateParams.push(Number(studentStrength));
+      }
+      if (contactPerson && contactPerson.trim()) {
+        updates.push('contact_person = ?');
+        updateParams.push(contactPerson.trim());
+      }
+      if (phone && phone.trim()) {
+        updates.push('phone = ?');
+        updateParams.push(phone.trim());
+      }
+
+      if (updates.length > 0) {
+        updates.push('updated_at = CURRENT_TIMESTAMP');
+        if (current.master_school_id) {
+          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, current.master_school_id);
+        } else if (schoolName && district) {
+          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, schoolName.trim(), district.trim());
+        }
+      }
+    } catch (err) {
+      console.warn('Could not auto-sync visit details on updateVisit:', err.message);
+    }
 
     return res.json(formatVisitRow(updatedRow, auditLogs));
   } catch (error) {
