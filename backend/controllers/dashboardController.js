@@ -66,9 +66,9 @@ export function calculateCommissionSlab(amount) {
   };
 }
 
-export function getDashboardStats(req, res) {
+export async function getDashboardStats(req, res) {
   try {
-    const visits = db.prepare('SELECT * FROM visits').all();
+    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
 
     const totalVisits = visits.length;
     const hotLeads = visits.filter(v => v.interest_level === 'Hot').length;
@@ -140,12 +140,12 @@ export function getDashboardStats(req, res) {
   }
 }
 
-export function getCanvasserLeaderboard(req, res) {
+export async function getCanvasserLeaderboard(req, res) {
   try {
     const { sort_by = 'pay', order = 'desc' } = req.query;
-    const visits = db.prepare('SELECT * FROM visits').all();
-    const invoices = db.prepare('SELECT * FROM invoices').all();
-    const canvassers = db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all();
+    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
+    const invoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
+    const canvassers = (await db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all()) || [];
 
     const leaderboard = canvassers.map(c => {
       const cVisits = visits.filter(v => v.canvasser_id === c.id);
@@ -156,7 +156,6 @@ export function getCanvasserLeaderboard(req, res) {
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
       const slabInfo = calculateCommissionSlab(totalInvoiced);
 
-      // Itemized per-invoice pay calculation
       const convertedInvoices = cInvoices.map(inv => {
         const gTotal = Number(inv.grand_total) || 0;
         const invoicePayout = (gTotal * slabInfo.rate) / 100;
@@ -248,24 +247,24 @@ export function getCanvasserLeaderboard(req, res) {
   }
 }
 
-// ── CEO 360° Executive Command MIS Aggregator ────────────────────────────────
-export function getCEOExecutiveMIS(req, res) {
+export async function getCEOExecutiveMIS(req, res) {
   try {
-    const visits = db.prepare('SELECT * FROM visits').all();
-    const invoices = db.prepare('SELECT * FROM invoices').all();
-    const quotations = db.prepare('SELECT * FROM quotations').all();
-    const payments = db.prepare('SELECT * FROM payments').all();
-    const users = db.prepare('SELECT id, name, role, role_title, status FROM users').all();
-    const products = db.prepare('SELECT * FROM products').all();
-    const pendingApprovals = db.prepare("SELECT * FROM pending_user_actions WHERE status = 'PENDING'").all();
-    const totalMasterSchools = db.prepare("SELECT COUNT(*) as count FROM master_schools").get().count || 2480;
+    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
+    const invoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
+    const quotations = (await db.prepare('SELECT * FROM quotations').all()) || [];
+    const payments = (await db.prepare('SELECT * FROM payments').all()) || [];
+    const users = (await db.prepare('SELECT id, name, role, role_title, status FROM users').all()) || [];
+    const products = (await db.prepare('SELECT * FROM products').all()) || [];
+    const pendingApprovals = (await db.prepare("SELECT * FROM pending_user_actions WHERE status = 'PENDING'").all()) || [];
+    const masterCountRow = await db.prepare("SELECT COUNT(*) as count FROM master_schools").get();
+    const totalMasterSchools = masterCountRow ? Number(masterCountRow.count) : 2561;
 
     // Financial Metrics
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
     const totalCollected = invoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
     const totalReceivables = invoices.reduce((sum, i) => sum + (Number(i.outstanding_balance) || 0), 0);
 
-    const estCOGS = totalInvoiced * 0.52; // ~48% gross margin
+    const estCOGS = totalInvoiced * 0.52;
     const grossProfit = totalInvoiced - estCOGS;
     const grossMarginPct = totalInvoiced > 0 ? ((grossProfit / totalInvoiced) * 100).toFixed(1) : '48.0';
     const opex = totalInvoiced * 0.24;
@@ -298,6 +297,8 @@ export function getCEOExecutiveMIS(req, res) {
       days90Plus: { label: '90+ Days', count: 0, amount: 0 }
     };
 
+    const overdueInvoices = [];
+
     invoices.forEach(inv => {
       const balance = Number(inv.outstanding_balance) || 0;
       if (balance > 0) {
@@ -307,6 +308,7 @@ export function getCEOExecutiveMIS(req, res) {
         if (inv.due_date && new Date(inv.due_date) < now) {
           overdueCount++;
           overdueAmount += balance;
+          overdueInvoices.push(inv);
         }
 
         if (ageInDays <= 30) {
@@ -325,13 +327,11 @@ export function getCEOExecutiveMIS(req, res) {
       }
     });
 
-    // Overdue follow-up visits
     const overdueFollowUps = visits.filter(v => {
       if (!v.follow_up_date) return false;
       return new Date(v.follow_up_date) < now && v.outcome_status !== 'Won' && v.outcome_status !== 'Lost';
     });
 
-    // Canvassers & Commissions
     const canvassers = users.filter(u => ['canvasser', 'cvs'].includes(u.role) && u.status !== 'INACTIVE');
     let totalCommissionsPayable = 0;
     const canvasserRoster = canvassers.map(c => {
@@ -357,7 +357,6 @@ export function getCEOExecutiveMIS(req, res) {
       };
     }).sort((a, b) => b.invoiced - a.invoiced);
 
-    // Customer & School Analytics
     const uniqueVisitedSchools = new Set(visits.map(v => v.school_name)).size;
     const clientRevenueMap = {};
     invoices.forEach(i => {
@@ -379,7 +378,6 @@ export function getCEOExecutiveMIS(req, res) {
     const topCustomers = Object.values(clientRevenueMap)
       .sort((a, b) => b.totalBilled - a.totalBilled);
 
-    // Product Demand Breakdown
     const productDemand = {};
     visits.forEach(v => {
       let pInterests = [];
@@ -395,7 +393,6 @@ export function getCEOExecutiveMIS(req, res) {
       }
     });
 
-    // Monthly Trend Aggregation
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyDataMap = {};
     months.forEach((m, idx) => {
@@ -420,7 +417,6 @@ export function getCEOExecutiveMIS(req, res) {
     const currentMonthIdx = now.getMonth();
     const monthlyTrend = Object.values(monthlyDataMap).slice(0, Math.max(currentMonthIdx + 1, 6));
 
-    // Format helpers
     const formatL = (val) => `₹${(val / 100000).toFixed(2)}L`;
 
     return res.json({
@@ -576,7 +572,7 @@ export function getCEOExecutiveMIS(req, res) {
         pendingApprovalsCount: pendingApprovals.length,
         pendingApprovals: pendingApprovals.slice(0, 5),
         overdueInvoicesCount: overdueCount,
-        overdueInvoices: invoices.filter(i => (Number(i.outstanding_balance) || 0) > 0 && i.due_date && new Date(i.due_date) < now).slice(0, 5),
+        overdueInvoices: overdueInvoices.slice(0, 5),
         alertsCount: pendingApprovals.length + overdueCount + overdueFollowUps.length
       },
       reporting: {
@@ -595,5 +591,3 @@ export function getCEOExecutiveMIS(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
-
-

@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '../database/db.js';
 import { generateToken } from '../middleware/auth.js';
 
-export function login(req, res) {
+export async function login(req, res) {
   try {
     const inputIdentifier = (req.body.username || req.body.email || '').trim().toLowerCase();
     const password = req.body.password;
@@ -38,7 +38,7 @@ export function login(req, res) {
 
     const targetIdentifier = aliasMap[inputIdentifier] || inputIdentifier;
 
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT * FROM users 
       WHERE (LOWER(username) = ? OR LOWER(email) = ?) 
       LIMIT 1
@@ -82,9 +82,9 @@ export function login(req, res) {
   }
 }
 
-export function getCurrentUser(req, res) {
+export async function getCurrentUser(req, res) {
   try {
-    const user = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset FROM users WHERE id = ?').get(req.user.id);
+    const user = await db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -105,7 +105,7 @@ export function getCurrentUser(req, res) {
   }
 }
 
-export function resetUserPassword(req, res) {
+export async function resetUserPassword(req, res) {
   try {
     const actorId = req.user.id;
     const { new_password } = req.body;
@@ -115,14 +115,14 @@ export function resetUserPassword(req, res) {
     }
 
     const newHash = bcrypt.hashSync(new_password.trim(), 10);
-    db.prepare(`
+    await db.prepare(`
       UPDATE users SET 
         password_hash = ?, requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `).run(newHash, actorId);
 
     // Audit Log
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).run(

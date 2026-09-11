@@ -99,16 +99,25 @@
   4. Provide full interactive management UI in both CEO (`CEODashboard.jsx`) and Admin (`ManagerDashboard.jsx`) dashboards with real-time statistics, search, district filters, creation modal, edit modal, deletion confirmation, and one-click CSV export.
 - **Rationale**: Guarantees data accuracy and integrity across statewide institutional data while giving leadership complete governance over catalog expansions.
 
+### DEC-011: Immediate Production Deployment Path — Vercel, Railway, and Single-Instance Persistent SQLite
+- **Status**: CONFIRMED
+- **Context**: The client requires an immediate usable release for recording real canvassing activity and issuing invoices. The existing codebase already implements an Express API with SQLite, but the React frontend is currently driven by browser-local mock data and is not connected to the API.
+- **Decision**:
+  1. Deploy the React/Vite frontend to Vercel and the Express API to Railway.
+  2. First replace mock-driven live workflows with authenticated API calls and make the backend the sole authoritative source for business records.
+  3. Use the current SQLite implementation as an interim production database on a Railway persistent volume at a configurable path (target: `/data/canvas.db`).
+  4. Run exactly one Railway API replica while SQLite is the production datastore, and establish tested backups and restart-persistence checks before users enter real records.
+  5. Keep a PostgreSQL migration outside this immediate release; revisit it before multi-instance scaling or when production reliability requirements exceed a single persistent SQLite instance.
+- **Rationale**: This enables an urgent, controlled launch without presenting mock/local browser data as real records, while keeping a clear path to a managed relational database as operational needs grow.
+
 ---
 
 ## Decisions Required / Unresolved Questions
 
 ### DEC-REQ-001: Backend Runtime & API Framework Choice
-- **Status**: DECISION REQUIRED
-- **Options**: Node.js (Express / Fastify), Python (FastAPI / Flask), or Go.
-- **Action**: Awaiting user selection on preferred backend tech stack.
+- **Status**: RESOLVED — see DEC-011
+- **Decision**: Continue with the implemented Node.js + Express backend for the immediate deployment path.
 
 ### DEC-REQ-002: Relational Database Engine Choice
-- **Status**: DECISION REQUIRED
-- **Options**: PostgreSQL, SQLite, or MySQL.
-- **Action**: Awaiting user selection on preferred database engine.
+- **Status**: RESOLVED FOR IMMEDIATE RELEASE — see DEC-011
+- **Decision**: Use persistent single-instance SQLite on Railway for the immediate release. PostgreSQL remains a deliberate future migration option, not an unresolved blocker for this release.

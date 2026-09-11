@@ -11,15 +11,15 @@ export function formatUsername(name, role) {
 }
 
 // ── 1. List Users ────────────────────────────────────────────────────────────
-export function getUsers(req, res) {
+export async function getUsers(req, res) {
   try {
-    const users = db.prepare(`
+    const users = await db.prepare(`
       SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at 
       FROM users 
       ORDER BY id ASC
     `).all();
 
-    return res.json(users.map(u => ({
+    return res.json((users || []).map(u => ({
       ...u,
       requires_password_reset: Boolean(u.requires_password_reset)
     })));
@@ -30,7 +30,7 @@ export function getUsers(req, res) {
 }
 
 // ── 2. Create User (CEO Instant, Admin Queued) ───────────────────────────────
-export function createUser(req, res) {
+export async function createUser(req, res) {
   try {
     const actor = req.user;
     const { name, role, role_title, initial_password = 'password' } = req.body;
@@ -43,7 +43,7 @@ export function createUser(req, res) {
     const roleTitle = role_title || `${role.toUpperCase()} Member`;
 
     // Check if exact username already exists and is active
-    const existing = db.prepare('SELECT id, status FROM users WHERE LOWER(username) = ?').get(username.toLowerCase());
+    const existing = await db.prepare('SELECT id, status FROM users WHERE LOWER(username) = ?').get(username.toLowerCase());
     if (existing && existing.status !== 'DELETED') {
       return res.status(400).json({ error: `Username "${username}" already exists. A unique username per role is required.` });
     }
@@ -55,7 +55,7 @@ export function createUser(req, res) {
 
       let newUserId;
       if (existing) {
-        db.prepare(`
+        await db.prepare(`
           UPDATE users SET 
             name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
@@ -66,12 +66,13 @@ export function createUser(req, res) {
           INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
           VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
         `);
-        const result = stmt.run(username, email, passwordHash, name, role.toLowerCase(), roleTitle);
-        newUserId = Number(result.lastInsertRowid);
+        const result = await stmt.run(username, email, passwordHash, name, role.toLowerCase(), roleTitle);
+        const latestUser = await db.prepare('SELECT id FROM users ORDER BY id DESC LIMIT 1').get();
+        newUserId = result.lastInsertRowid || (latestUser ? latestUser.id : 1);
       }
 
       // Log to AuditLogs
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -82,7 +83,7 @@ export function createUser(req, res) {
         JSON.stringify([{ field: 'User Provisioned', from: 'None', to: `Created ${username} (${roleTitle})` }])
       );
 
-      const createdUser = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(newUserId);
+      const createdUser = await db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(newUserId);
       return res.status(201).json({
         status: 'SUCCESS',
         message: `User ${username} created and activated immediately.`,
@@ -109,12 +110,14 @@ export function createUser(req, res) {
       ) VALUES (?, NULL, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run('CREATE', targetData, actor.id, actor.name || 'Admin', actor.role);
+    const result = await stmt.run('CREATE', targetData, actor.id, actor.name || 'Admin', actor.role);
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const actionId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
 
     return res.status(202).json({
       status: 'PENDING',
       message: `User creation request for "${username}" submitted to CEO for approval.`,
-      action_id: Number(result.lastInsertRowid)
+      action_id: Number(actionId)
     });
   } catch (error) {
     console.error('createUser error:', error);
@@ -123,7 +126,7 @@ export function createUser(req, res) {
 }
 
 // ── 3. Update User Role (CEO Instant, Admin Queued) ──────────────────────────
-export function updateUserRole(req, res) {
+export async function updateUserRole(req, res) {
   try {
     const actor = req.user;
     const targetId = parseInt(req.params.id, 10);
@@ -133,7 +136,7 @@ export function updateUserRole(req, res) {
       return res.status(400).json({ error: 'new_role is required' });
     }
 
-    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -147,21 +150,21 @@ export function updateUserRole(req, res) {
     const newRoleTitle = new_role_title || `${new_role.toUpperCase()} Member`;
 
     // Check if new username is already taken by someone else
-    const conflict = db.prepare('SELECT id FROM users WHERE LOWER(username) = ? AND id != ?').get(newUsername.toLowerCase(), targetId);
+    const conflict = await db.prepare('SELECT id FROM users WHERE LOWER(username) = ? AND id != ?').get(newUsername.toLowerCase(), targetId);
     if (conflict) {
       return res.status(400).json({ error: `Username "${newUsername}" is already in use by another account.` });
     }
 
     // ── CEO: Apply immediately
     if (actor.role === 'ceo') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users SET 
           username = ?, role = ?, role_title = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(newUsername, new_role.toLowerCase(), newRoleTitle, targetId);
 
       // Audit Log
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -175,7 +178,7 @@ export function updateUserRole(req, res) {
         ])
       );
 
-      const updated = db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(targetId);
+      const updated = await db.prepare('SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at FROM users WHERE id = ?').get(targetId);
       return res.json({
         status: 'SUCCESS',
         message: `Role for ${targetUser.name} updated to ${new_role} (${newUsername}) immediately.`,
@@ -204,12 +207,14 @@ export function updateUserRole(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run('ROLE_CHANGE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const result = await stmt.run('ROLE_CHANGE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const actionId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
 
     return res.status(202).json({
       status: 'PENDING',
       message: `Role change for "${targetUser.name}" to ${new_role} submitted to CEO for approval.`,
-      action_id: Number(result.lastInsertRowid)
+      action_id: Number(actionId)
     });
   } catch (error) {
     console.error('updateUserRole error:', error);
@@ -218,12 +223,12 @@ export function updateUserRole(req, res) {
 }
 
 // ── 4. Delete User (CEO Instant, Admin Queued) ───────────────────────────────
-export function deleteUser(req, res) {
+export async function deleteUser(req, res) {
   try {
     const actor = req.user;
     const targetId = parseInt(req.params.id, 10);
 
-    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -233,12 +238,12 @@ export function deleteUser(req, res) {
       return res.status(403).json({ error: 'Protected Account: The Chief Executive Officer cannot be deleted.' });
     }
 
-    // ── CEO: Execute delete immediately (Marks as DELETED, preserves all progress)
+    // ── CEO: Execute delete immediately
     if (actor.role === 'ceo') {
-      db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+      await db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
 
       // Audit Log
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -270,12 +275,14 @@ export function deleteUser(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run('DELETE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const result = await stmt.run('DELETE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const actionId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
 
     return res.status(202).json({
       status: 'PENDING',
       message: `Deletion request for "${targetUser.username}" submitted to CEO for approval.`,
-      action_id: Number(result.lastInsertRowid)
+      action_id: Number(actionId)
     });
   } catch (error) {
     console.error('deleteUser error:', error);
@@ -284,12 +291,12 @@ export function deleteUser(req, res) {
 }
 
 // ── 5. Pause User / Stop (CEO Instant, Admin Queued) ────────────────────────
-export function pauseUser(req, res) {
+export async function pauseUser(req, res) {
   try {
     const actor = req.user;
     const targetId = parseInt(req.params.id, 10);
 
-    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -300,9 +307,9 @@ export function pauseUser(req, res) {
 
     // ── CEO: Execute pause immediately
     if (actor.role === 'ceo') {
-      db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+      await db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -334,12 +341,14 @@ export function pauseUser(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run('PAUSE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const result = await stmt.run('PAUSE', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const actionId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
 
     return res.status(202).json({
       status: 'PENDING',
       message: `Pause request for "${targetUser.username}" submitted to CEO for approval.`,
-      action_id: Number(result.lastInsertRowid)
+      action_id: Number(actionId)
     });
   } catch (error) {
     console.error('pauseUser error:', error);
@@ -348,21 +357,21 @@ export function pauseUser(req, res) {
 }
 
 // ── 6. Resume User (CEO Instant, Admin Queued) ───────────────────────────────
-export function resumeUser(req, res) {
+export async function resumeUser(req, res) {
   try {
     const actor = req.user;
     const targetId = parseInt(req.params.id, 10);
 
-    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // ── CEO: Execute resume immediately
     if (actor.role === 'ceo') {
-      db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+      await db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -394,12 +403,14 @@ export function resumeUser(req, res) {
       ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run('RESUME', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const result = await stmt.run('RESUME', targetId, targetData, actor.id, actor.name || 'Admin', actor.role);
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const actionId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
 
     return res.status(202).json({
       status: 'PENDING',
       message: `Resume request for "${targetUser.username}" submitted to CEO for approval.`,
-      action_id: Number(result.lastInsertRowid)
+      action_id: Number(actionId)
     });
   } catch (error) {
     console.error('resumeUser error:', error);
@@ -408,12 +419,12 @@ export function resumeUser(req, res) {
 }
 
 // ── 7. Trigger Password Reset (Instant for both Admin & CEO) ───────────────────
-export function triggerPasswordReset(req, res) {
+export async function triggerPasswordReset(req, res) {
   try {
     const actor = req.user;
     const targetId = parseInt(req.params.id, 10);
 
-    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
+    const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').get(targetId);
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -422,11 +433,9 @@ export function triggerPasswordReset(req, res) {
       return res.status(403).json({ error: 'Unauthorized: Cannot trigger password reset for Chief Executive Officer.' });
     }
 
-    // Instant execution — sets requires_password_reset = 1
-    db.prepare(`UPDATE users SET requires_password_reset = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+    await db.prepare(`UPDATE users SET requires_password_reset = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
 
-    // Audit Log
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).run(
@@ -448,15 +457,15 @@ export function triggerPasswordReset(req, res) {
 }
 
 // ── 8. List Pending Approvals (CEO Only) ──────────────────────────────────────
-export function getPendingApprovals(req, res) {
+export async function getPendingApprovals(req, res) {
   try {
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT * FROM pending_user_actions 
       WHERE status = 'PENDING' 
       ORDER BY created_at DESC
     `).all();
 
-    const formatted = rows.map(r => ({
+    const formatted = (rows || []).map(r => ({
       id: r.id,
       action_type: r.action_type,
       target_user_id: r.target_user_id,
@@ -478,17 +487,17 @@ export function getPendingApprovals(req, res) {
 }
 
 // ── 9. Decide Pending Approval (Approve / Reject by CEO) ─────────────────────
-export function decideApproval(req, res) {
+export async function decideApproval(req, res) {
   try {
     const actor = req.user;
     const actionId = parseInt(req.params.id, 10);
-    const { decision, notes = '' } = req.body; // 'APPROVE' or 'REJECT'
+    const { decision, notes = '' } = req.body;
 
     if (!decision || !['APPROVE', 'REJECT'].includes(decision)) {
       return res.status(400).json({ error: 'Invalid decision. Must be "APPROVE" or "REJECT".' });
     }
 
-    const action = db.prepare('SELECT * FROM pending_user_actions WHERE id = ?').get(actionId);
+    const action = await db.prepare('SELECT * FROM pending_user_actions WHERE id = ?').get(actionId);
     if (!action) {
       return res.status(404).json({ error: 'Pending action not found' });
     }
@@ -503,14 +512,13 @@ export function decideApproval(req, res) {
 
     // ── REJECT CASE
     if (decision === 'REJECT') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE pending_user_actions SET 
           status = 'REJECTED', reviewed_by_id = ?, reviewed_by_name = ?, reviewed_at = CURRENT_TIMESTAMP, notes = ?
         WHERE id = ?
       `).run(actor.id, actor.name || 'CEO', notes, actionId);
 
-      // Log rejection in AuditLogs
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
@@ -532,34 +540,34 @@ export function decideApproval(req, res) {
       const passwordHash = bcrypt.hashSync(targetData.initial_password || 'password', 10);
       const email = `${targetData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@murugan.com`;
 
-      const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(targetData.username.toLowerCase());
+      const existing = await db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(targetData.username.toLowerCase());
       if (existing) {
-        db.prepare(`
+        await db.prepare(`
           UPDATE users SET 
             name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
         `).run(targetData.name, targetData.role, targetData.role_title, passwordHash, existing.id);
       } else {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
           VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
         `).run(targetData.username, email, passwordHash, targetData.name, targetData.role, targetData.role_title);
       }
     } else if (action.action_type === 'ROLE_CHANGE') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users SET 
           username = ?, role = ?, role_title = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(targetData.new_username, targetData.new_role, targetData.new_role_title, targetData.user_id);
     } else if (action.action_type === 'DELETE') {
-      db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+      await db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
     } else if (action.action_type === 'PAUSE') {
-      db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+      await db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
     } else if (action.action_type === 'RESUME') {
-      db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+      await db.prepare(`UPDATE users SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
     } else if (action.action_type === 'SCHOOL_CREATE') {
-      db.prepare(`
-        INSERT OR REPLACE INTO master_schools 
+      await db.prepare(`
+        INSERT INTO master_schools 
         (id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
       `).run(
@@ -576,7 +584,7 @@ export function decideApproval(req, res) {
         targetData.priority || 'Medium'
       );
     } else if (action.action_type === 'SCHOOL_EDIT') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE master_schools SET
           school_name = COALESCE(?, school_name),
           district = COALESCE(?, district),
@@ -606,18 +614,18 @@ export function decideApproval(req, res) {
         targetData.id
       );
     } else if (action.action_type === 'SCHOOL_DELETE') {
-      db.prepare(`DELETE FROM master_schools WHERE id = ?`).run(targetData.id);
+      await db.prepare(`DELETE FROM master_schools WHERE id = ?`).run(targetData.id);
     }
 
     // Update pending action record to APPROVED
-    db.prepare(`
+    await db.prepare(`
       UPDATE pending_user_actions SET 
         status = 'APPROVED', reviewed_by_id = ?, reviewed_by_name = ?, reviewed_at = CURRENT_TIMESTAMP, notes = ?
       WHERE id = ?
     `).run(actor.id, actor.name || 'CEO', notes, actionId);
 
     // Record in AuditLogs
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).run(

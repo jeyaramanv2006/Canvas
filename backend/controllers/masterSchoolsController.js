@@ -1,10 +1,11 @@
 import { db } from '../database/db.js';
 
 // ── GET /api/master-schools ──────────────────────────────────────────────────
-export function getMasterSchools(req, res) {
+export async function getMasterSchools(req, res) {
   try {
-    const { q, district, zone, board, limit = 50, page = 1 } = req.query;
-    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
+    const { q, district, zone, board, limit, page = 1 } = req.query;
+    const parsedLimit = limit === 'all' || !limit ? 10000 : parseInt(limit, 10);
+    const offset = (Math.max(1, parseInt(page, 10)) - 1) * parsedLimit;
 
     let whereClauses = ["status = 'ACTIVE'"];
     let params = [];
@@ -33,12 +34,12 @@ export function getMasterSchools(req, res) {
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Count total matching
-    const countRow = db.prepare(`SELECT COUNT(*) as total FROM master_schools ${whereSql}`).get(...params);
-    const total = countRow ? countRow.total : 0;
+    const countRow = await db.prepare(`SELECT COUNT(*) as total FROM master_schools ${whereSql}`).get(...params);
+    const total = countRow ? Number(countRow.total) : 0;
 
     // Fetch paginated rows
-    const queryParams = [...params, parseInt(limit, 10), offset];
-    const schools = db.prepare(`
+    const queryParams = [...params, parsedLimit, offset];
+    const schools = await db.prepare(`
       SELECT * FROM master_schools 
       ${whereSql}
       ORDER BY district ASC, school_name ASC
@@ -48,9 +49,9 @@ export function getMasterSchools(req, res) {
     return res.json({
       total,
       page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      totalPages: Math.ceil(total / parseInt(limit, 10)),
-      schools
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / parsedLimit),
+      schools: schools || []
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -58,9 +59,9 @@ export function getMasterSchools(req, res) {
 }
 
 // ── GET /api/master-schools/export ──────────────────────────────────────────
-export function exportMasterSchoolsCSV(req, res) {
+export async function exportMasterSchoolsCSV(req, res) {
   try {
-    const schools = db.prepare(`
+    const schools = await db.prepare(`
       SELECT id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status, created_at, updated_at 
       FROM master_schools 
       WHERE status = 'ACTIVE'
@@ -93,7 +94,7 @@ export function exportMasterSchoolsCSV(req, res) {
 
     const csvRows = [headers.map(escapeCsv).join(',')];
 
-    for (const s of schools) {
+    for (const s of (schools || [])) {
       csvRows.push([
         escapeCsv(s.id),
         escapeCsv(s.school_name),
@@ -124,21 +125,21 @@ export function exportMasterSchoolsCSV(req, res) {
 }
 
 // ── GET /api/master-schools/districts ────────────────────────────────────────
-export function getSchoolDistricts(req, res) {
+export async function getSchoolDistricts(req, res) {
   try {
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT DISTINCT district FROM master_schools WHERE district IS NOT NULL AND district != '' ORDER BY district ASC
     `).all();
-    return res.json(rows.map(r => r.district));
+    return res.json((rows || []).map(r => r.district));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
 
 // ── GET /api/master-schools/:id ─────────────────────────────────────────────
-export function getMasterSchoolById(req, res) {
+export async function getMasterSchoolById(req, res) {
   try {
-    const school = db.prepare('SELECT * FROM master_schools WHERE id = ?').get(req.params.id);
+    const school = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(req.params.id);
     if (!school) {
       return res.status(404).json({ error: 'School not found in master database' });
     }
@@ -149,8 +150,7 @@ export function getMasterSchoolById(req, res) {
 }
 
 // ── POST /api/master-schools ────────────────────────────────────────────────
-// CEO: directly creates; Admin: submits approval request to CEO
-export function createMasterSchool(req, res) {
+export async function createMasterSchool(req, res) {
   try {
     const { school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority } = req.body;
 
@@ -178,7 +178,7 @@ export function createMasterSchool(req, res) {
 
     // If CEO, insert directly
     if (req.user.role === 'ceo') {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO master_schools 
         (id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
@@ -196,7 +196,7 @@ export function createMasterSchool(req, res) {
         schoolData.priority
       );
 
-      const created = db.prepare('SELECT * FROM master_schools WHERE id = ?').get(schoolData.id);
+      const created = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(schoolData.id);
       return res.status(201).json({
         success: true,
         message: 'School added directly to Master Catalog by CEO',
@@ -212,7 +212,7 @@ export function createMasterSchool(req, res) {
       VALUES (?, NULL, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run(
+    const result = await stmt.run(
       'SCHOOL_CREATE',
       JSON.stringify(schoolData),
       req.user.id,
@@ -220,10 +220,13 @@ export function createMasterSchool(req, res) {
       req.user.role || 'admin'
     );
 
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const approvalId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
+
     return res.status(202).json({
       success: true,
       message: 'School creation request submitted to CEO for approval',
-      approvalId: Number(result.lastInsertRowid),
+      approvalId: Number(approvalId),
       requiresApproval: true,
       school: schoolData
     });
@@ -234,11 +237,10 @@ export function createMasterSchool(req, res) {
 }
 
 // ── PUT /api/master-schools/:id ─────────────────────────────────────────────
-// CEO: directly updates; Admin: submits approval request to CEO
-export function updateMasterSchool(req, res) {
+export async function updateMasterSchool(req, res) {
   try {
     const id = req.params.id;
-    const existing = db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ error: 'School not found in master database' });
     }
@@ -263,7 +265,7 @@ export function updateMasterSchool(req, res) {
 
     // If CEO, update directly
     if (req.user.role === 'ceo') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE master_schools SET
           school_name = ?,
           district = ?,
@@ -293,7 +295,7 @@ export function updateMasterSchool(req, res) {
         id
       );
 
-      const school = db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
+      const school = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
       return res.json({
         success: true,
         message: 'School updated directly by CEO',
@@ -309,7 +311,7 @@ export function updateMasterSchool(req, res) {
       VALUES (?, NULL, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run(
+    const result = await stmt.run(
       'SCHOOL_EDIT',
       JSON.stringify(updatedData),
       req.user.id,
@@ -317,10 +319,13 @@ export function updateMasterSchool(req, res) {
       req.user.role || 'admin'
     );
 
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const approvalId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
+
     return res.status(202).json({
       success: true,
       message: 'School modification request submitted to CEO for approval',
-      approvalId: Number(result.lastInsertRowid),
+      approvalId: Number(approvalId),
       requiresApproval: true,
       school: updatedData
     });
@@ -331,18 +336,17 @@ export function updateMasterSchool(req, res) {
 }
 
 // ── DELETE /api/master-schools/:id ──────────────────────────────────────────
-// CEO: directly deletes; Admin: submits approval request to CEO
-export function deleteMasterSchool(req, res) {
+export async function deleteMasterSchool(req, res) {
   try {
     const id = req.params.id;
-    const existing = db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ error: 'School not found in master database' });
     }
 
     // If CEO, delete directly
     if (req.user.role === 'ceo') {
-      db.prepare('DELETE FROM master_schools WHERE id = ?').run(id);
+      await db.prepare('DELETE FROM master_schools WHERE id = ?').run(id);
       return res.json({
         success: true,
         message: `School "${existing.school_name}" deleted directly by CEO`,
@@ -358,7 +362,7 @@ export function deleteMasterSchool(req, res) {
       VALUES (?, NULL, ?, ?, ?, ?, 'PENDING')
     `);
 
-    const result = stmt.run(
+    const result = await stmt.run(
       'SCHOOL_DELETE',
       JSON.stringify({ id, school_name: existing.school_name, district: existing.district }),
       req.user.id,
@@ -366,10 +370,13 @@ export function deleteMasterSchool(req, res) {
       req.user.role || 'admin'
     );
 
+    const latestAction = await db.prepare('SELECT id FROM pending_user_actions ORDER BY id DESC LIMIT 1').get();
+    const approvalId = result.lastInsertRowid || (latestAction ? latestAction.id : 1);
+
     return res.status(202).json({
       success: true,
       message: `School deletion request for "${existing.school_name}" submitted to CEO for approval`,
-      approvalId: Number(result.lastInsertRowid),
+      approvalId: Number(approvalId),
       requiresApproval: true
     });
 

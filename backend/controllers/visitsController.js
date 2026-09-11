@@ -25,7 +25,7 @@ function formatVisitRow(row, auditLogs = []) {
   };
 }
 
-export function getVisits(req, res) {
+export async function getVisits(req, res) {
   try {
     const user = req.user;
     const { search, district, canvasser_id, interest_level, outcome_status } = req.query;
@@ -65,17 +65,17 @@ export function getVisits(req, res) {
 
     query += ' ORDER BY created_at DESC';
 
-    const rows = db.prepare(query).all(...params);
+    const rows = await db.prepare(query).all(...params);
 
     // Fetch audit logs for all visits
-    const allAuditLogs = db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC').all();
+    const allAuditLogs = await db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC').all();
     const auditMap = {};
-    for (const log of allAuditLogs) {
+    for (const log of (allAuditLogs || [])) {
       if (!auditMap[log.visit_id]) auditMap[log.visit_id] = [];
       auditMap[log.visit_id].push(log);
     }
 
-    const visits = rows.map(r => formatVisitRow(r, auditMap[r.id] || []));
+    const visits = (rows || []).map(r => formatVisitRow(r, auditMap[r.id] || []));
     return res.json(visits);
   } catch (error) {
     console.error('getVisits error:', error);
@@ -83,10 +83,10 @@ export function getVisits(req, res) {
   }
 }
 
-export function getVisitById(req, res) {
+export async function getVisitById(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const row = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
+    const row = await db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
     if (!row) {
       return res.status(404).json({ error: 'Visit not found' });
     }
@@ -96,14 +96,14 @@ export function getVisitById(req, res) {
       return res.status(403).json({ error: 'Access denied to this visit record' });
     }
 
-    const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(id);
-    return res.json(formatVisitRow(row, auditLogs));
+    const auditLogs = await db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(id);
+    return res.json(formatVisitRow(row, auditLogs || []));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 }
 
-export function createVisit(req, res) {
+export async function createVisit(req, res) {
   try {
     const user = req.user;
     const body = req.body;
@@ -132,7 +132,7 @@ export function createVisit(req, res) {
       )
     `);
 
-    const result = stmt.run(
+    const result = await stmt.run(
       user.id,
       user.name || 'Field Canvasser',
       body.is_from_master_db ? 1 : 0,
@@ -155,7 +155,8 @@ export function createVisit(req, res) {
       now
     );
 
-    const newId = Number(result.lastInsertRowid);
+    const latestRow = await db.prepare('SELECT id FROM visits ORDER BY id DESC LIMIT 1').get();
+    const newId = result.lastInsertRowid || (latestRow ? latestRow.id : 1);
 
     // Auto-create CREATE audit log entry
     const insertAudit = db.prepare(`
@@ -167,7 +168,7 @@ export function createVisit(req, res) {
       { field: 'Initial Record', from: 'None', to: `Logged initial visit for ${body.school_name}` }
     ];
 
-    insertAudit.run(
+    await insertAudit.run(
       newId,
       user.id,
       user.name || 'Staff',
@@ -177,8 +178,8 @@ export function createVisit(req, res) {
       now
     );
 
-    const createdRow = db.prepare('SELECT * FROM visits WHERE id = ?').get(newId);
-    const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(newId);
+    const createdRow = await db.prepare('SELECT * FROM visits WHERE id = ?').get(newId);
+    const auditLogs = await db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(newId);
 
     // Auto-update master_schools table with field details (student_strength, contact_person, phone)
     try {
@@ -201,29 +202,29 @@ export function createVisit(req, res) {
       if (updates.length > 0) {
         updates.push('updated_at = CURRENT_TIMESTAMP');
         if (body.master_school_id) {
-          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, body.master_school_id);
+          await db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, body.master_school_id);
         } else if (body.school_name && body.district) {
-          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, body.school_name.trim(), body.district.trim());
+          await db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, body.school_name.trim(), body.district.trim());
         }
       }
     } catch (err) {
       console.warn('Could not auto-sync visit details to master_schools:', err.message);
     }
 
-    return res.status(201).json(formatVisitRow(createdRow, auditLogs));
+    return res.status(201).json(formatVisitRow(createdRow, auditLogs || []));
   } catch (error) {
     console.error('createVisit error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
 
-export function updateVisit(req, res) {
+export async function updateVisit(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const user = req.user;
     const updateData = req.body;
 
-    const current = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
+    const current = await db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
     if (!current) {
       return res.status(404).json({ error: 'Visit not found' });
     }
@@ -264,7 +265,7 @@ export function updateVisit(req, res) {
     const followUpDate = updateData.follow_up_date !== undefined ? updateData.follow_up_date : current.follow_up_date;
     const notes = updateData.notes !== undefined ? updateData.notes : current.notes;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE visits SET
         school_name = ?,
         district = ?,
@@ -308,7 +309,7 @@ export function updateVisit(req, res) {
     );
 
     // Insert UPDATE audit log entry
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (visit_id, actor_id, actor_name, actor_role, action, changed_fields, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -321,8 +322,8 @@ export function updateVisit(req, res) {
       now
     );
 
-    const updatedRow = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
-    const auditLogs = db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(id);
+    const updatedRow = await db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
+    const auditLogs = await db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(id);
 
     // Auto-update master_schools table with updated visit details (student_strength, contact_person, phone)
     try {
@@ -345,28 +346,28 @@ export function updateVisit(req, res) {
       if (updates.length > 0) {
         updates.push('updated_at = CURRENT_TIMESTAMP');
         if (current.master_school_id) {
-          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, current.master_school_id);
+          await db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams, current.master_school_id);
         } else if (schoolName && district) {
-          db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, schoolName.trim(), district.trim());
+          await db.prepare(`UPDATE master_schools SET ${updates.join(', ')} WHERE LOWER(school_name) = LOWER(?) AND LOWER(district) = LOWER(?)`).run(...updateParams, schoolName.trim(), district.trim());
         }
       }
     } catch (err) {
       console.warn('Could not auto-sync visit details on updateVisit:', err.message);
     }
 
-    return res.json(formatVisitRow(updatedRow, auditLogs));
+    return res.json(formatVisitRow(updatedRow, auditLogs || []));
   } catch (error) {
     console.error('updateVisit error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
 
-export function deleteVisit(req, res) {
+export async function deleteVisit(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const user = req.user;
 
-    const current = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
+    const current = await db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
     if (!current) {
       return res.status(404).json({ error: 'Visit not found' });
     }
@@ -377,7 +378,7 @@ export function deleteVisit(req, res) {
 
     // Insert DELETE audit log before removing
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (visit_id, actor_id, actor_name, actor_role, action, changed_fields, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -390,9 +391,31 @@ export function deleteVisit(req, res) {
       now
     );
 
-    db.prepare('DELETE FROM visits WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM visits WHERE id = ?').run(id);
 
     return res.json({ success: true, message: 'Visit deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+export async function getSchoolHistory(req, res) {
+  try {
+    const schoolName = req.params.name;
+    const district = req.query.district;
+
+    let query = 'SELECT * FROM visits WHERE LOWER(school_name) = LOWER(?)';
+    const params = [schoolName];
+
+    if (district) {
+      query += ' AND LOWER(district) = LOWER(?)';
+      params.push(district);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const rows = await db.prepare(query).all(...params);
+    return res.json((rows || []).map(r => formatVisitRow(r)));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
