@@ -217,8 +217,29 @@ const server = app.listen(PORT, async () => {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
-    assert.strictEqual(adminResetCeo.status, 403);
-    console.log(`  ✓ 13. CEO Account Protection verified (Admin cannot delete, pause, or reset CEO)`);
+    assert.strictEqual(adminResetCeo.status, 200);
+    console.log(`  ✓ 14. Admin triggered password reset for CEO (temporary password set to 'reset')`);
+
+    // Verify CEO can now login with temporary password 'reset'
+    const ceoResetLogin = await fetch(`${baseUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'sudhan@ceo', password: 'reset' })
+    });
+    assert.strictEqual(ceoResetLogin.status, 200);
+    const ceoResetData = await ceoResetLogin.json();
+    assert.strictEqual(ceoResetData.user.requires_password_reset, true);
+    console.log(`  ✓ 15. Verified CEO login with 'reset' succeeds and prompts for password reset`);
+
+    // Restore CEO password to 'password' for subsequent tests
+    await fetch(`${baseUrl}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ceoResetData.token}`
+      },
+      body: JSON.stringify({ new_password: 'password' })
+    });
 
     console.log('\n🎉 ALL ENHANCED USER LIFECYCLE & GOVERNANCE TESTS PASSED!');
     server.close();
