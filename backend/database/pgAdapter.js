@@ -270,36 +270,12 @@ async function seedPgData(p) {
     console.warn("PostgreSQL username migration check:", e.message);
   }
 
-  // Synchronize PostgreSQL primary key sequences with existing MAX(id)
-  try {
-    await p.query(`
-      SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
-      SELECT setval(pg_get_serial_sequence('pending_user_actions', 'id'), COALESCE((SELECT MAX(id) FROM pending_user_actions), 1));
-      SELECT setval(pg_get_serial_sequence('visits', 'id'), COALESCE((SELECT MAX(id) FROM visits), 1));
-      SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), COALESCE((SELECT MAX(id) FROM audit_logs), 1));
-      SELECT setval(pg_get_serial_sequence('products', 'id'), COALESCE((SELECT MAX(id) FROM products), 1));
-    `);
-    console.log('🔄 PostgreSQL ID sequences synchronized.');
-  } catch (seqErr) {
-    console.warn("PostgreSQL sequence sync warning:", seqErr.message);
-  }
-
-  // 2. Seed Master Schools Catalog (2,523 Schools)
-  try {
-    await p.query(`
-      DELETE FROM master_schools 
-      WHERE id IN ('SCH-THE-2524', 'SCH-THE-2525', 'SCH-THE-2526', 'SCH-THE-2527', 'SCH-THE-2528', 'SCH-THE-2529', 'SCH-THE-2530', 'SCH-THE-2531', 'SCH-THE-2532', 'SCH-THE-2533', 'SCH-THE-2534', 'SCH-THE-2535')
-      OR school_name LIKE '%Link';
-    `);
-  } catch (e) {
-    console.warn("Master schools cleanup check:", e.message);
-  }
-
+  // 2. Seed Master Schools Catalog (2,561 Schools)
   const countRes = await p.query('SELECT COUNT(*) as count FROM master_schools');
   const currentCount = parseInt(countRes.rows[0].count, 10) || 0;
 
   if (currentCount < 2500) {
-    console.log(`📥 Seeding Master Schools into PostgreSQL...`);
+    console.log(`📥 Seeding 2,561 Master Schools into Supabase PostgreSQL...`);
     const schools = loadAndParseSchoolsFromCSVs();
     
     const batchSize = 200;
