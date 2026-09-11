@@ -36,7 +36,8 @@ export async function login(req, res) {
       'field3@murugan.com': 'suhas@cvs'
     };
 
-    const targetIdentifier = aliasMap[inputIdentifier] || inputIdentifier;
+    const normalizedIdentifier = inputIdentifier.replace(/@canvasser$/, '@cvs').replace(/@adminexec$/, '@admin');
+    const targetIdentifier = aliasMap[normalizedIdentifier] || normalizedIdentifier;
 
     const user = await db.prepare(`
       SELECT * FROM users 

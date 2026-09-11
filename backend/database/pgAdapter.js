@@ -256,6 +256,20 @@ async function seedPgData(p) {
     }
   }
 
+  // Auto-migrate usernames from @canvasser to @cvs on PostgreSQL/Neon
+  try {
+    await p.query(`
+      UPDATE users 
+      SET username = REPLACE(username, '@canvasser', '@cvs')
+      WHERE username LIKE '%@canvasser';
+      UPDATE users 
+      SET username = REPLACE(username, '@adminexec', '@admin')
+      WHERE username LIKE '%@adminexec';
+    `);
+  } catch (e) {
+    console.warn("PostgreSQL username migration check:", e.message);
+  }
+
   // 2. Seed Master Schools Catalog (2,561 Schools)
   const countRes = await p.query('SELECT COUNT(*) as count FROM master_schools');
   const currentCount = parseInt(countRes.rows[0].count, 10) || 0;

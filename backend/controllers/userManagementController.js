@@ -6,7 +6,21 @@ import { db } from '../database/db.js';
  */
 export function formatUsername(name, role) {
   const cleanName = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanRole = (role || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const rawRole = (role || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  const roleMap = {
+    'canvasser': 'cvs',
+    'cvs': 'cvs',
+    'field': 'cvs',
+    'admin_exec': 'admin',
+    'adminexec': 'admin',
+    'admin': 'admin',
+    'ceo': 'ceo',
+    'cfo': 'cfo',
+    'cco': 'cco'
+  };
+
+  const cleanRole = roleMap[rawRole] || rawRole;
   return `${cleanName}@${cleanRole}`;
 }
 
@@ -16,6 +30,7 @@ export async function getUsers(req, res) {
     const users = await db.prepare(`
       SELECT id, username, name, email, role, role_title, status, requires_password_reset, created_at 
       FROM users 
+      WHERE status != 'DELETED'
       ORDER BY id ASC
     `).all();
 
@@ -43,10 +58,15 @@ export async function createUser(req, res) {
     const username = formatUsername(name, role);
     const roleTitle = role_title || `${role.toUpperCase()} Member`;
 
-    // Check if exact username already exists and is active
+    // Check if exact username already exists and is active/paused
     const existing = await db.prepare('SELECT id, status FROM users WHERE LOWER(username) = ?').get(username.toLowerCase());
-    if (existing && existing.status !== 'DELETED') {
-      return res.status(400).json({ error: `Username "${username}" already exists. A unique username per role is required.` });
+    if (existing) {
+      if (existing.status === 'DELETED') {
+        // Clean up legacy soft-deleted record so it can be re-created fresh
+        await db.prepare('DELETE FROM users WHERE id = ?').run(existing.id);
+      } else {
+        return res.status(400).json({ error: `Username "${username}" already exists. A unique username per role is required.` });
+      }
     }
 
     // ── CEO: Execute immediately in database
@@ -54,23 +74,13 @@ export async function createUser(req, res) {
       const passwordHash = bcrypt.hashSync(initial_password, 10);
       const email = `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@murugan.com`;
 
-      let newUserId;
-      if (existing) {
-        await db.prepare(`
-          UPDATE users SET 
-            name = ?, role = ?, role_title = ?, password_hash = ?, status = 'ACTIVE', requires_password_reset = 0, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).run(name, role.toLowerCase(), roleTitle, passwordHash, existing.id);
-        newUserId = existing.id;
-      } else {
-        const stmt = db.prepare(`
-          INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
-          VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
-        `);
-        const result = await stmt.run(username, email, passwordHash, name, role.toLowerCase(), roleTitle);
-        const latestUser = await db.prepare('SELECT id FROM users ORDER BY id DESC LIMIT 1').get();
-        newUserId = result.lastInsertRowid || (latestUser ? latestUser.id : 1);
-      }
+      const stmt = db.prepare(`
+        INSERT INTO users (username, email, password_hash, name, role, role_title, status, requires_password_reset)
+        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 0)
+      `);
+      const result = await stmt.run(username, email, passwordHash, name, role.toLowerCase(), roleTitle);
+      const latestUser = await db.prepare('SELECT id FROM users ORDER BY id DESC LIMIT 1').get();
+      const newUserId = result.lastInsertRowid || (latestUser ? latestUser.id : 1);
 
       // Log to AuditLogs
       await db.prepare(`
@@ -239,9 +249,10 @@ export async function deleteUser(req, res) {
       return res.status(403).json({ error: 'Protected Account: The Chief Executive Officer cannot be deleted.' });
     }
 
-    // ── CEO: Execute delete immediately
+    // ── CEO: Execute delete immediately (permanently purge from database)
     if (actor.role === 'ceo') {
-      await db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+      await db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
+      await db.prepare('DELETE FROM pending_user_actions WHERE target_user_id = ?').run(targetId);
 
       // Audit Log
       await db.prepare(`
@@ -252,12 +263,12 @@ export async function deleteUser(req, res) {
         actor.name || 'CEO',
         'CEO',
         'DELETE',
-        JSON.stringify([{ field: 'Account Status', from: targetUser.status, to: 'DELETED (Progress Preserved)' }])
+        JSON.stringify([{ field: 'Account Purged', from: targetUser.username, to: 'Permanently Deleted from Database' }])
       );
 
       return res.json({
         status: 'SUCCESS',
-        message: `User ${targetUser.username} marked as DELETED. Access is disabled, historical progress is preserved.`
+        message: `User ${targetUser.username} permanently deleted from database.`
       });
     }
 
@@ -562,7 +573,8 @@ export async function decideApproval(req, res) {
         WHERE id = ?
       `).run(targetData.new_username, targetData.new_role, targetData.new_role_title, targetData.user_id);
     } else if (action.action_type === 'DELETE') {
-      await db.prepare(`UPDATE users SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
+      await db.prepare('DELETE FROM users WHERE id = ?').run(targetData.user_id);
+      await db.prepare('DELETE FROM pending_user_actions WHERE target_user_id = ?').run(targetData.user_id);
     } else if (action.action_type === 'PAUSE') {
       await db.prepare(`UPDATE users SET status = 'PAUSED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetData.user_id);
     } else if (action.action_type === 'RESUME') {

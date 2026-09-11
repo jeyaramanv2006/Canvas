@@ -101,6 +101,16 @@ export async function initDB() {
     if (!colNames.includes('updated_at')) {
       db.exec(`ALTER TABLE users ADD COLUMN updated_at DATETIME;`);
     }
+
+    // Auto-migrate usernames from @canvasser to @cvs
+    db.exec(`
+      UPDATE users 
+      SET username = REPLACE(username, '@canvasser', '@cvs')
+      WHERE username LIKE '%@canvasser';
+      UPDATE users 
+      SET username = REPLACE(username, '@adminexec', '@admin')
+      WHERE username LIKE '%@adminexec';
+    `);
   } catch (e) {
     console.warn("User migration check:", e.message);
   }
