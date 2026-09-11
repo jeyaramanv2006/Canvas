@@ -206,11 +206,15 @@ export default function CanvasserDashboard() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center font-black text-black text-sm shadow-md shadow-amber-400/20">
-                MG
+              <div className="h-10 w-20 rounded-xl overflow-hidden border border-white/10 shadow-md bg-[#14151b] flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/logo.jpg" 
+                  alt="MG The One" 
+                  className="w-full h-full object-cover scale-[1.38]"
+                />
               </div>
               <div>
-                <h1 className="text-base font-extrabold text-white tracking-tight uppercase">MG The One</h1>
+                <h1 className="text-base font-extrabold text-white tracking-tight uppercase">The One</h1>
                 <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{user?.name || 'Karthik'}</span>

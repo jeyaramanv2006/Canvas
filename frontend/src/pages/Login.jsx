@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, Loader2, ShieldCheck, Lock } from 'lucide-react';
+import { LogIn, Loader2, ShieldCheck } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { AuthContext } from '../App';
 
@@ -26,7 +26,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden relative selection:bg-yellow-400 selection:text-black">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 overflow-hidden relative selection:bg-yellow-400 selection:text-black">
       {/* Dynamic Glow Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[55%] h-[55%] bg-yellow-400/20 blur-[140px] rounded-full" />
@@ -38,20 +38,25 @@ export default function Login() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md bg-[#16171d]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10"
+        className="w-full max-w-md bg-[#16171d]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl relative z-10 my-auto"
       >
-        {/* Header */}
-        <div className="text-center mb-8">
+        {/* Header with Zoomed Logo */}
+        <div className="text-center mb-6">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg shadow-yellow-400/30"
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="flex justify-center mb-3"
           >
-            <span className="text-2xl font-black text-black tracking-tighter">MG</span>
+            <div className="w-56 h-28 sm:w-64 sm:h-32 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#14151b] flex items-center justify-center relative">
+              <img
+                src="/logo.jpg"
+                alt="Murugan Groups - MG The One"
+                className="w-full h-full object-cover scale-[1.70] -translate-y-3 -translate-x-2 transition-transform duration-300"
+              />
+            </div>
           </motion.div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mb-1.5 tracking-tight uppercase">MG The One</h1>
-          <p className="text-gray-400 text-xs sm:text-sm">Institutional Canvassing & Uniform Orders Portal</p>
+          <p className="text-gray-400 text-xs sm:text-sm font-medium tracking-wide">Canvassing and Financials</p>
         </div>
 
         {/* Login Form */}
@@ -59,15 +64,15 @@ export default function Login() {
           <div className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">
-                Username (<span className="text-amber-400 lowercase font-mono">&lt;name&gt;@&lt;role&gt;</span>)
+                Username
               </label>
               <input
                 type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm font-mono"
-                placeholder="e.g. sudhan@ceo or admin@admin"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm font-mono min-h-[46px]"
+                placeholder=""
                 autoComplete="username"
               />
             </div>
@@ -80,7 +85,7 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm min-h-[46px]"
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
@@ -103,7 +108,7 @@ export default function Login() {
             disabled={loading}
             type="submit"
             style={{ backgroundColor: '#FFD700', color: '#000000' }}
-            className="w-full font-black rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 hover:brightness-105 active:brightness-95 transition-all disabled:opacity-70 shadow-lg shadow-yellow-500/30 text-sm cursor-pointer mt-2"
+            className="w-full font-black rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 hover:brightness-105 active:brightness-95 transition-all disabled:opacity-70 shadow-lg shadow-yellow-500/30 text-sm cursor-pointer mt-2 min-h-[48px]"
           >
             {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <LogIn className="w-4 h-4" />}
             {loading ? 'Authenticating...' : 'Sign In'}
