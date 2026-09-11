@@ -99,6 +99,12 @@ export const mockApi = {
     });
   },
 
+  async resetUserPassword(userId, newPassword) {
+    return await api.post('/auth/reset-password', {
+      new_password: newPassword
+    });
+  },
+
   // ── Users ──────────────────────────────────────────────────────────────────
   async getUsers() {
     return await api.get('/users');
