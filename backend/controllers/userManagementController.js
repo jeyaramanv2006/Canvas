@@ -33,7 +33,8 @@ export async function getUsers(req, res) {
 export async function createUser(req, res) {
   try {
     const actor = req.user;
-    const { name, role, role_title, initial_password = 'password' } = req.body;
+    const { name, role, role_title } = req.body;
+    const initial_password = req.body.initial_password || req.body.password || 'password';
 
     if (!name || !role) {
       return res.status(400).json({ error: 'Name and role are required' });
@@ -537,7 +538,8 @@ export async function decideApproval(req, res) {
 
     // ── APPROVE CASE
     if (action.action_type === 'CREATE') {
-      const passwordHash = bcrypt.hashSync(targetData.initial_password || 'password', 10);
+      const initialPassword = targetData.initial_password || targetData.password || 'password';
+      const passwordHash = bcrypt.hashSync(initialPassword, 10);
       const email = `${targetData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@murugan.com`;
 
       const existing = await db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(targetData.username.toLowerCase());

@@ -34,25 +34,8 @@ export default function ForcePasswordResetModal() {
 
     setLoading(true);
     try {
-      // 1. Update mockApi / localStorage
+      // Call backend reset-password endpoint
       await mockApi.resetUserPassword(user.id, newPassword);
-
-      // 2. Try updating backend if connected
-      try {
-        const token = localStorage.getItem('token');
-        if (token && !token.startsWith('mock-jwt-token-')) {
-          await fetch('/api/auth/reset-password', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ new_password: newPassword })
-          });
-        }
-      } catch (backendErr) {
-        console.warn("Backend reset password sync:", backendErr);
-      }
 
       setSuccess(true);
       setTimeout(() => {

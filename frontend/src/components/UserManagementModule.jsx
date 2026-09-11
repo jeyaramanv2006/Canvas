@@ -77,7 +77,8 @@ export default function UserManagementModule({ currentUser }) {
           username: generatedUsername,
           role: newRole,
           roleTitle: selectedRoleObj?.roleTitle || 'Staff',
-          password: newPassword
+          password: newPassword,
+          initial_password: newPassword
         });
         showSuccess(`User "${newName}" (${generatedUsername}) provisioned and activated immediately!`);
       } else {
