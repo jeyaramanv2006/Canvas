@@ -66,6 +66,22 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
 
   // Filter logic
   const schoolList = Array.isArray(schools) ? schools : [];
+
+  const districtCounts = React.useMemo(() => {
+    const counts = {};
+    for (const s of schoolList) {
+      if (s?.district) {
+        counts[s.district] = (counts[s.district] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [schoolList]);
+
+  const availableDistricts = React.useMemo(() => {
+    const list = Array.from(new Set([...TAMIL_NADU_DISTRICTS, ...Object.keys(districtCounts)])).filter(Boolean);
+    return list.sort((a, b) => a.localeCompare(b));
+  }, [districtCounts]);
+
   const filteredSchools = schoolList.filter(s => {
     if (!s) return false;
     const matchesDist = selectedDistrict === 'All' || s.district?.toLowerCase() === selectedDistrict.toLowerCase();
@@ -242,7 +258,9 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black text-white">Tamil Nadu Master Schools Directory</h2>
               <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
-                {schools.length} Institutions
+                {selectedDistrict === 'All' && selectedBoard === 'All' && !searchQuery.trim()
+                  ? `${schoolList.length} Institutions`
+                  : `${filteredSchools.length} of ${schoolList.length} Institutions`}
               </span>
               <span className={cn(
                 "text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border",
@@ -313,11 +331,13 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
               setSelectedDistrict(e.target.value);
               setPage(1);
             }}
-            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400"
+            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
           >
-            <option value="All">All Districts ({schools.length})</option>
-            {TAMIL_NADU_DISTRICTS.map(d => (
-              <option key={d} value={d}>{d}</option>
+            <option value="All">All Districts ({schoolList.length})</option>
+            {availableDistricts.map(d => (
+              <option key={d} value={d}>
+                {d} {districtCounts[d] !== undefined ? `(${districtCounts[d]})` : ''}
+              </option>
             ))}
           </select>
         </div>
@@ -329,7 +349,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
               setSelectedBoard(e.target.value);
               setPage(1);
             }}
-            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400"
+            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
           >
             <option value="All">All Boards</option>
             <option value="CBSE">CBSE</option>
