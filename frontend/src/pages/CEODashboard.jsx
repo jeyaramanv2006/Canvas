@@ -49,14 +49,18 @@ export default function CEODashboard() {
       <header className="bg-[#14151b]/95 border-b border-white/10 sticky top-0 z-40 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-xs">
-              ME
+            <div className="h-10 w-20 rounded-xl overflow-hidden border border-white/10 shadow-md bg-[#14151b] flex items-center justify-center flex-shrink-0">
+              <img 
+                src="/logo.jpg" 
+                alt="MG The One" 
+                className="w-full h-full object-cover scale-[1.38]"
+              />
             </div>
             <div>
               <h1 className="text-sm font-black text-white flex items-center gap-2">
-                MG THE ONE <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">CEO</span>
+                THE ONE <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">CEO</span>
               </h1>
-              <p className="text-[11px] text-gray-400">Executive Dashboard • {user?.name || 'Chief Executive Officer'}</p>
+              <p className="text-[11px] text-gray-400">Canvassing and Financials • {user?.name || 'Chief Executive Officer'}</p>
             </div>
           </div>
 

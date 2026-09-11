@@ -7,13 +7,64 @@ import CEODashboard from './pages/CEODashboard';
 import CFODashboard from './pages/CFODashboard';
 import CCODashboard from './pages/CCODashboard';
 import ForcePasswordResetModal from './components/ForcePasswordResetModal';
-import { getHomeRoute, isCanvasser } from './lib/rbac';
+import { getHomeRoute } from './lib/rbac';
+import { getToken, setToken } from './api/client';
+import { mockApi } from './mockApi';
 
-// Auth Context
 export const AuthContext = React.createContext(null);
 
 function App() {
-  const [user, setUser] = React.useState(null);
+  const [user, setUserState] = React.useState(() => {
+    try {
+      const cached = localStorage.getItem('mg_current_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [initializing, setInitializing] = React.useState(true);
+
+  const setUser = React.useCallback((newUser) => {
+    if (newUser) {
+      localStorage.setItem('mg_current_user', JSON.stringify(newUser));
+      setUserState(newUser);
+    } else {
+      localStorage.removeItem('mg_current_user');
+      setToken('');
+      setUserState(null);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    async function restoreSession() {
+      const token = getToken();
+      if (token) {
+        try {
+          const currentUser = await mockApi.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+          } else {
+            setUser(null);
+          }
+        } catch {
+          // Token expired or invalid
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setInitializing(false);
+    }
+    restoreSession();
+  }, [setUser]);
+
+  if (initializing && getToken()) {
+    return (
+      <div className="min-h-screen bg-[#0d0e12] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>
@@ -33,36 +84,37 @@ function App() {
               }
             />
 
-            {/* Canvasser */}
+            {/* Canvasser Dashboard */}
             <Route
               path="/canvasser"
               element={user ? <CanvasserDashboard /> : <Navigate to="/" replace />}
             />
 
-            {/* Admin Executive (Operational) */}
+            {/* Admin Operations Executive */}
             <Route
               path="/manager"
               element={user ? <ManagerDashboard /> : <Navigate to="/" replace />}
             />
 
-            {/* CEO */}
+            {/* Chief Executive Officer (CEO) */}
             <Route
               path="/ceo"
               element={user ? <CEODashboard /> : <Navigate to="/" replace />}
             />
 
-            {/* CFO */}
+            {/* Chief Financial Officer (CFO) */}
             <Route
               path="/cfo"
               element={user ? <CFODashboard /> : <Navigate to="/" replace />}
             />
 
-            {/* CCO */}
+            {/* Chief Commercial Officer (CCO) */}
             <Route
               path="/cco"
               element={user ? <CCODashboard /> : <Navigate to="/" replace />}
             />
 
+            {/* Fallback Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

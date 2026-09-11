@@ -33,17 +33,12 @@ export function parseCSVLine(line) {
 
 export function loadAndParseSchoolsFromCSVs() {
   const localCsvPath = path.join(__dirname, '../data/tn_schools_master.csv');
-  const candidatePaths = [
-    localCsvPath,
-    'C:/Users/Jeyaraman/.gemini/antigravity-ide/brain/521261f6-e87b-4d61-95f4-75618827b6f1/.user_uploaded/media_1788986419713.csv',
-    'C:/Users/Jeyaraman/.gemini/antigravity-ide/brain/761e495d-776f-4a36-b9a9-0eef0b90bc0e/.user_uploaded/media_1788718991356.csv'
-  ];
-
-  let selectedPath = candidatePaths.find(p => fs.existsSync(p));
-  if (!selectedPath) {
-    console.warn('⚠️ No master schools CSV found in known paths.');
+  if (!fs.existsSync(localCsvPath)) {
+    console.warn('⚠️ Master schools CSV file not found at:', localCsvPath);
     return [];
   }
+
+  const selectedPath = localCsvPath;
 
   console.log(`📖 Loading Master Schools catalog from: ${selectedPath}`);
   const content = fs.readFileSync(selectedPath, 'utf-8');
