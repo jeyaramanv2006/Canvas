@@ -101,11 +101,14 @@ export async function createQuotation(req, res) {
     `);
 
     const now = new Date().toISOString();
+    const canvasserId = body.canvasser_id ? Number(body.canvasser_id) : user.id;
+    const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
+
     await stmt.run(
       id,
       body.visit_id ? Number(body.visit_id) : null,
-      user.id,
-      user.name,
+      canvasserId,
+      canvasserName,
       body.school_name,
       body.district || '',
       body.contact_person || '',
@@ -181,6 +184,9 @@ export async function createInvoice(req, res) {
     const outstanding = Math.max(0, grandTotal - paidAmount);
     const paymentStatus = outstanding === 0 ? 'Fully Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid';
 
+    const canvasserId = body.canvasser_id ? Number(body.canvasser_id) : user.id;
+    const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
+
     await db.prepare(`
       INSERT INTO invoices (
         id, quotation_id, visit_id, canvasser_id, canvasser_name,
@@ -192,8 +198,8 @@ export async function createInvoice(req, res) {
       id,
       body.quotation_id || null,
       body.visit_id ? Number(body.visit_id) : null,
-      user.id,
-      user.name,
+      canvasserId,
+      canvasserName,
       body.school_name,
       body.district || '',
       body.contact_person || '',
@@ -241,7 +247,9 @@ export async function recordPayment(req, res) {
   try {
     const user = req.user;
     const invoiceId = req.params.id;
-    const { amount, payment_method = 'Bank Transfer / NEFT', reference_number = '' } = req.body;
+    const paymentMethod = req.body.payment_method || req.body.mode || 'Bank Transfer / NEFT';
+    const referenceNumber = req.body.reference_number || req.body.reference_id || '';
+    const amount = req.body.amount;
 
     const invoice = await db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
     if (!invoice) {
@@ -274,8 +282,8 @@ export async function recordPayment(req, res) {
       invoiceId,
       invoice.school_name,
       payAmt,
-      payment_method,
-      reference_number,
+      paymentMethod,
+      referenceNumber,
       user.name || 'Accounts Admin',
       ['canvasser', 'cvs'].includes(user.role) ? 'Canvasser' : 'Finance Admin',
       now

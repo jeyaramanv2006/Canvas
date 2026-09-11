@@ -305,28 +305,87 @@ export const mockApi = {
 
   // ── Quotations ─────────────────────────────────────────────────────────────
   async getQuotations() {
-    return await api.get('/quotations');
+    const res = await api.get('/quotations');
+    const list = Array.isArray(res) ? res : (res?.quotations || []);
+    return list.map(q => ({
+      ...q,
+      date: q.date || (q.created_at ? q.created_at.split('T')[0] : ''),
+      grand_total: Number(q.grand_total || 0),
+      items: typeof q.items === 'string' ? JSON.parse(q.items || '[]') : (q.items || [])
+    }));
   },
 
   async createQuotation(quoteData) {
     return await api.post('/quotations', quoteData);
   },
 
+  async addQuotation(quoteData, canvasserId, canvasserName) {
+    const payload = {
+      ...quoteData,
+      canvasser_id: canvasserId || quoteData.canvasser_id,
+      canvasser_name: canvasserName || quoteData.canvasser_name
+    };
+    return await this.createQuotation(payload);
+  },
+
   // ── Invoices & Payments ────────────────────────────────────────────────────
   async getInvoices() {
-    return await api.get('/invoices');
+    const res = await api.get('/invoices');
+    const list = Array.isArray(res) ? res : (res?.invoices || []);
+    return list.map(inv => {
+      const grandTotal = Number(inv.grand_total || 0);
+      const paidAmount = Number(inv.paid_amount || 0);
+      const outstanding = inv.outstanding_balance !== undefined ? Number(inv.outstanding_balance) : Math.max(0, grandTotal - paidAmount);
+      const status = inv.payment_status || inv.status || (outstanding === 0 ? 'Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid');
+      return {
+        ...inv,
+        status: status === 'Fully Paid' ? 'Paid' : status,
+        payment_status: inv.payment_status || status,
+        grand_total: grandTotal,
+        paid_amount: paidAmount,
+        outstanding_balance: outstanding,
+        pending_balance: outstanding,
+        due_date: inv.due_date || '',
+        items: typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || [])
+      };
+    });
   },
 
   async createInvoice(invoiceData) {
     return await api.post('/invoices', invoiceData);
   },
 
+  async addInvoice(invoiceData, canvasserId, canvasserName) {
+    const payload = {
+      ...invoiceData,
+      canvasser_id: canvasserId || invoiceData.canvasser_id,
+      canvasser_name: canvasserName || invoiceData.canvasser_name
+    };
+    return await this.createInvoice(payload);
+  },
+
   async recordPayment(invoiceId, paymentData) {
-    return await api.post(`/invoices/${invoiceId}/payment`, paymentData);
+    const payload = {
+      amount: Number(paymentData.amount || 0),
+      payment_method: paymentData.payment_method || paymentData.mode || 'Bank Transfer / NEFT',
+      reference_number: paymentData.reference_number || paymentData.reference_id || '',
+      notes: paymentData.notes || ''
+    };
+    return await api.post(`/invoices/${invoiceId}/payment`, payload);
   },
 
   async getPayments() {
-    return await api.get('/payments');
+    const res = await api.get('/payments');
+    const list = Array.isArray(res) ? res : (res?.payments || []);
+    return list.map(p => ({
+      ...p,
+      amount: Number(p.amount || 0),
+      mode: p.payment_method || p.mode || 'Bank Transfer',
+      payment_method: p.payment_method || p.mode || 'Bank Transfer',
+      reference_id: p.reference_number || p.reference_id || '-',
+      reference_number: p.reference_number || p.reference_id || '-',
+      date: p.date || (p.recorded_at ? p.recorded_at.split('T')[0] : '')
+    }));
   },
 
   // ── Leaderboard & Dashboards ───────────────────────────────────────────────

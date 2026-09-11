@@ -333,10 +333,10 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
             }}
             className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
           >
-            <option value="All">All Districts ({schoolList.length})</option>
+            <option value="All">All Districts ({schoolList.length} Schools)</option>
             {availableDistricts.map(d => (
               <option key={d} value={d}>
-                {d} {districtCounts[d] !== undefined ? `(${districtCounts[d]})` : ''}
+                {d} {districtCounts[d] !== undefined ? `(${districtCounts[d]} Schools)` : ''}
               </option>
             ))}
           </select>
