@@ -49,9 +49,11 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
     setLoading(true);
     try {
       const data = await mockApi.getAllMasterSchools();
-      setSchools(data);
+      const list = Array.isArray(data) ? data : (data?.schools && Array.isArray(data.schools) ? data.schools : []);
+      setSchools(list);
     } catch (e) {
       console.error("Failed to load master schools", e);
+      setSchools([]);
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,9 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
   };
 
   // Filter logic
-  const filteredSchools = schools.filter(s => {
+  const schoolList = Array.isArray(schools) ? schools : [];
+  const filteredSchools = schoolList.filter(s => {
+    if (!s) return false;
     const matchesDist = selectedDistrict === 'All' || s.district?.toLowerCase() === selectedDistrict.toLowerCase();
     const matchesBoard = selectedBoard === 'All' || s.board?.toLowerCase().includes(selectedBoard.toLowerCase());
     const q = searchQuery.toLowerCase().trim();
