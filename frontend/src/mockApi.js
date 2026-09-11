@@ -184,6 +184,15 @@ export const mockApi = {
     return await api.post('/visits', visitData);
   },
 
+  async addVisit(visitData, canvasserId, canvasserName) {
+    const payload = {
+      ...visitData,
+      canvasser_id: canvasserId || visitData.canvasser_id,
+      canvasser_name: canvasserName || visitData.canvasser_name
+    };
+    return await api.post('/visits', payload);
+  },
+
   async updateVisit(id, updateData) {
     return await api.put(`/visits/${id}`, updateData);
   },
