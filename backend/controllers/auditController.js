@@ -1,6 +1,6 @@
 import { db } from '../database/db.js';
 
-export function getAuditLogs(req, res) {
+export async function getAuditLogs(req, res) {
   try {
     const { visit_id, actor_id, action, limit = 50, offset = 0 } = req.query;
 
@@ -33,9 +33,9 @@ export function getAuditLogs(req, res) {
     query += ' ORDER BY a.timestamp DESC LIMIT ? OFFSET ?';
     params.push(Number(limit), Number(offset));
 
-    const rows = db.prepare(query).all(...params);
+    const rows = await db.prepare(query).all(...params);
 
-    const formatted = rows.map(r => ({
+    const formatted = (rows || []).map(r => ({
       id: r.id,
       visit_id: r.visit_id,
       school_name: r.school_name || `Visit #${r.visit_id}`,

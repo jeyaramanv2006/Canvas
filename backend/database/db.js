@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import { loadAndParseSchoolsFromCSVs } from './seedSchools.js';
 
+import { pgDb, initPgDB } from './pgAdapter.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,15 +17,35 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const dbPath = path.join(dataDir, 'canvas.db');
-export const db = new DatabaseSync(dbPath);
 
-// Enable WAL mode, busy timeout and foreign keys
-db.exec('PRAGMA busy_timeout = 5000;');
-db.exec('PRAGMA journal_mode = WAL;');
-db.exec('PRAGMA foreign_keys = ON;');
+let sqliteDb = null;
+if (!process.env.DATABASE_URL) {
+  sqliteDb = new DatabaseSync(dbPath);
+  sqliteDb.exec('PRAGMA busy_timeout = 5000;');
+  sqliteDb.exec('PRAGMA journal_mode = WAL;');
+  sqliteDb.exec('PRAGMA foreign_keys = ON;');
+}
+
+export const db = {
+  exec(sql) {
+    if (process.env.DATABASE_URL) {
+      return pgDb.exec(sql);
+    }
+    return sqliteDb.exec(sql);
+  },
+  prepare(sql) {
+    if (process.env.DATABASE_URL) {
+      return pgDb.prepare(sql);
+    }
+    return sqliteDb.prepare(sql);
+  }
+};
 
 // Initialize database schema
-export function initDB() {
+export async function initDB() {
+  if (process.env.DATABASE_URL) {
+    return await initPgDB();
+  }
   // 0. Master Schools Catalog Table
   db.exec(`
     CREATE TABLE IF NOT EXISTS master_schools (

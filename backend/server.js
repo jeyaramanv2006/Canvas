@@ -16,8 +16,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize SQLite schema and seeds
-initDB();
+// Initialize database schema and seeds (SQLite or PostgreSQL / Supabase)
+await initDB();
 
 // Middlewares
 app.use(cors({
@@ -108,9 +108,27 @@ app.use((err, req, res, next) => {
 const isMainModule = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].includes('server.js'));
 
 if (isMainModule && process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 Murugan Canvass Backend Server running on http://localhost:${PORT}`);
   });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`⚠️ Port ${PORT} is already in use by another process.`);
+      console.error(`Please stop any running server instances or free port ${PORT}.`);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+
+  const shutdown = () => {
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 export default app;
