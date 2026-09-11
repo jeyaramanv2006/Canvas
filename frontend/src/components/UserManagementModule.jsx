@@ -278,7 +278,7 @@ export default function UserManagementModule({ currentUser }) {
     setSubmitting(true);
     try {
       await mockApi.triggerPasswordReset(u.id);
-      showSuccess(`Password reset triggered for "${u.username || u.name}"! They will be prompted to change their password on login.`);
+      showSuccess(`Password reset for "${u.username || u.name}"! Temporary password is set to "reset". They can now log in using password "reset" and set a new password.`);
       await loadUsers();
     } catch (err) {
       alert("Failed to trigger password reset: " + err.message);
@@ -437,7 +437,7 @@ export default function UserManagementModule({ currentUser }) {
                 filteredUsers.map(u => {
                   const roleObj = ROLE_OPTIONS.find(r => r.value === u.role) || ROLE_OPTIONS[0];
                   const isUserCEO = u.role === 'ceo';
-                  const isTargetProtected = isUserCEO && !isCEO;
+                  const isTargetProtected = isUserCEO;
                   const isDeleted = u.status === 'DELETED';
                   const isPaused = u.status === 'PAUSED';
                   const isActive = !isDeleted && !isPaused;
@@ -518,17 +518,27 @@ export default function UserManagementModule({ currentUser }) {
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right">
                         {isTargetProtected ? (
-                          <span className="text-[10px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg font-bold inline-flex items-center gap-1">
-                            <Shield className="w-3 h-3 text-amber-400" />
-                            Protected Account
-                          </span>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-[10px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg font-bold inline-flex items-center gap-1">
+                              <Shield className="w-3 h-3 text-amber-400" />
+                              Protected
+                            </span>
+                            <button
+                              onClick={() => handleTriggerResetPassword(u)}
+                              className="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
+                              title="Set temporary password to 'reset' so CEO can log in and choose a new password"
+                            >
+                              <KeyRound className="w-3 h-3" />
+                              <span>Reset Pass</span>
+                            </button>
+                          </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1.5">
                             {/* 1. Edit Role Button */}
                             {!isDeleted && (
                               <button
                                 onClick={() => handleOpenEditRole(u)}
-                                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[11px] font-semibold transition"
+                                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[11px] font-semibold transition cursor-pointer"
                                 title={isCEO ? "Edit User Role Immediately" : "Submit Role Change Request to CEO"}
                               >
                                 {isCEO ? "Edit Role" : "Request Role"}
@@ -540,7 +550,7 @@ export default function UserManagementModule({ currentUser }) {
                               <button
                                 onClick={() => isPaused ? handleResumeUser(u) : setConfirmModal({ type: 'PAUSE', user: u })}
                                 className={cn(
-                                  "px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition flex items-center gap-1",
+                                  "px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer",
                                   isPaused 
                                     ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30" 
                                     : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30"
@@ -556,8 +566,8 @@ export default function UserManagementModule({ currentUser }) {
                             {!isDeleted && (
                               <button
                                 onClick={() => handleTriggerResetPassword(u)}
-                                className="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[11px] font-semibold transition flex items-center gap-1"
-                                title="Send a password reset trigger so user is prompted to set new password on login"
+                                className="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
+                                title="Set temporary password to 'reset' so user can log in and choose a new password"
                               >
                                 <KeyRound className="w-3 h-3" />
                                 <span>Reset Pass</span>
@@ -568,8 +578,8 @@ export default function UserManagementModule({ currentUser }) {
                             {!isDeleted && (
                               <button
                                 onClick={() => setConfirmModal({ type: 'DELETE', user: u })}
-                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition"
-                                title={isCEO ? "Delete user (Disables login, preserves past data)" : "Request deletion to CEO"}
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
+                                title={isCEO ? "Delete user completely from database" : "Request deletion to CEO"}
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                               </button>

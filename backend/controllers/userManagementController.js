@@ -152,9 +152,9 @@ export async function updateUserRole(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Restriction: Non-CEO cannot modify the CEO user account
-    if (targetUser.role === 'ceo' && actor.role !== 'ceo') {
-      return res.status(403).json({ error: 'Unauthorized: Cannot modify the Chief Executive Officer account.' });
+    // Restriction: Cannot modify the CEO user account role
+    if (targetUser.role === 'ceo') {
+      return res.status(403).json({ error: 'Protected Account: The Chief Executive Officer role cannot be changed.' });
     }
 
     const newUsername = formatUsername(targetUser.name, new_role);
@@ -441,11 +441,15 @@ export async function triggerPasswordReset(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (targetUser.role === 'ceo' && actor.role !== 'ceo') {
-      return res.status(403).json({ error: 'Unauthorized: Cannot trigger password reset for Chief Executive Officer.' });
-    }
-
-    await db.prepare(`UPDATE users SET requires_password_reset = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(targetId);
+    // Set temporary password to 'reset' and enforce password reset on next login
+    const resetHash = bcrypt.hashSync('reset', 10);
+    await db.prepare(`
+      UPDATE users SET 
+        password_hash = ?, 
+        requires_password_reset = 1, 
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).run(resetHash, targetId);
 
     await db.prepare(`
       INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, changed_fields, timestamp)
@@ -455,12 +459,12 @@ export async function triggerPasswordReset(req, res) {
       actor.name || 'Admin',
       actor.role || 'Admin',
       'UPDATE',
-      JSON.stringify([{ field: 'Password Reset Flagged', from: 'None', to: `Mandatory reset prompted for ${targetUser.username}` }])
+      JSON.stringify([{ field: 'Password Reset', from: 'Active Password', to: `Temporary password set to 'reset' for ${targetUser.username}` }])
     );
 
     return res.json({
       status: 'SUCCESS',
-      message: `Password reset request triggered for ${targetUser.username}. The user will be prompted to reset their password.`
+      message: `Password reset for ${targetUser.username}. Temporary password is set to "reset". The user can now log in with "reset" and choose a new password.`
     });
   } catch (error) {
     console.error('triggerPasswordReset error:', error);
