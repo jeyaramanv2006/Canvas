@@ -174,14 +174,30 @@ const server = app.listen(PORT, async () => {
     });
     assert.strictEqual(deleteRes.status, 200);
 
-    // Verify login permanently blocked for DELETED
+    // Verify login fails because user is permanently deleted
     const loginDeleted = await fetch(`${baseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: testUserLogin, password: 'new_secure_password_2026' })
     });
-    assert.strictEqual(loginDeleted.status, 403);
-    console.log(`  ✓ 12. User marked DELETED: Login permanently disabled (403)`);
+    assert.strictEqual(loginDeleted.status, 401);
+    console.log(`  ✓ 12. User permanently deleted from database: Login blocked (401)`);
+
+    // Verify user with same name can be created again fresh
+    const recreateRes = await fetch(`${baseUrl}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ceoToken}`
+      },
+      body: JSON.stringify({
+        name: 'Vignesh',
+        role: 'cvs',
+        initial_password: 'new_clean_password'
+      })
+    });
+    assert.strictEqual(recreateRes.status, 201);
+    console.log(`  ✓ 13. Re-created user with same username/name successfully`);
 
     // 11. Protection: Verify Admin CANNOT pause, delete, or edit role of CEO
     const ceoUserRecord = db.prepare("SELECT id FROM users WHERE role = 'ceo' LIMIT 1").get();

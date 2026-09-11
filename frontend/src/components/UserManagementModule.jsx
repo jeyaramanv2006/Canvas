@@ -238,13 +238,13 @@ export default function UserManagementModule({ currentUser }) {
     }
   };
 
-  // ── 5. Delete User (Preserves progress, marks DELETED) ───────────────────────
+  // ── 5. Delete User (Permanently removes from database) ──────────────────────
   const handleDeleteUser = async (u) => {
     setSubmitting(true);
     try {
       if (isCEO) {
         await mockApi.deleteUser(u.id);
-        showSuccess(`User ${u.username || u.name} marked as DELETED. Login disabled; all historical data preserved.`);
+        showSuccess(`User "${u.name}" (${u.username || u.email}) permanently deleted from database.`);
       } else {
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
         const newApproval = {
@@ -341,9 +341,9 @@ export default function UserManagementModule({ currentUser }) {
         </div>
 
         {/* Metric Badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-white/5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/5">
           <div className="p-3.5 bg-white/5 rounded-2xl border border-white/5">
-            <span className="text-[10px] font-bold uppercase text-gray-400 block tracking-wider">Total Accounts</span>
+            <span className="text-[10px] font-bold uppercase text-gray-400 block tracking-wider">Total Active Accounts</span>
             <span className="text-xl font-black text-white mt-0.5 block">{totalAccounts}</span>
           </div>
           <div className="p-3.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
@@ -356,10 +356,6 @@ export default function UserManagementModule({ currentUser }) {
           <div className="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/20">
             <span className="text-[10px] font-bold uppercase text-amber-400 block tracking-wider">Paused / Stopped</span>
             <span className="text-xl font-black text-amber-300 mt-0.5 block">{pausedAccounts}</span>
-          </div>
-          <div className="p-3.5 bg-rose-500/10 rounded-2xl border border-rose-500/20">
-            <span className="text-[10px] font-bold uppercase text-rose-400 block tracking-wider">Deleted (Archived)</span>
-            <span className="text-xl font-black text-rose-300 mt-0.5 block">{deletedAccounts}</span>
           </div>
         </div>
       </div>
@@ -413,7 +409,6 @@ export default function UserManagementModule({ currentUser }) {
             <option value="all">All Statuses</option>
             <option value="ACTIVE">Active Only</option>
             <option value="PAUSED">Paused / Stopped</option>
-            <option value="DELETED">Deleted (Data Preserved)</option>
           </select>
         </div>
       </div>
@@ -748,16 +743,16 @@ export default function UserManagementModule({ currentUser }) {
             <p className="text-xs text-gray-300 leading-relaxed">
               {confirmModal.type === 'DELETE' ? (
                 <>
-                  Are you sure you want to delete <strong>{confirmModal.user.name}</strong> ({confirmModal.user.username})?
+                  Are you sure you want to permanently delete <strong>{confirmModal.user.name}</strong> ({confirmModal.user.username})?
                   <span className="block text-rose-300 mt-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-                    ⚠️ The account will be marked <strong>DELETED</strong> and login will be permanently disabled. All past visit progress, quotations, and invoiced sales remain completely preserved in reports and leaderboard history.
+                    🗑️ This account will be completely removed from the database. No trace will remain, and you can create a new user with this name at any time.
                   </span>
                 </>
               ) : (
                 <>
                   Are you sure you want to pause <strong>{confirmModal.user.name}</strong> ({confirmModal.user.username})?
                   <span className="block text-amber-300 mt-2 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
-                    ⏸️ This will temporarily prevent the user from logging in. All historical data and active progress will remain intact. The account can be resumed at any time.
+                    ⏸️ This will temporarily prevent the user from logging in while keeping all user data intact. The account can be resumed at any time.
                   </span>
                 </>
               )}
@@ -776,7 +771,7 @@ export default function UserManagementModule({ currentUser }) {
                 )}
               >
                 {confirmModal.type === 'DELETE'
-                  ? (isCEO ? "Delete User (Preserve Data)" : "Submit Deletion Request")
+                  ? (isCEO ? "Permanently Delete User" : "Submit Deletion Request")
                   : (isCEO ? "Pause User Immediately" : "Submit Pause Request")}
               </button>
               <button

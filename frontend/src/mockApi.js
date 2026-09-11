@@ -69,7 +69,21 @@ export function calculateCommissionSlab(amount) {
 
 export function formatUsername(name, role) {
   const cleanName = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanRole = (role || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const rawRole = (role || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  const roleMap = {
+    'canvasser': 'cvs',
+    'cvs': 'cvs',
+    'field': 'cvs',
+    'admin_exec': 'admin',
+    'adminexec': 'admin',
+    'admin': 'admin',
+    'ceo': 'ceo',
+    'cfo': 'cfo',
+    'cco': 'cco'
+  };
+
+  const cleanRole = roleMap[rawRole] || rawRole;
   return `${cleanName}@${cleanRole}`;
 }
 
