@@ -75,10 +75,10 @@ export const ROLES = {
 
   CCO: {
     id: 'cco',
-    name: 'Chief Commercial Officer',
+    name: 'Chief Coordinating Officer',
     shortName: 'CCO',
-    tagline: 'Commercial Operations & Field Performance',
-    description: 'Full access to canvassing analytics, conversion rates, field KPIs, and sales metrics.',
+    tagline: 'Coordinating Operations & Field Performance',
+    description: 'Full access to cross-division coordination, canvassing analytics, conversion rates, field KPIs, and sales metrics.',
     accessScope: 'Executive Operations & Administrative',
     // Dashboard Access
     canSeeCEODashboard: false,

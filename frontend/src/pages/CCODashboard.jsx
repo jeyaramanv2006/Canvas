@@ -55,14 +55,14 @@ export default function CCODashboard() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-base sm:text-lg font-black tracking-tight text-white uppercase">The One</h1>
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> CCO — Commercial Strategy
+                    <TrendingUp className="w-3 h-3" /> CCO — Operations Coordination
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{user?.name || 'Varshini'} ({user?.roleTitle || 'Chief Commercial Officer'})</span>
+                  <span>{user?.name || 'Varshini'} ({user?.roleTitle || 'Chief Coordinating Officer'})</span>
                   <span className="text-gray-500">•</span>
-                  <span className="text-gray-400">Field Canvassing, Market Coverage & Commercial Strategy</span>
+                  <span className="text-gray-400">Field Canvassing, Market Coverage & Operations Coordination</span>
                 </p>
               </div>
 
@@ -127,11 +127,11 @@ export default function CCODashboard() {
                 <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-8 rounded-3xl border border-white/10 shadow-2xl text-center space-y-4">
                   <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full px-4 py-1.5 text-xs font-bold">
                     <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-                    Chief Commercial Officer Intelligence Center
+                    Chief Coordinating Officer Intelligence Center
                   </div>
 
                   <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Commercial Strategy, Market Penetration & Pipeline
+                    Operations Coordination, Market Penetration & Pipeline
                   </h2>
 
                   <p className="text-gray-400 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">

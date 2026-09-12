@@ -14,6 +14,9 @@ import DynamicKPISection from '../components/DynamicKPISection';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
 import ErrorBoundary from '../components/ErrorBoundary';
 import SchoolSearchPicker from '../components/SchoolSearchPicker';
+import CompanyProductSelector from '../components/CompanyProductSelector';
+import ProductBadge from '../components/ProductBadge';
+import { COMPANY_DIVISIONS } from '../lib/companyProducts';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
@@ -481,33 +484,12 @@ export default function CanvasserDashboard() {
                 </div>
               </div>
 
-              {/* Product Interests Multi-select Chips */}
-              <div className="space-y-2.5 pt-3 border-t border-white/10">
-                <div className="flex justify-between items-center">
-                  <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">Product Interests</p>
-                  <span className="text-[11px] text-murugan-accent font-medium">Tap to Select</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {availableProducts.map(product => {
-                    const isSelected = formData.product_interests.includes(product);
-                    return (
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.95 }}
-                        key={product}
-                        onClick={() => handleProductToggle(product)}
-                        className={cn(
-                          "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all",
-                          isSelected 
-                            ? "bg-murugan-accent text-black border-murugan-accent shadow-md shadow-murugan-accent/20" 
-                            : "bg-black/40 text-gray-300 border-white/10 hover:border-gray-500"
-                        )}
-                      >
-                        {product}
-                      </motion.button>
-                    );
-                  })}
-                </div>
+              {/* Product Interests Multi-select Chips by Company Division */}
+              <div className="pt-3 border-t border-white/10">
+                <CompanyProductSelector 
+                  selectedProducts={formData.product_interests}
+                  onToggleProduct={handleProductToggle}
+                />
               </div>
 
               {/* Product Specifications & Custom Requirements */}
@@ -824,7 +806,7 @@ export default function CanvasserDashboard() {
 
                       <div className="flex flex-wrap gap-1">
                         {Array.isArray(visit.product_interests) && visit.product_interests.map(p => (
-                          <span key={p} className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300 font-medium">{p}</span>
+                          <ProductBadge key={p} product={p} size="sm" />
                         ))}
                       </div>
 

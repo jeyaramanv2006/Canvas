@@ -108,7 +108,7 @@ function App() {
               element={user ? <CFODashboard /> : <Navigate to="/" replace />}
             />
 
-            {/* Chief Commercial Officer (CCO) */}
+            {/* Chief Coordinating Officer (CCO) */}
             <Route
               path="/cco"
               element={user ? <CCODashboard /> : <Navigate to="/" replace />}
