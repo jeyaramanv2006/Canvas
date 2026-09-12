@@ -1,69 +1,132 @@
 import { isAdmin, isCanvasser, getRoleConfig } from './lib/rbac';
 import { api, setToken, getToken, BASE_URL } from './api/client';
 
-export function calculateCommissionSlab(amount) {
+export function calculateCommissionSlab(amount, newSchoolsCount = 0) {
   const invoiced = Number(amount) || 0;
-  let rate = 1;
+  let rate = 2.0;
   let tier = 1;
-  let slabLabel = "1% (Tier 1: Up to ₹5L)";
-  let nextTarget = 500000;
+  let slabLabel = "2.00% (Tier 1: Up to ₹1L)";
+  let nextTarget = 100000;
+  let prevThreshold = 0;
+  let tierSpan = 100000;
 
-  if (invoiced <= 0) {
-    return {
-      rate: 1,
-      tier: 1,
-      slabLabel: "1% (Tier 1: Up to ₹5L)",
-      commission: 0,
-      nextTarget: 500000,
-      amountToNextTier: 500000,
-      progressPercent: 0,
-      formattedCommission: "₹0"
-    };
-  }
-
-  if (invoiced <= 500000) {
-    rate = 1;
+  if (invoiced < 100000) {
+    rate = 2.0;
     tier = 1;
-    slabLabel = "1% (Tier 1: Up to ₹5L)";
-    nextTarget = 500000;
-  } else if (invoiced <= 1000000) {
-    rate = 2;
+    slabLabel = "2.00% (Tier 1: Up to ₹1L)";
+    nextTarget = 100000;
+    prevThreshold = 0;
+    tierSpan = 100000;
+  } else if (invoiced < 250000) {
+    rate = 2.5;
     tier = 2;
-    slabLabel = "2% (Tier 2: ₹5L - ₹10L)";
-    nextTarget = 1000000;
-  } else if (invoiced <= 1500000) {
-    rate = 3;
+    slabLabel = "2.50% (Tier 2: ₹1L - ₹2.5L)";
+    nextTarget = 250000;
+    prevThreshold = 100000;
+    tierSpan = 150000;
+  } else if (invoiced < 500000) {
+    rate = 3.0;
     tier = 3;
-    slabLabel = "3% (Tier 3: ₹10L - ₹15L)";
-    nextTarget = 1500000;
-  } else if (invoiced <= 2000000) {
-    rate = 4;
+    slabLabel = "3.00% (Tier 3: ₹2.5L - ₹5L)";
+    nextTarget = 500000;
+    prevThreshold = 250000;
+    tierSpan = 250000;
+  } else if (invoiced < 750000) {
+    rate = 3.5;
     tier = 4;
-    slabLabel = "4% (Tier 4: ₹15L - ₹20L)";
-    nextTarget = 2000000;
-  } else {
-    rate = 5;
+    slabLabel = "3.50% (Tier 4: ₹5L - ₹7.5L)";
+    nextTarget = 750000;
+    prevThreshold = 500000;
+    tierSpan = 250000;
+  } else if (invoiced < 1000000) {
+    rate = 4.0;
     tier = 5;
-    slabLabel = "5% (Tier 5: >₹20L Max)";
+    slabLabel = "4.00% (Tier 5: ₹7.5L - ₹10L)";
+    nextTarget = 1000000;
+    prevThreshold = 750000;
+    tierSpan = 250000;
+  } else if (invoiced < 1500000) {
+    rate = 4.5;
+    tier = 6;
+    slabLabel = "4.50% (Tier 6: ₹10L - ₹15L)";
+    nextTarget = 1500000;
+    prevThreshold = 1000000;
+    tierSpan = 500000;
+  } else if (invoiced < 2500000) {
+    rate = 5.0;
+    tier = 7;
+    slabLabel = "5.00% (Tier 7: ₹15L - ₹25L)";
+    nextTarget = 2500000;
+    prevThreshold = 1500000;
+    tierSpan = 1000000;
+  } else {
+    rate = 5.5;
+    tier = 8;
+    slabLabel = "5.50% (Tier 8: >₹25L Max)";
     nextTarget = null;
+    prevThreshold = 2500000;
+    tierSpan = 0;
   }
+
+  // Monthly Performance Incentive Slabs
+  let performanceIncentive = 0;
+  let performanceTierLabel = 'None (< ₹5L)';
+  if (invoiced >= 2500000) {
+    performanceIncentive = 30000;
+    performanceTierLabel = '₹30,000 (₹25L+ Milestone)';
+  } else if (invoiced >= 2000000) {
+    performanceIncentive = 20000;
+    performanceTierLabel = '₹20,000 (₹20L - ₹25L)';
+  } else if (invoiced >= 1500000) {
+    performanceIncentive = 12500;
+    performanceTierLabel = '₹12,500 (₹15L - ₹20L)';
+  } else if (invoiced >= 1000000) {
+    performanceIncentive = 7500;
+    performanceTierLabel = '₹7,500 (₹10L - ₹15L)';
+  } else if (invoiced >= 750000) {
+    performanceIncentive = 4000;
+    performanceTierLabel = '₹4,000 (₹7.5L - ₹10L)';
+  } else if (invoiced >= 500000) {
+    performanceIncentive = 2000;
+    performanceTierLabel = '₹2,000 (₹5L - ₹7.5L)';
+  }
+
+  // New School Conversion Incentive (₹1,000 per converted new school)
+  const newSchoolIncentive = (Number(newSchoolsCount) || 0) * 1000;
 
   const commission = (invoiced * rate) / 100;
+  const totalPayout = commission + performanceIncentive + newSchoolIncentive;
   const amountToNextTier = nextTarget ? Math.max(0, nextTarget - invoiced) : 0;
-  const prevTierThreshold = tier === 1 ? 0 : (tier - 1) * 500000;
   const progressPercent = nextTarget
-    ? Math.min(100, Math.round(((invoiced - prevTierThreshold) / 500000) * 100))
+    ? Math.min(100, Math.max(0, Math.round(((invoiced - prevThreshold) / tierSpan) * 100)))
     : 100;
+
+  // Compute Next Settlement Date (1st of Next Month)
+  const today = new Date();
+  const nextMonthYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const nextMonthIdx = (today.getMonth() + 1) % 12;
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const nextSettlementDate = `1st ${monthNames[nextMonthIdx]} ${nextMonthYear}`;
 
   return {
     rate,
     tier,
     slabLabel,
     commission,
+    performanceIncentive,
+    performanceTierLabel,
+    newSchoolIncentive,
+    newSchoolsCount: Number(newSchoolsCount) || 0,
+    totalPayout,
     nextTarget,
     amountToNextTier,
     progressPercent,
-    formattedCommission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+    nextSettlementDate,
+    settlementStatus: 'Active - Scheduled for 1st',
+    formattedCommission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+    formattedPerformanceIncentive: `₹${performanceIncentive.toLocaleString('en-IN')}`,
+    formattedNewSchoolIncentive: `₹${newSchoolIncentive.toLocaleString('en-IN')}`,
+    formattedTotalPayout: `₹${totalPayout.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
   };
 }
 
@@ -393,6 +456,7 @@ export const mockApi = {
     const query = new URLSearchParams();
     if (params.sort_by) query.append('sort_by', params.sort_by);
     if (params.order) query.append('order', params.order);
+    if (params.month) query.append('month', params.month);
     const qs = query.toString();
 
     const rankings = await api.get(`/leaderboard${qs ? `?${qs}` : ''}`);
@@ -406,9 +470,11 @@ export const mockApi = {
 
     const teamStats = {
       teamTotalInvoiced,
+      formattedTeamInvoiced: `₹${(teamTotalInvoiced / 100000).toFixed(2)}L`,
       teamTotalWon,
       teamTotalVisits,
       teamTotalPay,
+      formattedTeamTotalPay: `₹${teamTotalPay.toLocaleString('en-IN')}`,
       teamConversionRate,
       activeCanvassersCount: safeRankings.length
     };
@@ -464,10 +530,12 @@ export const mockApi = {
       const totalVisits = userVisits.length;
       const hotLeads = userVisits.filter(v => v.interest_level === 'Hot').length;
       const ordersWon = userVisits.filter(v => v.outcome_status === 'Won').length;
-      const totalInvoiced = userInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
-      const totalCollected = userInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+      const newSchoolsCount = userInvoices.filter(inv => {
+        const matchingVisit = userVisits.find(v => v.id === inv.visit_id || v.school_name === inv.school_name);
+        return matchingVisit && matchingVisit.is_from_master_db === 0;
+      }).length;
 
-      const slab = calculateCommissionSlab(totalInvoiced);
+      const slab = calculateCommissionSlab(totalInvoiced, newSchoolsCount);
 
       if (['canvasser', 'cvs'].includes(role)) {
         return [
@@ -482,20 +550,20 @@ export const mockApi = {
           },
           {
             id: 'kpi_invoiced',
-            title: 'Total Invoiced',
+            title: 'Total Invoiced (Realized Sales)',
             value: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
             change: `${userInvoices.length} Invoices`,
             trend: 'up',
-            subtext: `Target: ₹10.00L (${totalInvoiced > 0 ? Math.round((totalInvoiced / 1000000) * 100) : 0}% Achieved)`,
+            subtext: slab.nextTarget ? `Target: ₹${(slab.nextTarget / 100000).toFixed(1)}L (${slab.progressPercent}% of current tier)` : 'Max 5.50% Slab Reached',
             status: 'success'
           },
           {
             id: 'kpi_pay',
-            title: 'Earned Commission Pay',
-            value: slab.formattedCommission,
-            change: slab.slabLabel,
+            title: 'Total Earned Payout',
+            value: slab.formattedTotalPayout,
+            change: `${slab.rate}% Slab + ${slab.formattedPerformanceIncentive} Bonus`,
             trend: 'up',
-            subtext: slab.nextTarget ? `₹${(slab.amountToNextTier / 100000).toFixed(1)}L to next tier` : 'Top tier reached',
+            subtext: `Next settlement: ${slab.nextSettlementDate} (1st of month)`,
             status: 'accent'
           },
           {

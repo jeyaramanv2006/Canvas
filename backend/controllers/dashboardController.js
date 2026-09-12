@@ -1,68 +1,131 @@
 import { db } from '../database/db.js';
 
-export function calculateCommissionSlab(amount) {
+export function calculateCommissionSlab(amount, newSchoolsCount = 0) {
   const invoiced = Number(amount) || 0;
-  let rate = 1;
+  let rate = 2.0;
   let tier = 1;
-  let slabLabel = "1% (Tier 1: Up to ₹5L)";
-  let nextTarget = 500000;
+  let slabLabel = "2.00% (Tier 1: Up to ₹1L)";
+  let nextTarget = 100000;
+  let prevThreshold = 0;
+  let tierSpan = 100000;
 
-  if (invoiced <= 0) {
-    return {
-      rate: 1,
-      tier: 1,
-      slabLabel: "1% (Tier 1: Up to ₹5L)",
-      commission: 0,
-      nextTarget: 500000,
-      amountToNextTier: 500000,
-      progressPercent: 0,
-      formattedCommission: "₹0"
-    };
-  }
-
-  if (invoiced <= 500000) {
-    rate = 1;
+  if (invoiced < 100000) {
+    rate = 2.0;
     tier = 1;
-    slabLabel = "1% (Tier 1: Up to ₹5L)";
-    nextTarget = 500000;
-  } else if (invoiced <= 1000000) {
-    rate = 2;
+    slabLabel = "2.00% (Tier 1: Up to ₹1L)";
+    nextTarget = 100000;
+    prevThreshold = 0;
+    tierSpan = 100000;
+  } else if (invoiced < 250000) {
+    rate = 2.5;
     tier = 2;
-    slabLabel = "2% (Tier 2: ₹5L - ₹10L)";
-    nextTarget = 1000000;
-  } else if (invoiced <= 1500000) {
-    rate = 3;
+    slabLabel = "2.50% (Tier 2: ₹1L - ₹2.5L)";
+    nextTarget = 250000;
+    prevThreshold = 100000;
+    tierSpan = 150000;
+  } else if (invoiced < 500000) {
+    rate = 3.0;
     tier = 3;
-    slabLabel = "3% (Tier 3: ₹10L - ₹15L)";
-    nextTarget = 1500000;
-  } else if (invoiced <= 2000000) {
-    rate = 4;
+    slabLabel = "3.00% (Tier 3: ₹2.5L - ₹5L)";
+    nextTarget = 500000;
+    prevThreshold = 250000;
+    tierSpan = 250000;
+  } else if (invoiced < 750000) {
+    rate = 3.5;
     tier = 4;
-    slabLabel = "4% (Tier 4: ₹15L - ₹20L)";
-    nextTarget = 2000000;
-  } else {
-    rate = 5;
+    slabLabel = "3.50% (Tier 4: ₹5L - ₹7.5L)";
+    nextTarget = 750000;
+    prevThreshold = 500000;
+    tierSpan = 250000;
+  } else if (invoiced < 1000000) {
+    rate = 4.0;
     tier = 5;
-    slabLabel = "5% (Tier 5: >₹20L Max)";
+    slabLabel = "4.00% (Tier 5: ₹7.5L - ₹10L)";
+    nextTarget = 1000000;
+    prevThreshold = 750000;
+    tierSpan = 250000;
+  } else if (invoiced < 1500000) {
+    rate = 4.5;
+    tier = 6;
+    slabLabel = "4.50% (Tier 6: ₹10L - ₹15L)";
+    nextTarget = 1500000;
+    prevThreshold = 1000000;
+    tierSpan = 500000;
+  } else if (invoiced < 2500000) {
+    rate = 5.0;
+    tier = 7;
+    slabLabel = "5.00% (Tier 7: ₹15L - ₹25L)";
+    nextTarget = 2500000;
+    prevThreshold = 1500000;
+    tierSpan = 1000000;
+  } else {
+    rate = 5.5;
+    tier = 8;
+    slabLabel = "5.50% (Tier 8: >₹25L Max)";
     nextTarget = null;
+    prevThreshold = 2500000;
+    tierSpan = 0;
   }
+
+  // Monthly Performance Incentive Slabs
+  let performanceIncentive = 0;
+  let performanceTierLabel = 'None (< ₹5L)';
+  if (invoiced >= 2500000) {
+    performanceIncentive = 30000;
+    performanceTierLabel = '₹30,000 (₹25L+ Milestone)';
+  } else if (invoiced >= 2000000) {
+    performanceIncentive = 20000;
+    performanceTierLabel = '₹20,000 (₹20L - ₹25L)';
+  } else if (invoiced >= 1500000) {
+    performanceIncentive = 12500;
+    performanceTierLabel = '₹12,500 (₹15L - ₹20L)';
+  } else if (invoiced >= 1000000) {
+    performanceIncentive = 7500;
+    performanceTierLabel = '₹7,500 (₹10L - ₹15L)';
+  } else if (invoiced >= 750000) {
+    performanceIncentive = 4000;
+    performanceTierLabel = '₹4,000 (₹7.5L - ₹10L)';
+  } else if (invoiced >= 500000) {
+    performanceIncentive = 2000;
+    performanceTierLabel = '₹2,000 (₹5L - ₹7.5L)';
+  }
+
+  // New School Conversion Incentive (₹1,000 per converted new school)
+  const newSchoolIncentive = (Number(newSchoolsCount) || 0) * 1000;
 
   const commission = (invoiced * rate) / 100;
+  const totalPayout = commission + performanceIncentive + newSchoolIncentive;
   const amountToNextTier = nextTarget ? Math.max(0, nextTarget - invoiced) : 0;
-  const prevTierThreshold = tier === 1 ? 0 : (tier - 1) * 500000;
   const progressPercent = nextTarget
-    ? Math.min(100, Math.round(((invoiced - prevTierThreshold) / 500000) * 100))
+    ? Math.min(100, Math.max(0, Math.round(((invoiced - prevThreshold) / tierSpan) * 100)))
     : 100;
+
+  // Compute Next Settlement Date (1st of Next Month)
+  const today = new Date();
+  const nextMonthYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const nextMonthIdx = (today.getMonth() + 1) % 12;
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const nextSettlementDate = `1st ${monthNames[nextMonthIdx]} ${nextMonthYear}`;
 
   return {
     rate,
     tier,
     slabLabel,
     commission,
+    performanceIncentive,
+    performanceTierLabel,
+    newSchoolIncentive,
+    newSchoolsCount: Number(newSchoolsCount) || 0,
+    totalPayout,
     nextTarget,
     amountToNextTier,
     progressPercent,
-    formattedCommission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+    nextSettlementDate,
+    settlementStatus: 'Active - Scheduled for 1st',
+    formattedCommission: `₹${commission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+    formattedPerformanceIncentive: `₹${performanceIncentive.toLocaleString('en-IN')}`,
+    formattedNewSchoolIncentive: `₹${newSchoolIncentive.toLocaleString('en-IN')}`,
+    formattedTotalPayout: `₹${totalPayout.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
   };
 }
 
@@ -142,10 +205,39 @@ export async function getDashboardStats(req, res) {
 
 export async function getCanvasserLeaderboard(req, res) {
   try {
-    const { sort_by = 'pay', order = 'desc' } = req.query;
-    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
-    const invoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
+    const { sort_by = 'pay', order = 'desc', month = '' } = req.query;
+    const allVisits = (await db.prepare('SELECT * FROM visits').all()) || [];
+    const allInvoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
     const canvassers = (await db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all()) || [];
+
+    // Collect available months from both visits and invoices
+    const allMonthsSet = new Set();
+    allInvoices.forEach(inv => {
+      const d = (inv.created_at || inv.date || '').slice(0, 7);
+      if (d && /^\d{4}-\d{2}$/.test(d)) allMonthsSet.add(d);
+    });
+    allVisits.forEach(v => {
+      const d = (v.created_at || v.visit_date || v.date || '').slice(0, 7);
+      if (d && /^\d{4}-\d{2}$/.test(d)) allMonthsSet.add(d);
+    });
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    allMonthsSet.add(currentMonthKey);
+
+    const selectedMonth = month === 'all' ? 'all' : (month || currentMonthKey);
+
+    const invoices = selectedMonth === 'all'
+      ? allInvoices
+      : allInvoices.filter(i => {
+          const invDate = (i.created_at || i.date || '').slice(0, 7);
+          return invDate === selectedMonth;
+        });
+
+    const visits = selectedMonth === 'all'
+      ? allVisits
+      : allVisits.filter(v => {
+          const vDate = (v.created_at || v.visit_date || v.date || '').slice(0, 7);
+          return vDate === selectedMonth;
+        });
 
     const leaderboard = canvassers.map(c => {
       const cVisits = visits.filter(v => v.canvasser_id === c.id);
@@ -154,21 +246,24 @@ export async function getCanvasserLeaderboard(req, res) {
       const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
-      const slabInfo = calculateCommissionSlab(totalInvoiced);
+
+      // Detect converted new non-master schools
+      const newSchoolsConverted = cInvoices.filter(inv => {
+        const matchingVisit = visits.find(v => v.id === inv.visit_id || (v.school_name === inv.school_name && v.canvasser_id === c.id));
+        return matchingVisit && matchingVisit.is_from_master_db === 0;
+      }).length;
+
+      const slabInfo = calculateCommissionSlab(totalInvoiced, newSchoolsConverted);
 
       const convertedInvoices = cInvoices.map(inv => {
         const gTotal = Number(inv.grand_total) || 0;
-        const invoicePayout = (gTotal * slabInfo.rate) / 100;
         return {
           id: inv.id,
           school_name: inv.school_name,
-          district: inv.district,
+          district: inv.district || 'Tamil Nadu',
           date: inv.created_at || inv.date,
           grand_total: gTotal,
-          applied_rate: slabInfo.rate,
-          pay_earned: invoicePayout,
-          formatted_pay: `₹${invoicePayout.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
-          payment_status: inv.payment_status || 'Unpaid'
+          formatted_total: `₹${gTotal.toLocaleString('en-IN')}`
         };
       });
 
@@ -197,12 +292,22 @@ export async function getCanvasserLeaderboard(req, res) {
         commissionTier: slabInfo.tier,
         slabLabel: slabInfo.slabLabel,
         commissionEarned: slabInfo.commission,
-        payEarned: slabInfo.commission,
+        performanceIncentive: slabInfo.performanceIncentive,
+        performanceTierLabel: slabInfo.performanceTierLabel,
+        formattedPerformanceIncentive: slabInfo.formattedPerformanceIncentive,
+        newSchoolIncentive: slabInfo.newSchoolIncentive,
+        newSchoolsCount: slabInfo.newSchoolsCount,
+        formattedNewSchoolIncentive: slabInfo.formattedNewSchoolIncentive,
+        totalPayout: slabInfo.totalPayout,
+        payEarned: slabInfo.totalPayout,
         formattedCommission: slabInfo.formattedCommission,
-        formattedPayEarned: slabInfo.formattedCommission,
+        formattedPayEarned: slabInfo.formattedTotalPayout,
+        formattedTotalPayout: slabInfo.formattedTotalPayout,
         amountToNextTier: slabInfo.amountToNextTier,
         progressPercent: slabInfo.progressPercent,
-        nextTarget: slabInfo.nextTarget
+        nextTarget: slabInfo.nextTarget,
+        nextSettlementDate: slabInfo.nextSettlementDate,
+        settlementStatus: slabInfo.settlementStatus
       };
     });
 
@@ -211,19 +316,19 @@ export async function getCanvasserLeaderboard(req, res) {
     leaderboard.sort((a, b) => {
       let diff = 0;
       if (sort_by === 'pay' || sort_by === 'commission') {
-        diff = b.commissionEarned - a.commissionEarned || b.totalInvoiced - a.totalInvoiced;
+        diff = b.payEarned - a.payEarned || b.totalInvoiced - a.totalInvoiced;
       } else if (sort_by === 'visits' || sort_by === 'schools') {
         diff = b.totalVisits - a.totalVisits || b.wonOrders - a.wonOrders;
       } else if (sort_by === 'invoices' || sort_by === 'won') {
         diff = b.invoicesConverted - a.invoicesConverted || b.totalInvoiced - a.totalInvoiced;
       } else if (sort_by === 'invoiced' || sort_by === 'revenue') {
-        diff = b.totalInvoiced - a.totalInvoiced || b.commissionEarned - a.commissionEarned;
+        diff = b.totalInvoiced - a.totalInvoiced || b.payEarned - a.payEarned;
       } else if (sort_by === 'conversion') {
         diff = b.conversionRate - a.conversionRate || b.wonOrders - a.wonOrders;
       } else if (sort_by === 'avg_deal') {
         diff = b.avgInvoiceValue - a.avgInvoiceValue || b.totalInvoiced - a.totalInvoiced;
       } else {
-        diff = b.commissionEarned - a.commissionEarned || b.totalInvoiced - a.totalInvoiced;
+        diff = b.payEarned - a.payEarned || b.totalInvoiced - a.totalInvoiced;
       }
       return isAsc ? -diff : diff;
     });
@@ -339,8 +444,12 @@ export async function getCEOExecutiveMIS(req, res) {
       const cWon = cVisits.filter(v => v.outcome_status === 'Won').length;
       const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
       const cInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
-      const slabInfo = calculateCommissionSlab(cInvoiced);
-      totalCommissionsPayable += slabInfo.commission;
+      const newSchoolsConverted = cInvoices.filter(inv => {
+        const matchingVisit = visits.find(v => v.id === inv.visit_id || (v.school_name === inv.school_name && v.canvasser_id === c.id));
+        return matchingVisit && matchingVisit.is_from_master_db === 0;
+      }).length;
+      const slabInfo = calculateCommissionSlab(cInvoiced, newSchoolsConverted);
+      totalCommissionsPayable += slabInfo.totalPayout;
 
       return {
         id: c.id,
@@ -351,6 +460,10 @@ export async function getCEOExecutiveMIS(req, res) {
         invoiced: cInvoiced,
         commission: slabInfo.commission,
         commissionFormatted: slabInfo.formattedCommission,
+        performanceIncentive: slabInfo.performanceIncentive,
+        newSchoolIncentive: slabInfo.newSchoolIncentive,
+        totalPayout: slabInfo.totalPayout,
+        totalPayoutFormatted: slabInfo.formattedTotalPayout,
         rate: slabInfo.rate,
         tier: slabInfo.tier,
         slabLabel: slabInfo.slabLabel

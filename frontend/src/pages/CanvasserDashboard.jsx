@@ -12,6 +12,7 @@ import EditVisitModal from '../components/EditVisitModal';
 import EditHistoryModal from '../components/EditHistoryModal';
 import DynamicKPISection from '../components/DynamicKPISection';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import ErrorBoundary from '../components/ErrorBoundary';
 import SchoolSearchPicker from '../components/SchoolSearchPicker';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
@@ -914,7 +915,9 @@ export default function CanvasserDashboard() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.25 }}
             >
-              <CanvasserLeaderboard currentUser={user} />
+              <ErrorBoundary>
+                <CanvasserLeaderboard currentUser={user} />
+              </ErrorBoundary>
             </motion.div>
           )}
         </AnimatePresence>

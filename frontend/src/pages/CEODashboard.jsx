@@ -15,6 +15,7 @@ import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import ErrorBoundary from '../components/ErrorBoundary';
 import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryModule';
 import UserManagementModule from '../components/UserManagementModule';
 import PendingApprovalsDrawer from '../components/PendingApprovalsDrawer';
@@ -144,7 +145,9 @@ export default function CEODashboard() {
 
         {/* TAB 5: TEAM LEADERBOARD */}
         {activeTab === 'team' && (
-          <CanvasserLeaderboard currentUser={user} />
+          <ErrorBoundary>
+            <CanvasserLeaderboard currentUser={user} />
+          </ErrorBoundary>
         )}
 
         {/* TAB 6: USER DIRECTORY & ROLES */}
