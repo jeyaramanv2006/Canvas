@@ -7,6 +7,7 @@ import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import ErrorBoundary from '../components/ErrorBoundary';
 import UserManagementModule from '../components/UserManagementModule';
 import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryModule';
 import { getRoleConfig } from '../lib/rbac';
@@ -121,7 +122,9 @@ export default function ManagerDashboard() {
 
         {activeTab === 'team' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-            <CanvasserLeaderboard currentUser={user} />
+            <ErrorBoundary>
+              <CanvasserLeaderboard currentUser={user} />
+            </ErrorBoundary>
           </motion.div>
         )}
       </main>

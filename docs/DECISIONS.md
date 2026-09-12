@@ -110,6 +110,32 @@
   5. Keep a PostgreSQL migration outside this immediate release; revisit it before multi-instance scaling or when production reliability requirements exceed a single persistent SQLite instance.
 - **Rationale**: This enables an urgent, controlled launch without presenting mock/local browser data as real records, while keeping a clear path to a managed relational database as operational needs grow.
 
+### DEC-012: Standard Monthly Commission Matrix (8 Slabs: 2.00% to 5.50%), Performance Incentive Bonus Tiers, and 1st-of-Month Payout Cycle
+- **Status**: CONFIRMED
+- **Context**: Client established the revised commercial payout and incentive matrix for field canvassers based on Monthly Net Realized Sales (Total converted invoiced revenue attributed to the canvasser):
+  1. **Standard Monthly Commission Slabs**:
+     - ₹0 – ₹99,999: **2.00%**
+     - ₹1,00,000 – ₹2,49,999: **2.50%**
+     - ₹2,50,000 – ₹4,99,999: **3.00%**
+     - ₹5,00,000 – ₹7,49,999: **3.50%**
+     - ₹7,50,000 – ₹9,99,999: **4.00%**
+     - ₹10,00,000 – ₹14,99,999: **4.50%**
+     - ₹15,00,000 – ₹24,99,999: **5.00%**
+     - ₹25,00,000 and above: **5.50%**
+  2. **Monthly Performance Incentive (Tiered Volume Bonus)**:
+     - ₹5L+: **+₹2,000**
+     - ₹7.5L+: **+₹4,000**
+     - ₹10L+: **+₹7,500**
+     - ₹15L+: **+₹12,500**
+     - ₹20L+: **+₹20,000**
+     - ₹25L+: **+₹30,000**
+  3. **New School Acquisition Incentive**:
+     - **₹1,000** bonus per converted newly acquired school account.
+  4. **Monthly Settlement Cycle**:
+     - Calculated pay across base commission, volume incentives, and new school bonuses is finalized and credited on the **1st of every month**.
+- **Decision**: Implement this engine in both backend (`calculateCommissionSlab` in `dashboardController.js`) and frontend (`mockApi.js`, `CanvasserLeaderboard.jsx`, and `DynamicKPISection.jsx`).
+- **Rationale**: Provides clear commercial incentives, aligns with management's official commission table, and enhances field team motivation with transparent settlement schedules.
+
 ---
 
 ## Decisions Required / Unresolved Questions

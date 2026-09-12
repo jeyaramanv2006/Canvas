@@ -162,7 +162,7 @@ export const ROLES = {
       { key: 'orders_won',        label: 'Orders Won',           format: 'number',   trend: 'Closed Deals' },
       { key: 'invoices_credited', label: 'Invoiced Sales',       format: 'currency', trend: 'Admin Verified' },
       { key: 'commission_earned', label: 'Commission Earned',    format: 'currency', trend: 'Slab Payout' },
-      { key: 'commission_slab',   label: 'Active Slab Tier',     format: 'text',     trend: '1% - 5% Tier' },
+      { key: 'commission_slab',   label: 'Active Slab Tier',     format: 'text',     trend: '2.0% - 5.5% Tier' },
       { key: 'team_rank',         label: 'Leaderboard Rank',     format: 'text',     trend: 'Team Position' }
     ]
   }

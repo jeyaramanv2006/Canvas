@@ -16,7 +16,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize database schema and seeds (SQLite or PostgreSQL / Supabase)
+// Initialize database schema and seeds (SQLite or PostgreSQL / Neon)
 await initDB();
 
 // Middlewares

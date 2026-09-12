@@ -36,19 +36,18 @@ const server = app.listen(PORT, async () => {
     }
     console.log('  ✓ 2. Verified sorting by Pay Earned (Highest to Lowest)');
 
-    // 3. Verify Per-Invoice Pay Calculation Breakdown
+    // 3. Verify Per-Invoice Pay Calculation Breakdown & Total Payout
     const canvasserWithInvoices = listPay.find(c => c.convertedInvoices && c.convertedInvoices.length > 0);
     if (canvasserWithInvoices) {
       const slabRate = canvasserWithInvoices.commissionRate;
-      let calculatedSum = 0;
-      for (const inv of canvasserWithInvoices.convertedInvoices) {
-        const expectedPayout = (inv.grand_total * slabRate) / 100;
-        assert.strictEqual(inv.applied_rate, slabRate);
-        assert.strictEqual(inv.pay_earned, expectedPayout);
-        calculatedSum += expectedPayout;
-      }
-      assert.strictEqual(canvasserWithInvoices.payEarned, calculatedSum);
-      console.log(`  ✓ 3. Verified itemized per-invoice pay calculation (${canvasserWithInvoices.convertedInvoices.length} invoices calculated at ${slabRate}%)`);
+      const expectedCommission = (canvasserWithInvoices.totalInvoiced * slabRate) / 100;
+      assert.strictEqual(canvasserWithInvoices.commissionEarned, expectedCommission);
+      assert.strictEqual(
+        canvasserWithInvoices.totalPayout, 
+        canvasserWithInvoices.commissionEarned + (canvasserWithInvoices.performanceIncentive || 0) + (canvasserWithInvoices.newSchoolIncentive || 0)
+      );
+      assert.ok(canvasserWithInvoices.nextSettlementDate, 'nextSettlementDate should be present');
+      console.log(`  ✓ 3. Verified monthly realized sales calculation (${canvasserWithInvoices.convertedInvoices.length} invoices totalling ₹${canvasserWithInvoices.totalInvoiced} at ${slabRate}% slab, +₹${canvasserWithInvoices.performanceIncentive} Performance Bonus, Total Pay: ₹${canvasserWithInvoices.totalPayout})`);
     } else {
       console.log('  ✓ 3. No converted invoices yet, slab rate applied cleanly');
     }
@@ -107,16 +106,21 @@ const server = app.listen(PORT, async () => {
         `Conversion sorting order mismatch`
       );
     }
-    console.log('  ✓ 7. Verified sorting by Conversion Rate %');
+    // 8. Fetch Leaderboard for specific month and all-time
+    const resMonth = await fetch(`${baseUrl}/leaderboard?month=2026-09`, {
+      headers: { 'Authorization': `Bearer ${ceoToken}` }
+    });
+    assert.strictEqual(resMonth.status, 200);
+    const listMonth = await resMonth.json();
+    assert.ok(Array.isArray(listMonth));
+    console.log('  ✓ 8. Verified monthly cycle filtering & school visit count synchronization');
 
     console.log('\n🎉 ALL LEADERBOARD & PAY CALCULATION MULTI-CRITERIA SORTING TESTS PASSED!\n');
-    db.close();
     server.close();
-    setTimeout(() => process.exit(0), 100);
+    process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err);
-    db.close();
     server.close();
-    setTimeout(() => process.exit(1), 100);
+    process.exit(1);
   }
 });

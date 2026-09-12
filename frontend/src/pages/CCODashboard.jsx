@@ -9,6 +9,7 @@ import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { cn } from '../lib/utils';
 
 const PLANNED_PANELS = [
@@ -305,7 +306,9 @@ export default function CCODashboard() {
 
         {activeTab === 'team' && (
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-            <CanvasserLeaderboard currentUser={user} />
+            <ErrorBoundary>
+              <CanvasserLeaderboard currentUser={user} />
+            </ErrorBoundary>
           </motion.div>
         )}
 
