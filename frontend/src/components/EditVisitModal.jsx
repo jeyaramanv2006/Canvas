@@ -4,6 +4,7 @@ import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2,
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import EditHistoryModal from './EditHistoryModal';
+import CompanyProductSelector from './CompanyProductSelector';
 
 const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
@@ -238,28 +239,10 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
 
             {/* Products & Interest */}
             <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Products of Interest</h3>
-              <div className="flex flex-wrap gap-2">
-                {availableProducts.map(product => {
-                  const isSelected = formData.product_interests?.includes(product);
-                  return (
-                    <motion.button
-                      type="button"
-                      whileTap={{ scale: 0.95 }}
-                      key={product}
-                      onClick={() => handleProductToggle(product)}
-                      className={cn(
-                        "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all",
-                        isSelected 
-                          ? "bg-murugan-accent text-black border-murugan-accent shadow-md shadow-murugan-accent/20" 
-                          : "bg-black/40 text-gray-400 border-white/10 hover:border-gray-500"
-                      )}
-                    >
-                      {product}
-                    </motion.button>
-                  );
-                })}
-              </div>
+              <CompanyProductSelector 
+                selectedProducts={formData.product_interests || []}
+                onToggleProduct={handleProductToggle}
+              />
             </div>
 
             {/* Product Specifications */}

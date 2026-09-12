@@ -8,6 +8,7 @@ import { mockApi } from '../mockApi';
 import EditVisitModal from './EditVisitModal';
 import EditHistoryModal from './EditHistoryModal';
 import InvoiceDocumentModal from './InvoiceDocumentModal';
+import ProductBadge from './ProductBadge';
 import { cn } from '../lib/utils';
 
 export default function FieldVisitRegistry({ currentUser }) {
@@ -250,9 +251,7 @@ export default function FieldVisitRegistry({ currentUser }) {
                   {Array.isArray(visit.product_interests) && visit.product_interests.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-1">
                       {visit.product_interests.map(p => (
-                        <span key={p} className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-300 font-medium">
-                          {p}
-                        </span>
+                        <ProductBadge key={p} product={p} size="sm" />
                       ))}
                     </div>
                   )}
