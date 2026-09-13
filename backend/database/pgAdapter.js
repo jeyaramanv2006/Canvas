@@ -144,6 +144,13 @@ export async function initPgDB() {
       outcome_status VARCHAR(50) NOT NULL,
       follow_up_date VARCHAR(50),
       notes TEXT,
+      discovery_status VARCHAR(50) DEFAULT 'NOT_APPLICABLE',
+      discovery_bonus_awarded INTEGER DEFAULT 0,
+      discovery_bonus_amount NUMERIC DEFAULT 0,
+      verified_by_id INTEGER,
+      verified_by_name VARCHAR(255),
+      verified_at TIMESTAMPTZ,
+      verification_notes TEXT,
       last_edited_by_name VARCHAR(255),
       last_edited_by_role VARCHAR(50),
       last_edited_at TIMESTAMPTZ,
@@ -266,8 +273,22 @@ async function seedPgData(p) {
       SET username = REPLACE(username, '@adminexec', '@admin')
       WHERE username LIKE '%@adminexec';
     `);
+
+    // Auto-migrate discovery columns for PostgreSQL
+    const pgDiscoveryCols = [
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS discovery_status VARCHAR(50) DEFAULT 'NOT_APPLICABLE'",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS discovery_bonus_awarded INTEGER DEFAULT 0",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS discovery_bonus_amount NUMERIC DEFAULT 0",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS verified_by_id INTEGER",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS verified_by_name VARCHAR(255)",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ",
+      "ALTER TABLE visits ADD COLUMN IF NOT EXISTS verification_notes TEXT"
+    ];
+    for (const sql of pgDiscoveryCols) {
+      await p.query(sql);
+    }
   } catch (e) {
-    console.warn("PostgreSQL username migration check:", e.message);
+    console.warn("PostgreSQL migration check:", e.message);
   }
 
   // 2. Seed Master Schools Catalog (2,561 Schools)

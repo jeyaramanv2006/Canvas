@@ -59,11 +59,13 @@ app.post('/api/visits', authenticateToken, visitsController.createVisit);
 app.put('/api/visits/:id', authenticateToken, visitsController.updateVisit);
 app.patch('/api/visits/:id', authenticateToken, visitsController.updateVisit);
 app.delete('/api/visits/:id', authenticateToken, visitsController.deleteVisit);
+app.post('/api/visits/:id/verify-discovery', authenticateToken, requireAdmin, visitsController.verifySchoolDiscovery);
 
 // Aliases for Admin specific visit routes
 app.get('/api/admin/visits', authenticateToken, requireAdmin, visitsController.getVisits);
 app.put('/api/admin/visits/:id', authenticateToken, requireAdmin, visitsController.updateVisit);
 app.delete('/api/admin/visits/:id', authenticateToken, requireAdmin, visitsController.deleteVisit);
+app.post('/api/admin/visits/:id/verify-discovery', authenticateToken, requireAdmin, visitsController.verifySchoolDiscovery);
 
 // ── Audit Logs Endpoints (Admin Access) ───────────────────────────────────────
 app.get('/api/audit-logs', authenticateToken, auditController.getAuditLogs);

@@ -9,6 +9,7 @@ import EditVisitModal from './EditVisitModal';
 import EditHistoryModal from './EditHistoryModal';
 import InvoiceDocumentModal from './InvoiceDocumentModal';
 import ProductBadge from './ProductBadge';
+import VerifySchoolDiscoveryModal from './VerifySchoolDiscoveryModal';
 import { cn } from '../lib/utils';
 
 export default function FieldVisitRegistry({ currentUser }) {
@@ -27,6 +28,7 @@ export default function FieldVisitRegistry({ currentUser }) {
   // Modals & Lightbox
   const [editingVisit, setEditingVisit] = useState(null);
   const [inspectHistoryVisit, setInspectHistoryVisit] = useState(null);
+  const [verifyDiscoveryVisit, setVerifyDiscoveryVisit] = useState(null);
   const [docModalVisit, setDocModalVisit] = useState(null);
   const [docModalType, setDocModalType] = useState('quote');
   const [previewImage, setPreviewImage] = useState(null);
@@ -82,8 +84,11 @@ export default function FieldVisitRegistry({ currentUser }) {
     const matchesInterest = selectedInterest === 'all' || v.interest_level === selectedInterest;
     const matchesStatus = selectedStatus === 'all' || v.outcome_status === selectedStatus;
     const matchesOrigin = selectedOrigin === 'all' || 
-      (selectedOrigin === 'master' && v.is_from_master_db) ||
-      (selectedOrigin === 'custom' && !v.is_from_master_db);
+      (selectedOrigin === 'master' && v.is_from_master_db && v.discovery_status !== 'LINKED_EXISTING') ||
+      (selectedOrigin === 'custom' && !v.is_from_master_db) ||
+      (selectedOrigin === 'pending' && (!v.is_from_master_db || v.discovery_status === 'PENDING_VERIFICATION')) ||
+      (selectedOrigin === 'verified_new' && v.discovery_status === 'VERIFIED_NEW') ||
+      (selectedOrigin === 'linked_typo' && v.discovery_status === 'LINKED_EXISTING');
 
     return matchesSearch && matchesDistrict && matchesCanvasser && matchesInterest && matchesStatus && matchesOrigin;
   });
@@ -141,11 +146,14 @@ export default function FieldVisitRegistry({ currentUser }) {
         <select
           value={selectedOrigin}
           onChange={e => setSelectedOrigin(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
+          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent font-medium"
         >
           <option value="all">All Sources</option>
-          <option value="master">🏛️ Master DB Schools</option>
-          <option value="custom">🆕 Newly Discovered</option>
+          <option value="pending">⏳ Pending Verification</option>
+          <option value="verified_new">✨ Verified New (+Bonus)</option>
+          <option value="linked_typo">🔗 Linked Typo to Master</option>
+          <option value="master">🏛️ Original Master DB</option>
+          <option value="custom">🆕 All Non-Master</option>
         </select>
 
         <select
@@ -212,12 +220,22 @@ export default function FieldVisitRegistry({ currentUser }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-extrabold text-sm text-white">{visit.school_name}</h4>
                     {visit.is_from_master_db ? (
-                      <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                        🏛️ Master DB
-                      </span>
+                      visit.discovery_status === 'LINKED_EXISTING' ? (
+                        <span className="text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                          🔗 Master DB (Typo Resolved)
+                        </span>
+                      ) : visit.discovery_status === 'VERIFIED_NEW' ? (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black inline-flex items-center gap-1 shadow-sm">
+                          ✨ Verified New (+₹{Number(visit.discovery_bonus_amount || 1000).toLocaleString('en-IN')} Bonus)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                          🏛️ Master DB
+                        </span>
+                      )
                     ) : (
-                      <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                        🆕 Newly Discovered
+                      <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                        ⏳ Discovered (Pending Verification)
                       </span>
                     )}
                     <span className={cn(
@@ -294,22 +312,46 @@ export default function FieldVisitRegistry({ currentUser }) {
                     </p>
                   )}
 
-                  {/* Audit Trail Info */}
-                  {visit.last_edited_by_name && (
-                    <div className="flex items-center justify-between text-[10px] text-gray-400 bg-white/5 px-2.5 py-1.5 rounded-xl">
-                      <span>Modified by <strong className="text-gray-200">{visit.last_edited_by_name}</strong></span>
+                  {/* Verification & Audit Trail Info */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-gray-400 bg-white/5 p-2.5 rounded-xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {visit.discovery_status === 'VERIFIED_NEW' && (
+                        <span className="text-emerald-400 font-bold">
+                          ✓ Verified New by {visit.verified_by_name || 'Admin'}
+                        </span>
+                      )}
+                      {visit.discovery_status === 'LINKED_EXISTING' && (
+                        <span className="text-blue-400 font-bold">
+                          ✓ Typo Linked to Master by {visit.verified_by_name || 'Admin'}
+                        </span>
+                      )}
+                      {visit.last_edited_by_name && (
+                        <span>Modified by <strong className="text-gray-200">{visit.last_edited_by_name}</strong></span>
+                      )}
+                    </div>
+                    {visit.edit_history?.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setInspectHistoryVisit(visit)}
-                        className="text-murugan-accent font-semibold hover:underline flex items-center gap-1"
+                        className="text-murugan-accent font-semibold hover:underline flex items-center gap-1 self-start sm:self-auto"
                       >
                         <History className="w-3 h-3" />
                         Audit History ({visit.edit_history?.length || 0})
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-2 mt-4 pt-2 border-t border-white/5">
+                    {/* Admin Verification CTA Button for Discovered Schools */}
+                    {(!visit.is_from_master_db || visit.discovery_status === 'PENDING_VERIFICATION') && (
+                      <button
+                        onClick={() => setVerifyDiscoveryVisit(visit)}
+                        className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                      >
+                        <Search className="w-3.5 h-3.5 stroke-[2.5]" /> Verify School & Bonus
+                      </button>
+                    )}
+
                     <button
                       onClick={() => { setDocModalType('quote'); setDocModalVisit(visit); }}
                       className="px-3 py-2 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-murugan-accent/10 transition-all"
@@ -337,6 +379,15 @@ export default function FieldVisitRegistry({ currentUser }) {
       )}
 
       {/* Modals */}
+      <VerifySchoolDiscoveryModal
+        isOpen={!!verifyDiscoveryVisit}
+        onClose={() => setVerifyDiscoveryVisit(null)}
+        visit={verifyDiscoveryVisit}
+        onVerified={() => {
+          showToast("School discovery successfully verified!");
+          loadData();
+        }}
+      />
       <EditVisitModal 
         isOpen={!!editingVisit} 
         onClose={() => setEditingVisit(null)} 
