@@ -11,6 +11,18 @@
     overscroll-behavior: none;
     min-height: 100vh;
   }
+
+  /* Disable number increase/decrease spinner stepper arrows globally */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
 }
 
 /* Custom scrollbar for web view */
