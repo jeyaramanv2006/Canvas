@@ -200,7 +200,7 @@ export default function InvoicingModule({ currentUser }) {
             className="px-4 py-2.5 bg-gradient-to-r from-murugan-accent to-emerald-400 hover:opacity-95 text-black rounded-xl text-xs font-extrabold shadow-md shadow-murugan-accent/20 transition flex items-center gap-1.5"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>New Tax Invoice</span>
+            <span>New Proforma Invoice</span>
           </button>
         </div>
       </div>
@@ -448,7 +448,7 @@ export default function InvoicingModule({ currentUser }) {
                             <button
                               onClick={() => handleConvertQuoteToInvoice(q)}
                               className="p-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
-                              title="Convert to Tax Invoice"
+                              title="Convert to Proforma Invoice"
                             >
                               <Receipt className="w-3.5 h-3.5" />
                               <span>Convert</span>

@@ -437,10 +437,19 @@ export default function CanvasserDashboard() {
                       ...prev,
                       school_name: data.school_name,
                       district: data.district,
-                      institution_type: data.institution_type,
+                      institution_type: data.institution_type || prev.institution_type,
                       is_from_master_db: data.is_from_master_db,
                       master_school_id: data.master_school_id,
-                      cluster_or_block: data.cluster_or_block || ''
+                      cluster_or_block: data.cluster_or_block || '',
+                      contact_person: (data.contact_person !== undefined && data.contact_person !== null && data.contact_person !== '') 
+                        ? data.contact_person 
+                        : (data.is_from_master_db ? prev.contact_person : prev.contact_person),
+                      phone: (data.phone !== undefined && data.phone !== null && data.phone !== '') 
+                        ? data.phone 
+                        : (data.is_from_master_db ? prev.phone : prev.phone),
+                      student_strength: (data.student_strength !== undefined && data.student_strength !== null && data.student_strength !== '') 
+                        ? data.student_strength 
+                        : (data.is_from_master_db ? prev.student_strength : prev.student_strength)
                     }));
                   }}
                 />

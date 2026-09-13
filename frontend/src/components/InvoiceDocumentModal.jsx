@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Printer,
   X,
@@ -7,9 +8,19 @@ import {
   Eye,
   Edit3,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  Calendar,
+  FileText,
+  DollarSign,
+  Layers,
+  ArrowRight,
+  Search,
+  Check
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
+import { cn } from '../lib/utils';
+import { searchMasterSchoolsLocal } from '../data/masterSchools';
 
 export default function InvoiceDocumentModal({
   isOpen,
@@ -23,6 +34,7 @@ export default function InvoiceDocumentModal({
   onSaveSuccess
 }) {
   const printRef = useRef(null);
+  const schoolDropdownRef = useRef(null);
   const data = initialData || documentData || visitData;
 
   const isQuoteType = type.toLowerCase().includes('quote');
@@ -31,21 +43,22 @@ export default function InvoiceDocumentModal({
   const [formMode, setFormMode] = useState(mode);
   const [previewTab, setPreviewTab] = useState(mode === 'view');
   const [saving, setSaving] = useState(false);
+  const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
 
   // Document Type Header
   const [docTypeTitle, setDocTypeTitle] = useState(
-    isQuoteType ? "QUOTATION" : (data?.doc_type || (type.toLowerCase().includes('proforma') ? "Proforma Invoice" : "Tax Invoice"))
+    isQuoteType ? "QUOTATION" : (data?.doc_type || "Proforma Invoice")
   );
 
-  // Form fields
+  // Form fields (No hardcoded example names)
   const [docNumber, setDocNumber] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [address, setAddress] = useState('');
   const [district, setDistrict] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
-  const [docDate, setDocDate] = useState('Aug 24, 2026');
-  const [dueDate, setDueDate] = useState('Sep 08, 2026');
+  const [docDate, setDocDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [countryOfSupply, setCountryOfSupply] = useState('India');
   const [placeOfSupply, setPlaceOfSupply] = useState('Tamil Nadu (33)');
   const [extraCharges, setExtraCharges] = useState(0);
@@ -56,6 +69,40 @@ export default function InvoiceDocumentModal({
 
   // Dynamic Line Items
   const [items, setItems] = useState([]);
+
+  // Outside click listener for school autocomplete dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(event.target)) {
+        setShowSchoolDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter master schools matching typed school name
+  const matchingSchools = useMemo(() => {
+    if (!schoolName || schoolName.trim().length < 2) return [];
+    return searchMasterSchoolsLocal(schoolName, 'all', 10);
+  }, [schoolName]);
+
+  const handleSelectMasterSchool = (school) => {
+    setSchoolName(school.school_name || '');
+    if (school.address || school.area || school.block_or_cluster) {
+      setAddress(school.address || [school.area, school.block_or_cluster].filter(Boolean).join(', '));
+    }
+    if (school.district) {
+      setDistrict(`${school.district}, Tamil Nadu, India`);
+    }
+    if (school.contact_person || school.principal_name) {
+      setContactPerson(school.contact_person || school.principal_name || '');
+    }
+    if (school.phone || school.contact_number) {
+      setPhone(school.phone || school.contact_number || '');
+    }
+    setShowSchoolDropdown(false);
+  };
 
   // Helper date formatter: converts ISO/raw date into 'Aug 24, 2026' format
   const formatDisplayDate = (d) => {
@@ -79,21 +126,21 @@ export default function InvoiceDocumentModal({
       setPreviewTab(isView);
 
       if (data) {
-        setDocTypeTitle(isQuoteType ? "QUOTATION" : (data.doc_type || "Proforma Invoice"));
-        setDocNumber(data.invoice_number || data.quotation_number || data.id || (isQuoteType ? "A00009" : "A00007"));
-        setSchoolName(data.school_name || (isQuoteType ? "SHALOM MATRIC HR SEC SCHOOL" : "SRI NALLAMANI YADAVA GROUP OF INSTITUTES"));
-        setAddress(data.address || data.area || (isQuoteType ? "PAVOORCHATRAM," : "NALLAMANI NAGAR ,KODIKURICHI,TENKASI,\nTENKASI,"));
-        setDistrict(data.district || (isQuoteType ? "India" : "Tamil Nadu, India - 627804"));
+        setDocTypeTitle(isQuoteType ? "QUOTATION" : (data.doc_type || (type.toLowerCase().includes('tax') ? "Tax Invoice" : "Proforma Invoice")));
+        setDocNumber(data.invoice_number || data.quotation_number || data.id || (isQuoteType ? `QTN-${Math.floor(1000 + Math.random() * 9000)}` : `INV-${Math.floor(1000 + Math.random() * 9000)}`));
+        setSchoolName(data.school_name || '');
+        setAddress(data.address || data.area || '');
+        setDistrict(data.district || 'Tamil Nadu, India');
         setContactPerson(data.contact_person || '');
         setPhone(data.phone || '');
-        setDocDate(formatDisplayDate(data.date || data.invoice_date || data.quotation_date || (isQuoteType ? "Jun 18, 2026" : "Aug 24, 2026")));
-        setDueDate(formatDisplayDate(data.due_date || data.valid_until || (isQuoteType ? "Jul 03, 2026" : "Sep 08, 2026")));
+        setDocDate(formatDisplayDate(data.date || data.invoice_date || data.quotation_date || new Date()));
+        setDueDate(formatDisplayDate(data.due_date || data.valid_until || new Date(Date.now() + 86400000 * 15)));
         setCountryOfSupply(data.country_of_supply || "India");
         setPlaceOfSupply(data.place_of_supply || "Tamil Nadu (33)");
-        setExtraCharges(Number(data.extra_charges !== undefined ? data.extra_charges : (isQuoteType ? 300 : 1000)));
-        setDeliveryCharges(Number(data.delivery_charges !== undefined ? data.delivery_charges : (isQuoteType ? 0 : 3000)));
+        setExtraCharges(Number(data.extra_charges !== undefined ? data.extra_charges : 0));
+        setDeliveryCharges(Number(data.delivery_charges !== undefined ? data.delivery_charges : 0));
         setDiscountAmount(Number(data.discount_amount) || 0);
-        setCanvasserName(data.canvasser_name || currentUser?.name || 'Murugan');
+        setCanvasserName(data.canvasser_name || currentUser?.name || 'Canvasser');
         setCanvasserId(data.canvasser_id || currentUser?.id || '');
 
         // Normalizing items
@@ -101,7 +148,7 @@ export default function InvoiceDocumentModal({
           setItems(data.items.map(i => ({
             name: i.name || i.item_name || i.product || (i.description ? `${i.product ? i.product + ' ' : ''}${i.description}` : 'Custom Item'),
             size: i.size || '-',
-            hsn: i.hsn || '',
+            hsn: i.hsn || (i.hsn_code || ''),
             gst_rate: Number(i.gst_rate !== undefined ? i.gst_rate : (data.gst_percent || 5)),
             quantity: Number(i.quantity || i.qty || 1),
             unit: i.unit || (isQuoteType ? '' : 'prs'),
@@ -116,60 +163,42 @@ export default function InvoiceDocumentModal({
             setItems(interests.map(item => ({
               name: item,
               size: '-',
-              hsn: '',
+              hsn: item.toLowerCase().includes('sock') ? '611595' : (item.toLowerCase().includes('shoe') ? '640411' : (item.toLowerCase().includes('belt') ? '392690' : (item.toLowerCase().includes('tie') ? '621510' : ''))),
               gst_rate: 5,
               quantity: Number(data.student_strength) || 100,
               unit: item.toLowerCase().includes('shoe') ? 'box' : 'prs',
               unit_rate: item.toLowerCase().includes('shoe') ? 345 : 48
             })));
           } else {
-            setItems([{ name: 'Apparel Product', size: '-', hsn: '', gst_rate: 5, quantity: 100, unit: 'prs', unit_rate: 45 }]);
+            setItems([{ name: 'Custom Product Item', size: '-', hsn: '', gst_rate: 5, quantity: 100, unit: 'prs', unit_rate: 50 }]);
           }
         } else {
-          // Default initial examples matching exactly the PDF attached
-          if (isQuoteType) {
-            setItems([
-              { name: "TIE 10 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 35, unit: "", unit_rate: 45 },
-              { name: "TIE 14 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 35, unit: "", unit_rate: 47 },
-              { name: "BELT 27 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 35, unit: "", unit_rate: 60 },
-              { name: "BELT 36 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 30, unit: "", unit_rate: 65 },
-              { name: "T SHIRT (PC KULTI) PINK WITH PRINT size 20", size: "-", hsn: "", gst_rate: 5, quantity: 14, unit: "", unit_rate: 220 },
-              { name: "T SHIRT (PC KULTI) PINK WITH PRINT size 22", size: "-", hsn: "", gst_rate: 5, quantity: 16, unit: "", unit_rate: 235 },
-              { name: "NAVY BLUE DOTKNIT PANT size 22", size: "-", hsn: "", gst_rate: 5, quantity: 20, unit: "", unit_rate: 170 },
-              { name: "CREAM X RED BRANDED TERRY", size: "-", hsn: "", gst_rate: 5, quantity: 1, unit: "", unit_rate: 62 }
-            ]);
-          } else {
-            setItems([
-              { name: "Shoes for Arts & Science and Pharmacy", size: "-", hsn: "", gst_rate: 5, quantity: 337, unit: "box", unit_rate: 345 },
-              { name: "BRANDED TERRY SOCKS", size: "7", hsn: "", gst_rate: 5, quantity: 680, unit: "prs", unit_rate: 48 }
-            ]);
-          }
+          // Default initial empty clean item
+          setItems([
+            { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQuoteType ? '' : 'prs', unit_rate: 0 }
+          ]);
         }
       } else {
         // Brand new document
         const isQ = isQuoteType;
         setDocTypeTitle(isQ ? "QUOTATION" : "Proforma Invoice");
-        setDocNumber(isQ ? "A00009" : "A00007");
+        setDocNumber(isQ ? `QTN-${Math.floor(1000 + Math.random() * 9000)}` : `INV-${Math.floor(1000 + Math.random() * 9000)}`);
         setSchoolName('');
         setAddress('');
-        setDistrict('');
+        setDistrict('Tamil Nadu, India');
         setContactPerson('');
         setPhone('');
         setDocDate(formatDisplayDate(new Date()));
         setDueDate(formatDisplayDate(new Date(Date.now() + 86400000 * 15)));
         setCountryOfSupply("India");
         setPlaceOfSupply("Tamil Nadu (33)");
-        setExtraCharges(isQ ? 300 : 1000);
-        setDeliveryCharges(isQ ? 0 : 3000);
+        setExtraCharges(0);
+        setDeliveryCharges(0);
         setDiscountAmount(0);
-        setCanvasserName(currentUser?.name || 'Murugan');
+        setCanvasserName(currentUser?.name || 'Canvasser');
         setCanvasserId(currentUser?.id || 1);
-        setItems(isQ ? [
-          { name: "TIE 10 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 35, unit: "", unit_rate: 45 },
-          { name: "BELT 27 INCH", size: "-", hsn: "", gst_rate: 5, quantity: 35, unit: "", unit_rate: 60 }
-        ] : [
-          { name: "Shoes for Arts & Science and Pharmacy", size: "-", hsn: "", gst_rate: 5, quantity: 337, unit: "box", unit_rate: 345 },
-          { name: "BRANDED TERRY SOCKS", size: "7", hsn: "", gst_rate: 5, quantity: 680, unit: "prs", unit_rate: 48 }
+        setItems([
+          { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQ ? '' : 'prs', unit_rate: 0 }
         ]);
       }
     }
@@ -268,7 +297,7 @@ export default function InvoiceDocumentModal({
         round_up: Number(roundUpFormatted),
         grand_total: grandTotal,
         canvasser_id: canvasserId || currentUser?.id,
-        canvasser_name: canvasserName || currentUser?.name || 'Murugan',
+        canvasser_name: canvasserName || currentUser?.name || 'Canvasser',
         visit_id: data?.visit_id || data?.id
       };
 
@@ -289,7 +318,7 @@ export default function InvoiceDocumentModal({
     }
   };
 
-  // Dedicated Isolated Iframe Print: Guarantees ONLY the exact 1-page document is printed without background dashboard contamination
+  // High-Fidelity Isolated Print: Injects all styles to guarantee exact identical layout without collapsing
   const handlePrint = () => {
     const printableEl = document.getElementById('printable-invoice');
     if (!printableEl) return;
@@ -305,41 +334,58 @@ export default function InvoiceDocumentModal({
 
     const pri = iframe.contentWindow;
     pri.document.open();
+
+    // Grab all stylesheet and style links from head
+    let styleElements = '';
+    document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
+      styleElements += node.outerHTML + '\n';
+    });
+
+    const origin = window.location.origin;
+
     pri.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>${docTypeTitle} - ${docNumber}</title>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+          ${styleElements}
           <style>
+            @page {
+              size: A4 portrait;
+              margin: 0 !important; /* Strips standard browser URL, timestamp & headers */
+            }
             *, *::before, *::after {
-              box-sizing: border-box;
-              margin: 0;
-              padding: 0;
+              box-sizing: border-box !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
               color-adjust: exact !important;
             }
-            @page {
-              size: A4 portrait;
-              margin: 10mm 12mm 10mm 12mm;
-            }
             html, body {
-              width: 100%;
-              height: 100%;
+              width: 210mm !important;
+              height: 297mm !important;
+              min-height: 297mm !important;
+              max-height: 297mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
               background: #ffffff !important;
               color: #1e293b !important;
-              font-family: 'Inter', system-ui, -apple-system, sans-serif;
-              font-size: 11px;
-              line-height: 1.35;
+              font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+              font-size: 11px !important;
+              line-height: 1.4 !important;
+              overflow: hidden !important;
             }
             #printable-invoice {
-              width: 100% !important;
-              max-width: 100% !important;
-              min-height: auto !important;
-              padding: 0 !important;
+              width: 210mm !important;
+              height: 297mm !important;
+              min-height: 297mm !important;
+              max-height: 297mm !important;
+              padding: 16mm 18mm 14mm 18mm !important;
               margin: 0 !important;
+              box-sizing: border-box !important;
               box-shadow: none !important;
               border: none !important;
               background: #ffffff !important;
@@ -347,89 +393,20 @@ export default function InvoiceDocumentModal({
               display: flex !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              min-height: 98vh !important;
+              page-break-inside: avoid !important;
+              page-break-after: avoid !important;
             }
-            .grid { display: grid; }
-            .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-            .col-span-4 { grid-column: span 4 / span 4; }
-            .col-span-5 { grid-column: span 5 / span 5; }
-            .col-span-7 { grid-column: span 7 / span 7; }
-            .col-span-8 { grid-column: span 8 / span 8; }
-            .flex { display: flex; }
-            .justify-between { justify-content: space-between; }
-            .items-start { align-items: flex-start; }
-            .items-center { align-items: center; }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .text-left { text-align: left; }
-            .space-y-0\\.5 > * + * { margin-top: 0.125rem; }
-            .space-y-1 > * + * { margin-top: 0.25rem; }
-            .space-y-1\\.5 > * + * { margin-top: 0.375rem; }
-            .space-y-6 > * + * { margin-top: 1.5rem; }
-            .space-y-7 > * + * { margin-top: 1.75rem; }
-            .gap-1 { gap: 0.25rem; }
-            .gap-6 { gap: 1.5rem; }
-            .gap-8 { gap: 2rem; }
-            .pt-1 { padding-top: 0.25rem; }
-            .pt-2 { padding-top: 0.5rem; }
-            .pt-4 { padding-top: 1rem; }
-            .pt-10 { padding-top: 2.5rem; }
-            .py-0\\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
-            .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-            .py-2\\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
-            .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-            .px-2\\.5 { padding-left: 0.625rem; padding-right: 0.625rem; }
-            .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
-            .px-4 { padding-left: 1rem; padding-right: 1rem; }
-            .p-1\\.5 { padding: 0.375rem; }
-            .p-2 { padding: 0.5rem; }
-            .mb-1 { margin-bottom: 0.25rem; }
-            .mb-1\\.5 { margin-bottom: 0.375rem; }
-            .font-bold { font-weight: 700; }
-            .font-semibold { font-weight: 600; }
-            .font-medium { font-weight: 500; }
-            .font-light { font-weight: 300; }
-            .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-            .text-xs { font-size: 0.75rem; }
-            .text-sm { font-size: 0.875rem; }
-            .text-\\[10px\\] { font-size: 10px; }
-            .text-\\[10\\.5px\\] { font-size: 10.5px; }
-            .text-\\[11px\\] { font-size: 11px; }
-            .uppercase { text-transform: uppercase; }
-            .text-slate-500 { color: #64748b; }
-            .text-slate-600 { color: #475569; }
-            .text-slate-700 { color: #334155; }
-            .text-slate-800 { color: #1e293b; }
-            .text-\\[\\#0f172a\\] { color: #0f172a; }
-            .text-\\[\\#1e293b\\] { color: #1e293b; }
-            .text-white { color: #ffffff !important; }
-            .bg-\\[\\#f1f5f9\\] { background-color: #f1f5f9 !important; }
-            .bg-\\[\\#38bdf8\\] { background-color: #38bdf8 !important; }
-            .border { border-width: 1px; border-style: solid; }
-            .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
-            .border-r { border-right-width: 1px; border-right-style: solid; }
-            .border-slate-200 { border-color: #e2e8f0; }
-            .border-slate-300 { border-color: #cbd5e1; }
-            .border-slate-700 { border-color: #334155; }
-            .divide-y > * + * { border-top-width: 1px; border-top-style: solid; }
-            .divide-slate-200 > * + * { border-color: #e2e8f0; }
-            .w-full { width: 100%; }
-            .w-14 { width: 3.5rem; }
-            .h-14 { height: 3.5rem; }
-            .w-\\[520px\\] { width: 520px; }
-            .h-\\[520px\\] { height: 520px; }
-            .rounded-full { border-radius: 9999px; }
-            .object-contain { object-fit: contain; }
-            .relative { position: relative; }
-            .absolute { position: absolute; }
-            .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-            .z-0 { z-index: 0; }
-            .z-10 { z-index: 10; }
-            .opacity-\\[0\\.11\\] { opacity: 0.11; }
-            .overflow-hidden { overflow: hidden; }
-            .whitespace-pre-line { white-space: pre-line; }
-            .border-collapse { border-collapse: collapse; }
+            table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+            }
+            th, td {
+              font-size: 10.5px !important;
+            }
+            .bg-\\[\\#38bdf8\\] {
+              background-color: #38bdf8 !important;
+              color: #ffffff !important;
+            }
           </style>
         </head>
         <body>
@@ -438,37 +415,52 @@ export default function InvoiceDocumentModal({
       </html>
     `);
     pri.document.close();
-    pri.focus();
-    setTimeout(() => {
-      pri.print();
+
+    // Ensure all images are fully loaded before printing
+    const images = pri.document.images;
+    const imagePromises = Array.from(images).map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    });
+
+    Promise.all(imagePromises).then(() => {
       setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 1500);
-    }, 300);
+        pri.focus();
+        pri.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }, 300);
+    });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:inset-auto">
+  const modalContent = (
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
 
       {/* Outer Shell */}
-      <div className="bg-[#121319] border border-white/20 rounded-3xl max-w-5xl w-full max-h-[96vh] flex flex-col shadow-2xl overflow-hidden my-auto text-slate-900 print:border-none print:shadow-none print:max-w-none print:max-h-none print:w-full print:rounded-none print:bg-white">
+      <div className="bg-[#121319] border border-white/20 rounded-3xl max-w-5xl w-full max-h-[96vh] flex flex-col shadow-2xl overflow-hidden my-auto text-slate-900">
 
         {/* Top Control Bar (Screen Only - Hidden in Print) */}
-        <div className="p-4 bg-slate-950 border-b border-white/10 flex flex-wrap items-center justify-between text-white gap-3 shrink-0 print:hidden">
+        <div className="p-4 bg-slate-950 border-b border-white/10 flex flex-wrap items-center justify-between text-white gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xs">
               ME
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                {docTypeTitle} {previewTab ? "Preview & Print" : "Editor"}
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  {docTypeTitle} {previewTab ? "Preview & Print" : "Editor"}
+                </h2>
                 <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">
-                  {docNumber}
+                  {docNumber || 'NEW'}
                 </span>
-              </h2>
-              <p className="text-[11px] text-gray-400">Murugan Enterprises Standard Template • Matching Official PDF</p>
+              </div>
+              <p className="text-[11px] text-gray-400">Murugan Enterprises Standard Template • Matching Official Format</p>
             </div>
           </div>
 
@@ -478,8 +470,10 @@ export default function InvoiceDocumentModal({
                 <button
                   type="button"
                   onClick={() => setPreviewTab(false)}
-                  className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1.5 ${!previewTab ? 'bg-amber-400 text-black font-bold shadow' : 'text-gray-300 hover:text-white'
-                    }`}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer",
+                    !previewTab ? "bg-amber-400 text-black shadow-md shadow-amber-400/20" : "text-gray-300 hover:text-white"
+                  )}
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Edit Parameters</span>
@@ -487,8 +481,10 @@ export default function InvoiceDocumentModal({
                 <button
                   type="button"
                   onClick={() => setPreviewTab(true)}
-                  className={`px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1.5 ${previewTab ? 'bg-amber-400 text-black font-bold shadow' : 'text-gray-300 hover:text-white'
-                    }`}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer",
+                    previewTab ? "bg-amber-400 text-black shadow-md shadow-amber-400/20" : "text-gray-300 hover:text-white"
+                  )}
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>Exact Preview</span>
@@ -499,7 +495,7 @@ export default function InvoiceDocumentModal({
             {previewTab && (
               <button
                 onClick={handlePrint}
-                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Print Document</span>
@@ -510,7 +506,7 @@ export default function InvoiceDocumentModal({
               <button
                 onClick={handleSaveDocument}
                 disabled={saving}
-                className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/30 transition"
+                className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/30 transition cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{saving ? 'Saving...' : `Save ${isQuoteType ? 'Quotation' : 'Invoice'}`}</span>
@@ -519,7 +515,7 @@ export default function InvoiceDocumentModal({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition"
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -527,179 +523,306 @@ export default function InvoiceDocumentModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-900/90 flex justify-center print:p-0 print:bg-white print:overflow-visible">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-900/90 flex justify-center">
 
           {/* TAB 1: PARAMETERS FORM EDITOR */}
           {!previewTab && formMode === 'create' && (
-            <div className="w-full max-w-4xl bg-slate-900 border border-white/15 rounded-2xl p-4 sm:p-6 text-white space-y-6">
-              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+            <div className="w-full max-w-4xl bg-gradient-to-b from-[#181924] to-[#12131a] border border-white/15 rounded-3xl p-5 sm:p-7 text-white space-y-6 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     <span>{docTypeTitle} Parameters & Line Items</span>
                   </h3>
-                  <p className="text-xs text-gray-400">All values correspond directly to the printed commercial document</p>
+                  <p className="text-xs text-gray-400 mt-0.5">All details entered here map directly to the official printed commercial format</p>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs font-mono font-bold text-amber-400">Total: ₹{grandTotal.toLocaleString('en-IN')}.00</span>
+                <div className="text-right bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase font-bold block">Document Total</span>
+                  <span className="text-sm font-black text-amber-400 font-mono">₹{grandTotal.toLocaleString('en-IN')}.00</span>
                 </div>
               </div>
 
               {/* Document Meta Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">Document Title</label>
+                  <label className="block text-gray-300 font-bold mb-1">Document Title</label>
                   <input
                     type="text"
                     value={docTypeTitle}
                     onChange={(e) => setDocTypeTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">{isQuoteType ? 'Quotation No' : 'Invoice No'}</label>
+                  <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Quotation Number' : 'Invoice Number'}</label>
                   <input
                     type="text"
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
-                    placeholder="e.g. A00007"
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+                    placeholder="Enter document number"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
-                <div>
-                  <label className="block text-gray-300 font-medium mb-1">School / Institution (Billed To) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
-                    placeholder="e.g. SRI NALLAMANI YADAVA GROUP OF INSTITUTES"
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
+
+                {/* Searchable School Dropdown with Master DB Autofill */}
+                <div className="relative" ref={schoolDropdownRef}>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-gray-300 font-bold">School / Institution (Billed To) *</label>
+                    {matchingSchools.length > 0 && showSchoolDropdown && (
+                      <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> {matchingSchools.length} in Master DB
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={schoolName}
+                      onChange={(e) => {
+                        setSchoolName(e.target.value);
+                        setShowSchoolDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (schoolName && schoolName.trim().length >= 2) {
+                          setShowSchoolDropdown(true);
+                        }
+                      }}
+                      placeholder="Type school name to search Master DB..."
+                      className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-bold pr-8"
+                    />
+                    <Search className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+
+                  {/* Autocomplete Dropdown List */}
+                  {showSchoolDropdown && matchingSchools.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#14151c] border border-amber-500/30 rounded-2xl shadow-2xl z-[100] max-h-56 overflow-y-auto divide-y divide-white/5 backdrop-blur-xl">
+                      <div className="p-2 bg-amber-500/10 border-b border-white/5 flex items-center justify-between text-[10px] text-amber-300 font-bold px-3">
+                        <span>⚡ AUTOFILL FROM MASTER DB</span>
+                        <span className="text-gray-400 font-normal">Click to fill details</span>
+                      </div>
+                      {matchingSchools.map(school => (
+                        <div
+                          key={school.id}
+                          onMouseDown={() => handleSelectMasterSchool(school)}
+                          className="p-2.5 px-3 hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-white text-xs flex items-center gap-1.5">
+                              {school.school_name}
+                              {school.board && (
+                                <span className="text-[10px] text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 rounded font-mono">
+                                  {school.board}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-gray-400">
+                              {school.district} {school.area ? `• ${school.area}` : ''} {school.block_or_cluster ? `(${school.block_or_cluster})` : ''}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-mono text-gray-500 shrink-0 ml-2">{school.id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">Address Lines</label>
+                  <label className="block text-gray-300 font-bold mb-1">Billing Street Address</label>
                   <textarea
                     rows="2"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. NALLAMANI NAGAR ,KODIKURICHI,TENKASI,"
-                    className="w-full px-3 py-1.5 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                    placeholder="Enter street, road, or area address"
+                    className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">State & PIN / Area</label>
+                  <label className="block text-gray-300 font-bold mb-1">District, State & PIN</label>
                   <input
                     type="text"
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="e.g. Tamil Nadu, India - 627804"
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                    placeholder="District, State, PIN Code"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-gray-300 font-medium mb-1">{isQuoteType ? 'Quote Date' : 'Invoice Date'}</label>
+                    <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Quote Date' : 'Invoice Date'}</label>
                     <input
                       type="text"
                       value={docDate}
                       onChange={(e) => setDocDate(e.target.value)}
-                      placeholder="Aug 24, 2026"
-                      className="w-full px-2 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      placeholder="e.g. Aug 24, 2026"
+                      className="w-full px-2.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-300 font-medium mb-1">{isQuoteType ? 'Valid Till' : 'Due Date'}</label>
+                    <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Valid Till' : 'Due Date'}</label>
                     <input
                       type="text"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      placeholder="Sep 08, 2026"
-                      className="w-full px-2 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      placeholder="e.g. Sep 08, 2026"
+                      className="w-full px-2.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 font-bold mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="Principal / Admin Name"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Phone number"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-[11px] text-amber-300 flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                    <span>All fields can be manually adjusted anytime.</span>
                   </div>
                 </div>
               </div>
 
-              {/* Line Items Editor */}
-              <div className="space-y-3">
+              {/* Line Items Editor with Dedicated Column Headers including HSN/SAC */}
+              <div className="space-y-3 pt-2">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Custom Product Line Items ({items.length})</h4>
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider">Product Line Items ({items.length})</h4>
+                    <p className="text-[11px] text-gray-400">All fields (including HSN, Size, GST Rate, and Unit) are fully editable</p>
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black rounded-xl text-xs font-bold transition flex items-center gap-1"
+                    className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-black rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Item</span>
+                    <Plus className="w-4 h-4" />
+                    <span>Add Line Item</span>
                   </button>
                 </div>
 
+                {/* Table Header Row */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 bg-black/40 border border-white/5 rounded-xl text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  <div className="col-span-1 text-center">#</div>
+                  <div className="col-span-4">Item Description</div>
+                  <div className="col-span-2">HSN Code</div>
+                  <div className="col-span-1 text-center">Size</div>
+                  <div className="col-span-1 text-center">GST %</div>
+                  <div className="col-span-1 text-right">Qty</div>
+                  <div className="col-span-1 text-right">Rate (₹)</div>
+                  <div className="col-span-1 text-center">Action</div>
+                </div>
+
+                {/* Line Item Rows */}
                 <div className="space-y-2.5">
                   {items.map((item, idx) => {
                     const itemAmt = (Number(item.quantity) || 0) * (Number(item.unit_rate) || 0);
                     return (
-                      <div key={idx} className="p-3 bg-black/40 border border-white/10 rounded-xl grid grid-cols-12 gap-2 items-center text-xs">
-                        <div className="col-span-1 text-center font-mono font-bold text-gray-400">#{idx + 1}</div>
-                        <div className="col-span-4">
+                      <div key={idx} className="p-3 bg-black/40 border border-white/10 hover:border-amber-500/30 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center text-xs transition-all">
+                        <div className="sm:col-span-1 text-left sm:text-center font-mono font-bold text-amber-400">
+                          #{idx + 1}
+                        </div>
+                        
+                        {/* Item Description */}
+                        <div className="sm:col-span-4 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">Item Description:</span>
                           <input
                             type="text"
                             required
-                            placeholder="Item description"
+                            placeholder="Item name / description"
                             value={item.name}
                             onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-black/60 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-amber-400"
+                            className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-medium"
                           />
                         </div>
-                        <div className="col-span-1">
+
+                        {/* HSN Code Input */}
+                        <div className="sm:col-span-2 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">HSN Code:</span>
                           <input
                             type="text"
-                            placeholder="Size"
+                            placeholder="HSN Code"
+                            value={item.hsn}
+                            onChange={(e) => handleItemChange(idx, 'hsn', e.target.value)}
+                            className="w-full px-2.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-center focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        {/* Size */}
+                        <div className="sm:col-span-1 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">Size:</span>
+                          <input
+                            type="text"
+                            placeholder="-"
                             value={item.size}
                             onChange={(e) => handleItemChange(idx, 'size', e.target.value)}
-                            className="w-full px-2 py-1.5 bg-black/60 border border-gray-700 rounded-lg text-white text-xs text-center focus:outline-none"
+                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs text-center focus:outline-none focus:border-amber-400"
                           />
                         </div>
-                        <div className="col-span-1">
+
+                        {/* GST Rate */}
+                        <div className="sm:col-span-1 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">GST %:</span>
                           <input
                             type="number"
-                            placeholder="Qty"
+                            placeholder="5"
+                            value={item.gst_rate}
+                            onChange={(e) => handleItemChange(idx, 'gst_rate', Number(e.target.value) || 0)}
+                            className="w-full px-1.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs text-center font-mono focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="sm:col-span-1 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">Quantity:</span>
+                          <input
+                            type="number"
+                            placeholder="1"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="w-full px-2 py-1.5 bg-black/60 border border-gray-700 rounded-lg text-white text-xs font-mono text-right focus:outline-none"
+                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-right focus:outline-none focus:border-amber-400 font-bold"
                           />
                         </div>
-                        {!isQuoteType && (
-                          <div className="col-span-1">
-                            <input
-                              type="text"
-                              placeholder="Unit"
-                              value={item.unit}
-                              onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
-                              className="w-full px-2 py-1.5 bg-black/60 border border-gray-700 rounded-lg text-white text-xs text-center focus:outline-none"
-                            />
-                          </div>
-                        )}
-                        <div className="col-span-1">
+
+                        {/* Unit Rate */}
+                        <div className="sm:col-span-1 space-y-1">
+                          <span className="sm:hidden text-[10px] text-gray-400 block">Rate (₹):</span>
                           <input
                             type="number"
-                            placeholder="Rate ₹"
+                            placeholder="0"
                             value={item.unit_rate}
                             onChange={(e) => handleItemChange(idx, 'unit_rate', e.target.value)}
-                            className="w-full px-2 py-1.5 bg-black/60 border border-gray-700 rounded-lg text-white text-xs font-mono text-right focus:outline-none"
+                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-right focus:outline-none focus:border-amber-400 font-bold text-amber-300"
                           />
                         </div>
-                        <div className="col-span-2 text-right font-mono font-bold text-emerald-400">
-                          ₹{itemAmt.toLocaleString('en-IN')}
-                        </div>
-                        <div className="col-span-1 text-center">
+
+                        {/* Delete Action & Mobile Subtotal */}
+                        <div className="sm:col-span-1 flex items-center justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                          <span className="sm:hidden text-xs font-mono font-bold text-emerald-400">
+                            Subtotal: ₹{itemAmt.toLocaleString('en-IN')}
+                          </span>
                           <button
                             type="button"
                             disabled={items.length <= 1}
                             onClick={() => handleRemoveItem(idx)}
-                            className="p-1.5 text-gray-400 hover:text-rose-400 disabled:opacity-30 transition"
+                            className="p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-20 transition cursor-pointer"
+                            title="Delete Line Item"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -709,60 +832,60 @@ export default function InvoiceDocumentModal({
               </div>
 
               {/* Adjustments */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-white/10 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-white/10 text-xs">
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">Extra Charges (₹)</label>
+                  <label className="block text-gray-300 font-bold mb-1">Extra Charges (₹)</label>
                   <input
                     type="number"
                     value={extraCharges}
                     onChange={(e) => setExtraCharges(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs font-mono focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">Delivery Charges (₹)</label>
+                  <label className="block text-gray-300 font-bold mb-1">Delivery Charges (₹)</label>
                   <input
                     type="number"
                     value={deliveryCharges}
                     onChange={(e) => setDeliveryCharges(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs font-mono focus:outline-none"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 font-medium mb-1">Discounts (₹)</label>
+                  <label className="block text-gray-300 font-bold mb-1">Discounts (₹)</label>
                   <input
                     type="number"
                     value={discountAmount}
                     onChange={(e) => setDiscountAmount(e.target.value)}
-                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-xs font-mono focus:outline-none text-emerald-400"
+                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none text-emerald-400 focus:border-emerald-400"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3">
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setPreviewTab(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Preview Exact Output</span>
+                  <Eye className="w-4 h-4" />
+                  <span>Preview Exact Commercial Output</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* TAB 2: EXACT MATCHING PRINTABLE DOCUMENT */}
+          {/* TAB 2: EXACT MATCHING PRINTABLE COMMERCIAL DOCUMENT */}
           {previewTab && (
             <div
               ref={printRef}
               id="printable-invoice"
-              className="w-full max-w-[850px] bg-white text-[#1e293b] shadow-2xl p-8 sm:p-12 relative text-[11px] leading-relaxed font-sans border border-slate-200 min-h-[1100px] flex flex-col justify-between print:w-full print:max-w-none print:shadow-none print:border-none print:p-8 print:m-0 print:min-h-0"
+              className="w-full max-w-[850px] bg-white text-[#1e293b] shadow-2xl p-8 sm:p-12 relative text-[11px] leading-relaxed font-sans border border-slate-200 min-h-[1100px] flex flex-col justify-between"
               style={{ color: '#1e293b', backgroundColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
             >
-              {/* Center Background Watermark Logo Matching Exact Attachment */}
+              {/* Center Background Watermark Logo */}
               <div
-                className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.11] overflow-hidden z-0 select-none print:opacity-[0.12]"
+                className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.11] overflow-hidden z-0 select-none"
                 style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
               >
                 <img
@@ -814,13 +937,13 @@ export default function InvoiceDocumentModal({
                       {isQuoteType ? "Quotation For" : "Billed To"}
                     </p>
                     <p className="font-bold text-[#0f172a] text-xs uppercase leading-tight">
-                      {schoolName || (isQuoteType ? "SHALOM MATRIC HR SEC SCHOOL" : "SRI NALLAMANI YADAVA GROUP OF INSTITUTES")}
+                      {schoolName || '—'}
                     </p>
                     <div className="text-slate-600 uppercase whitespace-pre-line text-[10.5px]">
-                      {address || (isQuoteType ? "PAVOORCHATRAM," : "NALLAMANI NAGAR ,KODIKURICHI,TENKASI,\nTENKASI,")}
+                      {address || '—'}
                     </div>
                     <p className="text-slate-600 text-[10.5px]">
-                      {district || (isQuoteType ? "India" : "Tamil Nadu, India - 627804")}
+                      {district || 'Tamil Nadu, India'}
                     </p>
                   </div>
 
@@ -855,15 +978,15 @@ export default function InvoiceDocumentModal({
 
                 </div>
 
-                {/* 3. Items Table - Rendered exactly per PDF style */}
+                {/* 3. Items Table */}
                 <div className="pt-2">
                   {!isQuoteType ? (
-                    /* Invoice Style Table (Soft Grey Header, subtle line dividers) */
+                    /* Invoice Style Table */
                     <table className="w-full text-left text-[10.5px] border-collapse">
                       <thead>
                         <tr className="bg-[#f1f5f9] text-slate-700 font-normal">
                           <th className="py-2.5 px-2.5 font-medium text-left" style={{ width: '30%' }}>Item</th>
-                          <th className="py-2.5 px-2 font-medium text-center" style={{ width: '8%' }}>HSN/SAC</th>
+                          <th className="py-2.5 px-2 font-medium text-center" style={{ width: '9%' }}>HSN</th>
                           <th className="py-2.5 px-2 font-medium text-center" style={{ width: '6%' }}>Size</th>
                           <th className="py-2.5 px-2 font-medium text-center leading-tight" style={{ width: '7%' }}>GST<br />Rate</th>
                           <th className="py-2.5 px-2 font-medium text-right" style={{ width: '8%' }}>Quantity</th>
@@ -879,9 +1002,9 @@ export default function InvoiceDocumentModal({
                         {calculatedItems.map((item, idx) => (
                           <tr key={idx} className="text-slate-800">
                             <td className="py-2.5 px-2.5">
-                              <span>{idx + 1}. {item.name}</span>
+                              <span>{idx + 1}. {item.name || 'Item'}</span>
                             </td>
-                            <td className="py-2.5 px-2 text-center text-slate-500">{item.hsn || ""}</td>
+                            <td className="py-2.5 px-2 text-center text-slate-600 font-mono">{item.hsn || "—"}</td>
                             <td className="py-2.5 px-2 text-center text-slate-700">{item.size || "-"}</td>
                             <td className="py-2.5 px-2 text-center">{item.gst_rate || 5}%</td>
                             <td className="py-2.5 px-2 text-right">{item.quantity}</td>
@@ -896,13 +1019,13 @@ export default function InvoiceDocumentModal({
                       </tbody>
                     </table>
                   ) : (
-                    /* Quotation Style Table (Grid Bordered format per Quotation attachment) */
+                    /* Quotation Style Table */
                     <table className="w-full text-left text-[10px] border-collapse border border-slate-700">
                       <thead>
                         <tr className="border-b border-slate-700 text-slate-800 font-medium">
                           <th className="p-2 border-r border-slate-700 text-left" style={{ width: '32%' }}>Item</th>
                           <th className="p-2 border-r border-slate-700 text-center" style={{ width: '8%' }}>SIZE</th>
-                          <th className="p-2 border-r border-slate-700 text-center" style={{ width: '8%' }}>HSN/SAC</th>
+                          <th className="p-2 border-r border-slate-700 text-center" style={{ width: '9%' }}>HSN</th>
                           <th className="p-2 border-r border-slate-700 text-center leading-tight" style={{ width: '7%' }}>GST<br />Rate</th>
                           <th className="p-2 border-r border-slate-700 text-right" style={{ width: '8%' }}>Quantity</th>
                           <th className="p-2 border-r border-slate-700 text-right" style={{ width: '8%' }}>Rate</th>
@@ -916,10 +1039,10 @@ export default function InvoiceDocumentModal({
                         {calculatedItems.map((item, idx) => (
                           <tr key={idx} className="border-b border-slate-700 text-slate-800">
                             <td className="p-1.5 px-2 border-r border-slate-700">
-                              <span>{idx + 1}.  {item.name}</span>
+                              <span>{idx + 1}.  {item.name || 'Item'}</span>
                             </td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-center">{item.size || ""}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-center text-slate-500">{item.hsn || ""}</td>
+                            <td className="p-1.5 px-2 border-r border-slate-700 text-center">{item.size || "-"}</td>
+                            <td className="p-1.5 px-2 border-r border-slate-700 text-center text-slate-600 font-mono">{item.hsn || "—"}</td>
                             <td className="p-1.5 px-2 border-r border-slate-700 text-center">{item.gst_rate || 5}%</td>
                             <td className="p-1.5 px-2 border-r border-slate-700 text-right">{item.quantity}</td>
                             <td className="p-1.5 px-2 border-r border-slate-700 text-right whitespace-nowrap">{formatINR(item.unit_rate)}</td>
@@ -944,25 +1067,25 @@ export default function InvoiceDocumentModal({
                         <p className="font-semibold text-slate-800 mb-1.5">Bank Details</p>
                         <div className="grid grid-cols-12 gap-1">
                           <span className="col-span-4 text-slate-500">Account Name</span>
-                          <span className="col-span-8 text-[#0f172a]">MURUGAN ENTERPRISES</span>
+                          <span className="col-span-8 text-[#0f172a] font-medium">MURUGAN ENTERPRISES</span>
                           <span className="col-span-4 text-slate-500">Account Number</span>
-                          <span className="col-span-8 text-[#0f172a]">44909857955</span>
+                          <span className="col-span-8 text-[#0f172a] font-mono">44909857955</span>
                           <span className="col-span-4 text-slate-500">IFSC</span>
-                          <span className="col-span-8 text-[#0f172a]">SBIN0002189</span>
+                          <span className="col-span-8 text-[#0f172a] font-mono">SBIN0002189</span>
                           <span className="col-span-4 text-slate-500">Account Type</span>
                           <span className="col-span-8 text-[#0f172a]">Current</span>
                           <span className="col-span-4 text-slate-500">Bank</span>
-                          <span className="col-span-8 text-[#0f172a]">state bank of india</span>
+                          <span className="col-span-8 text-[#0f172a]">State Bank of India</span>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-1 text-slate-700 leading-normal text-[10px]">
                         <p className="font-semibold text-slate-800 mb-1">Terms and Conditions</p>
-                        <p>1. 1. Delivery charges are additional and will be charged as per distance and logistics.</p>
+                        <p>1. Delivery charges are additional and will be charged as per distance and logistics.</p>
                         <p>2. 70% of the invoice value must be paid in advance before dispatch of goods.</p>
                         <p>3. Goods will be dispatched only after receipt of advance payment.</p>
                         <p>4. The remaining 30% balance is payable at the time of delivery / before unloading.</p>
-                        <p>5. Any delay in payment may attract delivery hold or extra charges</p>
+                        <p>5. Any delay in payment may attract delivery hold or extra charges.</p>
                       </div>
                     )}
                   </div>
@@ -1003,7 +1126,7 @@ export default function InvoiceDocumentModal({
 
                         {/* Blue Highlight Total Bar */}
                         <div
-                          className="flex justify-between items-center px-4 py-2.5 bg-[#38bdf8] text-white font-medium text-xs mt-2 print:bg-[#38bdf8] print:text-white"
+                          className="flex justify-between items-center px-4 py-2.5 bg-[#38bdf8] text-white font-medium text-xs mt-2"
                           style={{ backgroundColor: '#38bdf8', color: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                         >
                           <span className="font-normal">Total (INR)</span>
@@ -1011,7 +1134,7 @@ export default function InvoiceDocumentModal({
                         </div>
                       </div>
                     ) : (
-                      /* Quotation Calculation Block (Grid border matching Quotation attachment) */
+                      /* Quotation Calculation Block */
                       <div className="border border-slate-700 text-[10.5px]">
                         <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
                           <span>Amount</span>
@@ -1025,21 +1148,25 @@ export default function InvoiceDocumentModal({
                           <span>SGST</span>
                           <span className="text-[#0f172a]">{formatINR(totalSgst)}</span>
                         </div>
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>Discounts</span>
-                          <span className="text-[#0f172a]">{formatINR(parsedDiscount)}</span>
-                        </div>
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>Extra Charges</span>
-                          <span className="text-[#0f172a]">{formatINR(parsedExtra)}</span>
-                        </div>
+                        {parsedDiscount > 0 && (
+                          <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
+                            <span>Discounts</span>
+                            <span className="text-[#0f172a]">{formatINR(parsedDiscount)}</span>
+                          </div>
+                        )}
+                        {parsedExtra > 0 && (
+                          <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
+                            <span>Extra Charges</span>
+                            <span className="text-[#0f172a]">{formatINR(parsedExtra)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
                           <span>Round Up</span>
                           <span className="text-[#0f172a]">{roundUpVal < 0 ? `-₹${roundUpFormatted}` : `₹${roundUpFormatted}`}</span>
                         </div>
                         {/* Solid Blue Total Cell */}
                         <div
-                          className="flex justify-between items-center py-2 px-3 bg-[#38bdf8] text-white text-xs font-semibold print:bg-[#38bdf8] print:text-white"
+                          className="flex justify-between items-center py-2 px-3 bg-[#38bdf8] text-white text-xs font-semibold"
                           style={{ backgroundColor: '#38bdf8', color: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                         >
                           <span className="font-normal">Total (INR)</span>
