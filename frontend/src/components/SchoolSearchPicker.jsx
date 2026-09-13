@@ -47,11 +47,16 @@ export default function SchoolSearchPicker({
     setIsOpen(false);
     onSchoolChange({
       school_name: school.school_name,
-      district: school.district,
+      district: school.district || '',
       institution_type: school.board || 'School',
       is_from_master_db: true,
       master_school_id: school.id,
-      cluster_or_block: school.block_or_cluster || school.area || ''
+      cluster_or_block: school.block_or_cluster || school.area || '',
+      contact_person: school.contact_person || school.principal_name || '',
+      phone: school.phone || school.contact_number || '',
+      student_strength: school.student_strength || school.total_strength || '',
+      area: school.area || '',
+      address: school.address || ''
     });
   };
 
