@@ -622,8 +622,8 @@ export default function CanvasserLeaderboard({ currentUser }) {
                           </p>
                         ) : (
                           <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/40">
-                            <table className="w-full text-left text-xs border-collapse">
-                              <thead className="bg-[#181924] text-gray-400 uppercase text-[10px] font-bold border-b border-white/10">
+                            <table className="w-full text-left text-xs border-collapse min-w-[500px]">
+                              <thead className="bg-[#181924] text-gray-400 uppercase text-[10px] font-bold border-b border-white/10 whitespace-nowrap">
                                 <tr>
                                   <th className="py-3 px-4 text-amber-400 font-black">INVOICE ID</th>
                                   <th className="py-3 px-4">SCHOOL INSTITUTION</th>

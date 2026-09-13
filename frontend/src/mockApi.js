@@ -228,15 +228,23 @@ export const mockApi = {
 
   // ── Visits ─────────────────────────────────────────────────────────────────
   async getVisits(filters = {}) {
+    let params = {};
+    if (typeof filters === 'number' || typeof filters === 'string') {
+      params.canvasser_id = filters;
+    } else if (filters && typeof filters === 'object') {
+      params = { ...filters };
+    }
+
     const query = new URLSearchParams();
-    if (filters.search) query.append('search', filters.search);
-    if (filters.district && filters.district !== 'all') query.append('district', filters.district);
-    if (filters.interest_level && filters.interest_level !== 'all') query.append('interest_level', filters.interest_level);
-    if (filters.outcome_status && filters.outcome_status !== 'all') query.append('outcome_status', filters.outcome_status);
-    if (filters.canvasser_id) query.append('canvasser_id', filters.canvasser_id);
+    if (params.search) query.append('search', params.search);
+    if (params.district && params.district !== 'all') query.append('district', params.district);
+    if (params.interest_level && params.interest_level !== 'all') query.append('interest_level', params.interest_level);
+    if (params.outcome_status && params.outcome_status !== 'all') query.append('outcome_status', params.outcome_status);
+    if (params.canvasser_id) query.append('canvasser_id', params.canvasser_id);
 
     const queryString = query.toString();
-    return await api.get(`/visits${queryString ? `?${queryString}` : ''}`);
+    const res = await api.get(`/visits${queryString ? `?${queryString}` : ''}`);
+    return Array.isArray(res) ? res : (res?.visits || []);
   },
 
   async getVisitById(id) {
@@ -519,100 +527,153 @@ export const mockApi = {
 
   async getRoleSpecificKPIs(currentUser) {
     try {
-      const role = currentUser?.role || 'cvs';
-      const visits = (await this.getVisits()) || [];
-      const invoices = (await this.getInvoices()) || [];
+      const role = (currentUser?.role || 'cvs').toLowerCase();
+      const currentUserId = currentUser?.id;
 
-      const userVisits = ['canvasser', 'cvs'].includes(role)
-        ? visits.filter(v => v.canvasser_id === currentUser.id)
+      const [visitsRes, invoicesRes, leaderboardRes] = await Promise.all([
+        this.getVisits().catch(() => []),
+        this.getInvoices().catch(() => []),
+        this.getCanvasserLeaderboard().catch(() => ({ rankings: [], teamStats: {} }))
+      ]);
+
+      const visits = Array.isArray(visitsRes) ? visitsRes : (visitsRes?.visits || []);
+      const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);
+      const rankings = Array.isArray(leaderboardRes?.rankings) ? leaderboardRes.rankings : [];
+
+      const isCanvasserUser = ['canvasser', 'cvs'].includes(role);
+
+      const userVisits = isCanvasserUser && currentUserId
+        ? visits.filter(v => String(v.canvasser_id) === String(currentUserId))
         : visits;
 
-      const userInvoices = ['canvasser', 'cvs'].includes(role)
-        ? invoices.filter(i => i.canvasser_id === currentUser.id)
+      const userInvoices = isCanvasserUser && currentUserId
+        ? invoices.filter(i => String(i.canvasser_id) === String(currentUserId))
         : invoices;
 
+      const totalInvoiced = userInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
+      const totalCollected = userInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+      const totalPending = userInvoices.reduce((sum, i) => sum + (Number(i.pending_balance ?? i.outstanding_balance ?? 0)), 0);
       const totalVisits = userVisits.length;
-      const hotLeads = userVisits.filter(v => v.interest_level === 'Hot').length;
-      const ordersWon = userVisits.filter(v => v.outcome_status === 'Won').length;
+      const wonVisits = userVisits.filter(v => v.outcome_status === 'Won').length;
+      const hotVisits = userVisits.filter(v => v.interest_level === 'Hot').length;
+      const openLeads = userVisits.filter(v => v.outcome_status === 'Open').length;
+      const sampleSent = userVisits.filter(v => v.outcome_status === 'Sample Sent').length;
+
       const newSchoolsCount = userInvoices.filter(inv => {
         const matchingVisit = userVisits.find(v => v.id === inv.visit_id || v.school_name === inv.school_name);
-        return matchingVisit && matchingVisit.is_from_master_db === 0;
+        return matchingVisit && (!matchingVisit.is_from_master_db || matchingVisit.discovery_status === 'VERIFIED_NEW');
       }).length;
 
       const slab = calculateCommissionSlab(totalInvoiced, newSchoolsCount);
+      const myRank = rankings.find(r => String(r.id) === String(currentUserId));
+      const myRankPosition = myRank?.rank || (rankings.findIndex(r => String(r.id) === String(currentUserId)) + 1) || 1;
 
-      if (['canvasser', 'cvs'].includes(role)) {
-        return [
-          {
-            id: 'kpi_visits',
-            title: 'Schools Canvassed',
-            value: totalVisits,
-            change: `${ordersWon} Won`,
-            trend: 'up',
-            subtext: `${hotLeads} Hot Leads currently active`,
-            status: 'success'
-          },
-          {
-            id: 'kpi_invoiced',
-            title: 'Total Invoiced (Realized Sales)',
-            value: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
-            change: `${userInvoices.length} Invoices`,
-            trend: 'up',
-            subtext: slab.nextTarget ? `Target: ₹${(slab.nextTarget / 100000).toFixed(1)}L (${slab.progressPercent}% of current tier)` : 'Max 5.50% Slab Reached',
-            status: 'success'
-          },
-          {
-            id: 'kpi_pay',
-            title: 'Total Earned Payout',
-            value: slab.formattedTotalPayout,
-            change: `${slab.rate}% Slab + ${slab.formattedPerformanceIncentive} Bonus`,
-            trend: 'up',
-            subtext: `Next settlement: ${slab.nextSettlementDate} (1st of month)`,
-            status: 'accent'
-          },
-          {
-            id: 'kpi_collections',
-            title: 'Collections Received',
-            value: `₹${(totalCollected / 100000).toFixed(2)}L`,
-            change: `${totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 0}% Cleared`,
-            trend: 'up',
-            subtext: `₹${((totalInvoiced - totalCollected) / 100000).toFixed(2)}L Outstanding Balance`,
-            status: 'warning'
-          }
-        ];
-      }
+      const formatCurrency = (val) => {
+        const num = Number(val) || 0;
+        if (num >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
+        return `₹${num.toLocaleString('en-IN')}`;
+      };
 
-      return [
-        {
-          id: 'kpi_org_rev',
-          title: 'Total Revenue Invoiced',
-          value: `₹${(totalInvoiced / 100000).toFixed(2)}L`,
-          change: '+14.2%',
-          trend: 'up',
-          subtext: `${invoices.length} Orders Invoiced across TN`,
-          status: 'success'
+      const kpis = {
+        // Canvasser KPIs
+        school_visits: {
+          formatted: String(totalVisits),
+          raw: totalVisits,
+          trend: `${totalVisits} Field Visits`
         },
-        {
-          id: 'kpi_org_cash',
-          title: 'Cash Collected',
-          value: `₹${(totalCollected / 100000).toFixed(2)}L`,
-          change: `${totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 0}%`,
-          trend: 'up',
-          subtext: 'Payment realization rate',
-          status: 'success'
+        orders_won: {
+          formatted: String(wonVisits),
+          raw: wonVisits,
+          trend: `${wonVisits} Closed Deals`
         },
-        {
-          id: 'kpi_org_visits',
-          title: 'Central Field Visits',
-          value: visits.length,
-          change: `${ordersWon} Won`,
-          trend: 'up',
-          subtext: `Institutional coverage across 38 districts`,
-          status: 'accent'
+        invoices_credited: {
+          formatted: formatCurrency(totalInvoiced),
+          raw: totalInvoiced,
+          trend: `${userInvoices.length} Invoices`
+        },
+        commission_earned: {
+          formatted: slab.formattedTotalPayout || `₹${Math.round(slab.totalPayout).toLocaleString('en-IN')}`,
+          raw: slab.totalPayout,
+          trend: `${slab.rate}% Slab Payout`
+        },
+        commission_slab: {
+          formatted: `${slab.rate.toFixed(2)}% Tier`,
+          raw: slab.rate,
+          trend: slab.nextTarget ? `Next: ₹${(slab.nextTarget / 100000).toFixed(1)}L` : 'Max Tier'
+        },
+        team_rank: {
+          formatted: `#${myRankPosition}`,
+          raw: myRankPosition,
+          trend: 'Leaderboard Position'
+        },
+
+        // Management / Executive KPIs
+        revenue: {
+          formatted: formatCurrency(totalInvoiced),
+          raw: totalInvoiced,
+          trend: 'Total Sales'
+        },
+        gross_profit: {
+          formatted: formatCurrency(totalInvoiced * 0.35),
+          raw: totalInvoiced * 0.35,
+          trend: '35% Margin'
+        },
+        gp_percent: {
+          formatted: '35.0%',
+          raw: 35,
+          trend: 'Gross Margin'
+        },
+        collection_rate: {
+          formatted: formatCurrency(totalCollected),
+          raw: totalCollected,
+          trend: totalInvoiced > 0 ? `${Math.round((totalCollected / totalInvoiced) * 100)}% Cleared` : '100% Cleared'
+        },
+        collection: {
+          formatted: formatCurrency(totalCollected),
+          raw: totalCollected,
+          trend: 'Realized Collections'
+        },
+        overdue: {
+          formatted: formatCurrency(totalPending),
+          raw: totalPending,
+          trend: 'Pending Balance'
+        },
+        receivables: {
+          formatted: formatCurrency(totalPending),
+          raw: totalPending,
+          trend: 'Pending Balance'
+        },
+        conversion: {
+          formatted: totalVisits > 0 ? `${Math.round((wonVisits / totalVisits) * 100)}%` : '0%',
+          raw: totalVisits > 0 ? Math.round((wonVisits / totalVisits) * 100) : 0,
+          trend: 'Visits → Won'
+        },
+        conversion_pct: {
+          formatted: totalVisits > 0 ? `${Math.round((wonVisits / totalVisits) * 100)}%` : '0%',
+          raw: totalVisits > 0 ? Math.round((wonVisits / totalVisits) * 100) : 0,
+          trend: 'Win Rate'
+        },
+        team_size: {
+          formatted: String(rankings.length || 1),
+          raw: rankings.length || 1,
+          trend: 'Active Field Team'
+        },
+        open_leads: {
+          formatted: String(openLeads),
+          raw: openLeads,
+          trend: 'Pending Follow-up'
+        },
+        sample_sent: {
+          formatted: String(sampleSent),
+          raw: sampleSent,
+          trend: 'Awaiting Response'
         }
-      ];
+      };
+
+      return kpis;
     } catch (e) {
-      return [];
+      console.error("getRoleSpecificKPIs error:", e);
+      return {};
     }
   },
 

@@ -91,9 +91,15 @@ export default function CanvasserDashboard() {
 
   const loadVisits = async () => {
     setLoading(true);
-    const data = await mockApi.getVisits(user.id, user.role);
-    setVisits(data);
-    setLoading(false);
+    try {
+      const data = await mockApi.getVisits({ canvasser_id: user?.id });
+      setVisits(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to load canvasser visits:", e);
+      setVisits([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleProductToggle = (product) => {
@@ -239,14 +245,21 @@ export default function CanvasserDashboard() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                      "relative px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap z-10",
                       isActive
-                        ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-400/20 font-black"
+                        ? "text-black font-black"
                         : "text-gray-400 hover:text-white hover:bg-white/5"
                     )}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="canvasserActiveTopTab"
+                        className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-xl shadow-lg shadow-amber-400/25 -z-10"
+                        transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
+                      />
+                    )}
+                    <Icon className="w-4 h-4 relative z-10" />
+                    <span className="relative z-10">{tab.label}</span>
                   </button>
                 );
               })}
@@ -260,46 +273,22 @@ export default function CanvasserDashboard() {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Mobile sub-tabs scrollbar for quick top navigation */}
-          <div className="flex md:hidden space-x-1.5 overflow-x-auto pb-3 pt-1 scrollbar-none">
-            {navTabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap",
-                    isActive
-                      ? "bg-murugan-accent text-black shadow-md font-black"
-                      : "bg-white/5 text-gray-400 hover:text-white"
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.mobileLabel || tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <AnimatePresence mode="wait">
-          
-          {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
-          {activeTab === 'dashboard' && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-5"
-            >
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-8 space-y-6">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
+            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+          >
+            {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-5">
               {/* Quick Action Banner */}
               <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/20 via-murugan-card to-murugan-card border border-amber-500/30 shadow-xl relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -331,7 +320,7 @@ export default function CanvasserDashboard() {
               </div>
 
               {/* Dynamic Field Performance KPI Cards */}
-              <DynamicKPISection currentUser={user} />
+              <DynamicKPISection currentUser={user} refreshTrigger={visits.length} />
 
               {/* Pipeline Quick Summary */}
               <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
@@ -400,29 +389,24 @@ export default function CanvasserDashboard() {
                   ))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* ================= TAB 2: CLEAN NEW VISIT FORM ================= */}
           {activeTab === 'new' && (
-            <motion.form 
-              key="new"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-              onSubmit={handleSubmit} 
-              className="space-y-5 bg-murugan-card border border-white/10 p-5 rounded-3xl shadow-xl"
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-black text-white tracking-tight">Log School Visit</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Enter visit outcome and school requirements</p>
+              <form 
+                onSubmit={handleSubmit} 
+                className="space-y-5 bg-murugan-card border border-white/10 p-5 rounded-3xl shadow-xl"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-lg font-black text-white tracking-tight">Log School Visit</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Enter visit outcome and school requirements</p>
+                  </div>
+                  <span className="text-[11px] font-bold bg-murugan-accent/10 text-murugan-accent border border-murugan-accent/20 px-2.5 py-1 rounded-xl">
+                    Field Entry
+                  </span>
                 </div>
-                <span className="text-[11px] font-bold bg-murugan-accent/10 text-murugan-accent border border-murugan-accent/20 px-2.5 py-1 rounded-xl">
-                  Field Entry
-                </span>
-              </div>
               
               {/* Institution Selection via Master Database Picker */}
               <div className="pt-2">
@@ -676,19 +660,12 @@ export default function CanvasserDashboard() {
               >
                 {submitting ? 'Saving School Visit...' : 'Submit School Visit'}
               </motion.button>
-            </motion.form>
+            </form>
           )}
 
           {/* ================= TAB 3: MY VISITS LIST & EDIT ================= */}
           {activeTab === 'list' && (
-            <motion.div 
-              key="list"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-4"
-            >
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-base font-bold text-white">My Field Visits</h2>
@@ -734,11 +711,11 @@ export default function CanvasserDashboard() {
                     onChange={e => setFilterStatus(e.target.value)}
                     className="flex-1 bg-murugan-card border border-white/10 rounded-xl p-2.5 text-gray-300 focus:ring-1 focus:ring-murugan-accent text-xs"
                   >
-                    <option value="all">All Outcomes</option>
-                    <option value="Open">Open</option>
-                    <option value="Sample Sent">Sample Sent</option>
-                    <option value="Quote Given">Quote Given</option>
-                    <option value="Won">Won</option>
+                    <option value="all">All Statuses</option>
+                    <option value="Order Won">Order Won</option>
+                    <option value="Sample Submitted">Sample Submitted</option>
+                    <option value="Follow-up Needed">Follow-up Needed</option>
+                    <option value="Pending Decision">Pending Decision</option>
                     <option value="Lost">Lost</option>
                   </select>
                 </div>
@@ -894,23 +871,16 @@ export default function CanvasserDashboard() {
                   );
                 })
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* ================= TAB 4: CANVASSER PERFORMANCE LEADERBOARD ================= */}
           {activeTab === 'leaderboard' && (
-            <motion.div
-              key="leaderboard"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-            >
-              <ErrorBoundary>
-                <CanvasserLeaderboard currentUser={user} />
-              </ErrorBoundary>
-            </motion.div>
+            <ErrorBoundary>
+              <CanvasserLeaderboard currentUser={user} />
+            </ErrorBoundary>
           )}
+          </motion.div>
         </AnimatePresence>
       </main>
 
@@ -925,14 +895,21 @@ export default function CanvasserDashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "py-2 flex flex-col items-center gap-1 rounded-2xl transition-all relative", 
+                  "py-2 flex flex-col items-center gap-1 rounded-2xl transition-colors relative z-10", 
                   isActive 
-                    ? "text-amber-400 bg-amber-500/10 font-black border border-amber-500/30 shadow-lg shadow-amber-500/10" 
-                    : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                    ? "text-amber-400 font-black" 
+                    : "text-gray-400 hover:text-gray-200"
                 )}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-[10px] font-bold tracking-tight">{tab.mobileLabel || tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="canvasserActiveBottomTab"
+                    className="absolute inset-0 bg-amber-500/15 border border-amber-500/40 rounded-2xl shadow-lg shadow-amber-500/10 -z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
+                  />
+                )}
+                <Icon className="w-4 h-4 relative z-10" />
+                <span className="text-[10px] font-bold tracking-tight truncate max-w-full relative z-10">{tab.mobileLabel || tab.label}</span>
               </button>
             );
           })}

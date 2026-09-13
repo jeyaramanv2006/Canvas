@@ -416,8 +416,8 @@ export default function UserManagementModule({ currentUser }) {
       {/* User Directory Dataset Table */}
       <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] rounded-3xl border border-white/10 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-black/50 text-gray-400 uppercase text-[10px] border-b border-white/10 font-bold tracking-wider">
+          <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+            <thead className="bg-black/50 text-gray-400 uppercase text-[10px] border-b border-white/10 font-bold tracking-wider whitespace-nowrap">
               <tr>
                 <th className="py-3.5 px-4">Operator / User</th>
                 <th className="py-3.5 px-4">Username (<span className="font-mono text-amber-400">&lt;name&gt;@&lt;role&gt;</span>)</th>
@@ -448,7 +448,7 @@ export default function UserManagementModule({ currentUser }) {
                       isDeleted ? "bg-rose-500/[0.03] opacity-75" : isPaused ? "bg-amber-500/[0.03]" : "hover:bg-white/5"
                     )}>
                       {/* Name & Title */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <div className={cn(
                             "w-8 h-8 rounded-xl border flex items-center justify-center font-bold flex-shrink-0 text-xs",
@@ -474,15 +474,15 @@ export default function UserManagementModule({ currentUser }) {
                       </td>
 
                       {/* Strict Username */}
-                      <td className="py-3.5 px-4 font-mono text-gray-300">
+                      <td className="py-3.5 px-4 font-mono text-gray-300 whitespace-nowrap">
                         <span className="bg-black/40 px-2 py-1 rounded-lg border border-white/5 text-amber-300 text-[11px]">
                           {u.username || formatUsername(u.name, u.role)}
                         </span>
                       </td>
 
                       {/* Role Badge */}
-                      <td className="py-3.5 px-4">
-                        <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold border", roleObj.color)}>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center justify-center whitespace-nowrap shadow-xs", roleObj.color)}>
                           {roleObj.label}
                         </span>
                       </td>

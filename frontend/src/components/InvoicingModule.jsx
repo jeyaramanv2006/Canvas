@@ -401,7 +401,7 @@ export default function InvoicingModule({ currentUser }) {
 
               <div className="overflow-x-auto rounded-2xl border border-white/10">
                 <table className="w-full text-left text-xs text-gray-300 min-w-[760px]">
-                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10">
+                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10 whitespace-nowrap">
                     <tr>
                       <th className="py-3 px-4">Quote #</th>
                       <th className="py-3 px-4">School / Institution</th>
@@ -424,8 +424,8 @@ export default function InvoicingModule({ currentUser }) {
                         <td className="py-3.5 px-4 text-gray-300">{q.district}</td>
                         <td className="py-3.5 px-4 text-gray-400 font-mono text-[11px]">{q.date}</td>
                         <td className="py-3.5 px-4 text-gray-400 font-mono text-[11px]">{q.valid_until}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${q.status === 'Converted to Invoice' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center whitespace-nowrap shadow-xs ${q.status === 'Converted to Invoice' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                               q.status === 'Sent' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
                                 'bg-gray-700/50 text-gray-300 border border-gray-600'
                             }`}>
@@ -515,7 +515,7 @@ export default function InvoicingModule({ currentUser }) {
 
               <div className="overflow-x-auto rounded-2xl border border-white/10">
                 <table className="w-full text-left text-xs text-gray-300 min-w-[850px]">
-                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10">
+                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10 whitespace-nowrap">
                     <tr>
                       <th className="py-3 px-4">Invoice #</th>
                       <th className="py-3 px-4">School / Client</th>
@@ -535,27 +535,27 @@ export default function InvoicingModule({ currentUser }) {
                           <p className="font-extrabold text-white">{inv.school_name}</p>
                           <p className="text-[11px] text-gray-400">{inv.district} • {inv.contact_person}</p>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded text-[11px] font-semibold">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded text-[11px] font-semibold inline-flex items-center">
                             {inv.canvasser_name || 'Murugan'}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-gray-400 font-mono text-[11px]">
+                        <td className="py-3.5 px-4 text-gray-400 font-mono text-[11px] whitespace-nowrap">
                           <div>{inv.date}</div>
                           <div className="text-[10px] text-gray-500">Due: {inv.due_date}</div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center whitespace-nowrap shadow-xs ${inv.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                               inv.status === 'Partially Paid' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                                 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                             }`}>
                             {inv.status}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-black font-mono text-white text-sm">
+                        <td className="py-3.5 px-4 text-right font-black font-mono text-white text-sm whitespace-nowrap">
                           ₹{inv.grand_total.toLocaleString('en-IN')}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-black font-mono text-amber-400 text-sm">
+                        <td className="py-3.5 px-4 text-right font-black font-mono text-amber-400 text-sm whitespace-nowrap">
                           ₹{inv.pending_balance.toLocaleString('en-IN')}
                         </td>
                         <td className="py-3.5 px-4 text-right whitespace-nowrap space-x-2">
@@ -601,7 +601,7 @@ export default function InvoicingModule({ currentUser }) {
 
               <div className="overflow-x-auto rounded-2xl border border-white/10">
                 <table className="w-full text-left text-xs text-gray-300 min-w-[700px]">
-                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10">
+                  <thead className="bg-black/40 text-gray-400 font-semibold border-b border-white/10 whitespace-nowrap">
                     <tr>
                       <th className="py-3 px-4">Receipt #</th>
                       <th className="py-3 px-4">Date</th>
