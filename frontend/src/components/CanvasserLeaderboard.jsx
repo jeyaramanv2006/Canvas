@@ -648,27 +648,33 @@ export default function CanvasserLeaderboard({ currentUser }) {
                         )}
 
                         {/* Itemized Payout Breakdown Summary Card */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs">
                           <div className="space-y-0.5">
-                            <span className="text-[10px] text-gray-400 block font-medium">1. Monthly Realized Sales</span>
+                            <span className="text-[10px] text-gray-400 block font-medium">1. Realized Sales</span>
                             <span className="text-sm font-black text-amber-400 font-mono">
                               {canvasser.formattedInvoicedFull || canvasser.formattedInvoiced || '₹0'}
                             </span>
                           </div>
                           <div className="space-y-0.5">
-                            <span className="text-[10px] text-gray-400 block font-medium">2. Applied Commission ({canvasser.commissionRate || 2}% Slab)</span>
+                            <span className="text-[10px] text-gray-400 block font-medium">2. Commission ({canvasser.commissionRate || 2}% Slab)</span>
                             <span className="text-sm font-black text-emerald-300 font-mono">
                               {canvasser.formattedCommission || `₹${Number(canvasser.commissionEarned || 0).toLocaleString('en-IN')}`}
                             </span>
                           </div>
                           <div className="space-y-0.5">
-                            <span className="text-[10px] text-gray-400 block font-medium">3. Performance Incentive Bonus</span>
+                            <span className="text-[10px] text-gray-400 block font-medium">3. Sales Incentive</span>
                             <span className="text-sm font-black text-amber-300 font-mono">
                               {canvasser.formattedPerformanceIncentive || `₹${Number(canvasser.performanceIncentive || 0).toLocaleString('en-IN')}`}
                             </span>
                           </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] text-gray-400 block font-medium">4. Discovery Bonus ({canvasser.verifiedDiscoveryCount || 0} Verified)</span>
+                            <span className="text-sm font-black text-purple-300 font-mono">
+                              {canvasser.formattedDiscoveryBonuses || `₹${Number(canvasser.verifiedDiscoveryBonuses || 0).toLocaleString('en-IN')}`}
+                            </span>
+                          </div>
                           <div className="space-y-0.5 sm:text-right border-t sm:border-t-0 sm:border-l border-white/10 pt-2 sm:pt-0 sm:pl-3">
-                            <span className="text-[10px] text-emerald-400 block font-bold uppercase">Total Current Month Pay</span>
+                            <span className="text-[10px] text-emerald-400 block font-bold uppercase">Total Current Pay</span>
                             <span className="text-base font-black text-emerald-400 font-mono">
                               {canvasser.formattedTotalPayout || canvasser.formattedPayEarned || canvasser.formattedCommission || '₹0'}
                             </span>

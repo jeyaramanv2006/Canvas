@@ -12,6 +12,13 @@ function formatVisitRow(row, auditLogs = []) {
     attachments: typeof row.attachments === 'string'
       ? JSON.parse(row.attachments || '[]')
       : (row.attachments || []),
+    discovery_status: row.discovery_status || (row.is_from_master_db ? 'NOT_APPLICABLE' : 'PENDING_VERIFICATION'),
+    discovery_bonus_awarded: Boolean(row.discovery_bonus_awarded),
+    discovery_bonus_amount: Number(row.discovery_bonus_amount) || 0,
+    verified_by_id: row.verified_by_id || null,
+    verified_by_name: row.verified_by_name || null,
+    verified_at: row.verified_at || null,
+    verification_notes: row.verification_notes || '',
     edit_history: auditLogs.map(log => ({
       id: `EDT-${log.id}`,
       editor_name: log.actor_name,
@@ -116,18 +123,23 @@ export async function createVisit(req, res) {
     const productInterests = JSON.stringify(Array.isArray(body.product_interests) ? body.product_interests : ['Socks']);
     const attachments = JSON.stringify(Array.isArray(body.attachments) ? body.attachments : []);
 
+    const isFromMaster = body.is_from_master_db ? 1 : 0;
+    const discoveryStatus = isFromMaster ? 'NOT_APPLICABLE' : 'PENDING_VERIFICATION';
+
     const stmt = db.prepare(`
       INSERT INTO visits (
         canvasser_id, canvasser_name, is_from_master_db, master_school_id,
         school_name, district, cluster_or_block, institution_type, contact_person,
         phone, student_strength, product_interests, product_specifications,
         attachments, interest_level, outcome_status, follow_up_date, notes,
+        discovery_status, discovery_bonus_awarded, discovery_bonus_amount,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
+        ?, ?, ?,
         ?, ?
       )
     `);
@@ -135,7 +147,7 @@ export async function createVisit(req, res) {
     const result = await stmt.run(
       user.id,
       user.name || 'Field Canvasser',
-      body.is_from_master_db ? 1 : 0,
+      isFromMaster,
       body.master_school_id || null,
       body.school_name,
       body.district,
@@ -151,6 +163,9 @@ export async function createVisit(req, res) {
       body.outcome_status || 'Open',
       body.follow_up_date || null,
       body.notes || '',
+      discoveryStatus,
+      0,
+      0,
       now,
       now
     );
@@ -395,6 +410,185 @@ export async function deleteVisit(req, res) {
 
     return res.json({ success: true, message: 'Visit deleted successfully' });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+export async function verifySchoolDiscovery(req, res) {
+  try {
+    const visitId = parseInt(req.params.id, 10);
+    const actor = req.user;
+    const { action, master_school_id, school_data, bonus_amount = 1000, notes = '' } = req.body;
+
+    const current = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visitId);
+    if (!current) {
+      return res.status(404).json({ error: 'Visit not found' });
+    }
+
+    const now = new Date().toISOString();
+
+    if (action === 'LINK_EXISTING') {
+      // 1. Link to Existing Master School (Typo Resolution)
+      if (!master_school_id) {
+        return res.status(400).json({ error: 'master_school_id is required to link to an existing school' });
+      }
+
+      const masterSchool = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(master_school_id);
+      if (!masterSchool) {
+        return res.status(404).json({ error: 'Selected master school not found in database' });
+      }
+
+      // Update visit with correct master school canonical data
+      await db.prepare(`
+        UPDATE visits SET
+          is_from_master_db = 1,
+          master_school_id = ?,
+          school_name = ?,
+          district = ?,
+          discovery_status = 'LINKED_EXISTING',
+          discovery_bonus_awarded = 0,
+          discovery_bonus_amount = 0,
+          verified_by_id = ?,
+          verified_by_name = ?,
+          verified_at = ?,
+          verification_notes = ?,
+          updated_at = ?
+        WHERE id = ?
+      `).run(
+        masterSchool.id,
+        masterSchool.school_name,
+        masterSchool.district,
+        actor.id,
+        actor.name || 'Admin',
+        now,
+        notes || `Resolved typo: Linked to existing master school ${masterSchool.school_name} (${masterSchool.id})`,
+        now,
+        visitId
+      );
+
+      // Log Audit Entry
+      await db.prepare(`
+        INSERT INTO audit_logs (visit_id, actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+        VALUES (?, ?, ?, ?, 'VERIFY_DISCOVERY', ?, ?)
+      `).run(
+        visitId,
+        actor.id,
+        actor.name || 'Admin',
+        actor.role || 'admin',
+        JSON.stringify([
+          { field: 'Discovery Verification', from: `Newly Discovered (${current.school_name})`, to: `Linked to Master DB (${masterSchool.school_name})` },
+          { field: 'Typo / Canonical Name Correction', from: current.school_name, to: masterSchool.school_name },
+          { field: 'Verification Notes', from: '', to: notes || 'Linked to existing master school' }
+        ]),
+        now
+      );
+
+      const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visitId);
+      const auditLogs = await db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(visitId);
+      return res.json({
+        success: true,
+        message: `Visit successfully linked to existing Master School "${masterSchool.school_name}".`,
+        visit: formatVisitRow(updated, auditLogs || [])
+      });
+
+    } else if (action === 'APPROVE_NEW_SCHOOL') {
+      // 2. Verify as Genuine New School & Add to Master DB (+ Discovery Bonus)
+      const schoolName = (school_data?.school_name || current.school_name).trim();
+      const district = (school_data?.district || current.district).trim();
+      const blockOrCluster = (school_data?.block_or_cluster || current.cluster_or_block || 'General Block').trim();
+      const zone = (school_data?.zone || 'Tamil Nadu').trim();
+      const board = (school_data?.board || 'Matriculation').trim();
+      const area = (school_data?.area || district).trim();
+      const studentStrength = school_data?.student_strength ? Number(school_data.student_strength) : (current.student_strength || null);
+      const contactPerson = (school_data?.contact_person || current.contact_person || '').trim();
+      const phone = (school_data?.phone || current.phone || '').trim();
+      const priority = school_data?.priority || 'High';
+
+      const distCode = district.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'SCH';
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const newMasterId = `SCH-${distCode}-${randomSuffix}`;
+
+      // Insert new school into master_schools catalog
+      await db.prepare(`
+        INSERT INTO master_schools 
+        (id, school_name, district, block_or_cluster, zone, board, area, student_strength, contact_person, phone, priority, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+      `).run(
+        newMasterId,
+        schoolName,
+        district,
+        blockOrCluster,
+        zone,
+        board,
+        area,
+        studentStrength,
+        contactPerson,
+        phone,
+        priority
+      );
+
+      const awardedBonus = Number(bonus_amount) || 1000;
+
+      // Update visit with newly created master school ID & bonus award
+      await db.prepare(`
+        UPDATE visits SET
+          is_from_master_db = 1,
+          master_school_id = ?,
+          school_name = ?,
+          district = ?,
+          discovery_status = 'VERIFIED_NEW',
+          discovery_bonus_awarded = 1,
+          discovery_bonus_amount = ?,
+          verified_by_id = ?,
+          verified_by_name = ?,
+          verified_at = ?,
+          verification_notes = ?,
+          updated_at = ?
+        WHERE id = ?
+      `).run(
+        newMasterId,
+        schoolName,
+        district,
+        awardedBonus,
+        actor.id,
+        actor.name || 'Admin',
+        now,
+        notes || `Verified as genuine new school. Added to Master DB (${newMasterId}) and awarded ₹${awardedBonus.toLocaleString('en-IN')} discovery bonus.`,
+        now,
+        visitId
+      );
+
+      // Log Audit Entry
+      await db.prepare(`
+        INSERT INTO audit_logs (visit_id, actor_id, actor_name, actor_role, action, changed_fields, timestamp)
+        VALUES (?, ?, ?, ?, 'VERIFY_DISCOVERY', ?, ?)
+      `).run(
+        visitId,
+        actor.id,
+        actor.name || 'Admin',
+        actor.role || 'admin',
+        JSON.stringify([
+          { field: 'Discovery Verification', from: 'Newly Discovered (Pending)', to: `Approved & Added to Master DB (${newMasterId})` },
+          { field: 'Discovery Bonus', from: '₹0', to: `₹${awardedBonus.toLocaleString('en-IN')} Credited to ${current.canvasser_name}` },
+          { field: 'Master School Added', from: 'None', to: `${schoolName} [${newMasterId}]` }
+        ]),
+        now
+      );
+
+      const updated = await db.prepare('SELECT * FROM visits WHERE id = ?').get(visitId);
+      const auditLogs = await db.prepare('SELECT * FROM audit_logs WHERE visit_id = ? ORDER BY timestamp DESC').all(visitId);
+      return res.json({
+        success: true,
+        message: `School verified and added to Master Catalog (${newMasterId}). ₹${awardedBonus.toLocaleString('en-IN')} discovery bonus awarded to ${current.canvasser_name}!`,
+        newMasterId,
+        visit: formatVisitRow(updated, auditLogs || [])
+      });
+
+    } else {
+      return res.status(400).json({ error: 'Invalid action. Expected LINK_EXISTING or APPROVE_NEW_SCHOOL' });
+    }
+  } catch (error) {
+    console.error('verifySchoolDiscovery error:', error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -156,6 +156,13 @@ export async function initDB() {
       outcome_status TEXT NOT NULL,    -- Open, Sample Sent, Quote Given, Won, Lost, Not Interested
       follow_up_date TEXT,
       notes TEXT,
+      discovery_status TEXT DEFAULT 'NOT_APPLICABLE', -- PENDING_VERIFICATION, VERIFIED_NEW, LINKED_EXISTING, NOT_APPLICABLE
+      discovery_bonus_awarded INTEGER DEFAULT 0,
+      discovery_bonus_amount REAL DEFAULT 0,
+      verified_by_id INTEGER,
+      verified_by_name TEXT,
+      verified_at DATETIME,
+      verification_notes TEXT,
       last_edited_by_name TEXT,
       last_edited_by_role TEXT,
       last_edited_at DATETIME,
@@ -173,7 +180,7 @@ export async function initDB() {
       actor_id INTEGER NOT NULL,
       actor_name TEXT NOT NULL,
       actor_role TEXT NOT NULL,
-      action TEXT NOT NULL,            -- CREATE, UPDATE, DELETE
+      action TEXT NOT NULL,            -- CREATE, UPDATE, DELETE, VERIFY_DISCOVERY
       changed_fields TEXT NOT NULL,    -- JSON array: [{ field, from, to }]
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
@@ -257,6 +264,25 @@ export async function initDB() {
       FOREIGN KEY (invoice_id) REFERENCES invoices(id)
     );
   `);
+
+  // Auto-migration for existing SQLite visits table
+  const visitCols = [
+    { name: 'discovery_status', type: "TEXT DEFAULT 'NOT_APPLICABLE'" },
+    { name: 'discovery_bonus_awarded', type: "INTEGER DEFAULT 0" },
+    { name: 'discovery_bonus_amount', type: "REAL DEFAULT 0" },
+    { name: 'verified_by_id', type: "INTEGER" },
+    { name: 'verified_by_name', type: "TEXT" },
+    { name: 'verified_at', type: "DATETIME" },
+    { name: 'verification_notes', type: "TEXT" }
+  ];
+
+  for (const col of visitCols) {
+    try {
+      db.exec(`ALTER TABLE visits ADD COLUMN ${col.name} ${col.type}`);
+    } catch (e) {
+      // Column already exists
+    }
+  }
 
   seedDefaultData();
 }

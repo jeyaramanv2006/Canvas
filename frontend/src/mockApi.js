@@ -264,6 +264,10 @@ export const mockApi = {
     return await api.delete(`/visits/${id}`);
   },
 
+  async verifySchoolDiscovery(visitId, verificationData) {
+    return await api.post(`/visits/${visitId}/verify-discovery`, verificationData);
+  },
+
   async getSchoolHistory(schoolName, district) {
     const query = district ? `?district=${encodeURIComponent(district)}` : '';
     return await api.get(`/visits/school/${encodeURIComponent(schoolName)}${query}`);

@@ -208,7 +208,7 @@ export async function getCanvasserLeaderboard(req, res) {
     const { sort_by = 'pay', order = 'desc', month = '' } = req.query;
     const allVisits = (await db.prepare('SELECT * FROM visits').all()) || [];
     const allInvoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
-    const canvassers = (await db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status != 'INACTIVE'").all()) || [];
+    const canvassers = (await db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status = 'ACTIVE'").all()) || [];
 
     // Collect available months from both visits and invoices
     const allMonthsSet = new Set();
@@ -247,6 +247,13 @@ export async function getCanvasserLeaderboard(req, res) {
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
 
+      // Discovery bonus for newly discovered schools verified by Admin
+      const verifiedDiscoveryBonuses = cVisits
+        .filter(v => Boolean(v.discovery_bonus_awarded))
+        .reduce((sum, v) => sum + (Number(v.discovery_bonus_amount) || 1000), 0);
+      const verifiedDiscoveryCount = cVisits
+        .filter(v => Boolean(v.discovery_bonus_awarded)).length;
+
       // Detect converted new non-master schools
       const newSchoolsConverted = cInvoices.filter(inv => {
         const matchingVisit = visits.find(v => v.id === inv.visit_id || (v.school_name === inv.school_name && v.canvasser_id === c.id));
@@ -254,6 +261,7 @@ export async function getCanvasserLeaderboard(req, res) {
       }).length;
 
       const slabInfo = calculateCommissionSlab(totalInvoiced, newSchoolsConverted);
+      const totalPayoutWithBonuses = slabInfo.totalPayout + verifiedDiscoveryBonuses;
 
       const convertedInvoices = cInvoices.map(inv => {
         const gTotal = Number(inv.grand_total) || 0;
@@ -298,11 +306,14 @@ export async function getCanvasserLeaderboard(req, res) {
         newSchoolIncentive: slabInfo.newSchoolIncentive,
         newSchoolsCount: slabInfo.newSchoolsCount,
         formattedNewSchoolIncentive: slabInfo.formattedNewSchoolIncentive,
-        totalPayout: slabInfo.totalPayout,
-        payEarned: slabInfo.totalPayout,
+        verifiedDiscoveryBonuses,
+        verifiedDiscoveryCount,
+        formattedDiscoveryBonuses: `₹${verifiedDiscoveryBonuses.toLocaleString('en-IN')}`,
+        totalPayout: totalPayoutWithBonuses,
+        payEarned: totalPayoutWithBonuses,
         formattedCommission: slabInfo.formattedCommission,
-        formattedPayEarned: slabInfo.formattedTotalPayout,
-        formattedTotalPayout: slabInfo.formattedTotalPayout,
+        formattedPayEarned: `₹${totalPayoutWithBonuses.toLocaleString('en-IN')}`,
+        formattedTotalPayout: `₹${totalPayoutWithBonuses.toLocaleString('en-IN')}`,
         amountToNextTier: slabInfo.amountToNextTier,
         progressPercent: slabInfo.progressPercent,
         nextTarget: slabInfo.nextTarget,
