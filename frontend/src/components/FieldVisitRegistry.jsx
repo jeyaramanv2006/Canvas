@@ -47,13 +47,14 @@ export default function FieldVisitRegistry({ currentUser }) {
     setLoading(true);
     try {
       const [statsData, visitsData] = await Promise.all([
-        mockApi.getDashboardStats(),
-        mockApi.getVisits(currentUser?.id, currentUser?.role)
+        mockApi.getDashboardStats().catch(() => null),
+        mockApi.getVisits().catch(() => [])
       ]);
       setStats(statsData);
-      setVisits(visitsData);
+      setVisits(Array.isArray(visitsData) ? visitsData : []);
     } catch (e) {
       console.error("Failed loading field visits", e);
+      setVisits([]);
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,15 @@ export default function FieldVisitRegistry({ currentUser }) {
   };
 
   const uniqueDistricts = Array.from(new Set(visits.map(v => v.district).filter(Boolean)));
-  const uniqueCanvassers = stats?.canvasserStats || [];
+  const uniqueCanvassers = (stats?.canvasserStats && stats.canvasserStats.length > 0)
+    ? stats.canvasserStats
+    : Array.from(
+        new Map(
+          visits
+            .filter(v => v.canvasser_id)
+            .map(v => [v.canvasser_id, { id: v.canvasser_id, name: v.canvasser_name || `Canvasser ${v.canvasser_id}` }])
+        ).values()
+      );
 
   if (loading && visits.length === 0) {
     return (
