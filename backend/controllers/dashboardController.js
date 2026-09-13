@@ -203,6 +203,19 @@ export async function getDashboardStats(req, res) {
   }
 }
 
+function safeToMonthKey(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? '' : val.toISOString().slice(0, 7);
+  }
+  const str = String(val);
+  if (/^\d{4}-\d{2}/.test(str)) {
+    return str.slice(0, 7);
+  }
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 7);
+}
+
 export async function getCanvasserLeaderboard(req, res) {
   try {
     const { sort_by = 'pay', order = 'desc', month = '' } = req.query;
@@ -213,11 +226,11 @@ export async function getCanvasserLeaderboard(req, res) {
     // Collect available months from both visits and invoices
     const allMonthsSet = new Set();
     allInvoices.forEach(inv => {
-      const d = (inv.created_at || inv.date || '').slice(0, 7);
+      const d = safeToMonthKey(inv.created_at || inv.date);
       if (d && /^\d{4}-\d{2}$/.test(d)) allMonthsSet.add(d);
     });
     allVisits.forEach(v => {
-      const d = (v.created_at || v.visit_date || v.date || '').slice(0, 7);
+      const d = safeToMonthKey(v.created_at || v.visit_date || v.date);
       if (d && /^\d{4}-\d{2}$/.test(d)) allMonthsSet.add(d);
     });
     const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -228,20 +241,20 @@ export async function getCanvasserLeaderboard(req, res) {
     const invoices = selectedMonth === 'all'
       ? allInvoices
       : allInvoices.filter(i => {
-          const invDate = (i.created_at || i.date || '').slice(0, 7);
+          const invDate = safeToMonthKey(i.created_at || i.date);
           return invDate === selectedMonth;
         });
 
     const visits = selectedMonth === 'all'
       ? allVisits
       : allVisits.filter(v => {
-          const vDate = (v.created_at || v.visit_date || v.date || '').slice(0, 7);
+          const vDate = safeToMonthKey(v.created_at || v.visit_date || v.date);
           return vDate === selectedMonth;
         });
 
     const leaderboard = canvassers.map(c => {
       const cVisits = visits.filter(v => v.canvasser_id === c.id);
-      const cWon = cVisits.filter(v => v.outcome_status === 'Won').length;
+      const cWon = cVisits.filter(v => v.outcome_status === 'Won' || v.outcome_status === 'Order Won').length;
       const cHot = cVisits.filter(v => v.interest_level === 'Hot').length;
       const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
