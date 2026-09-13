@@ -364,8 +364,8 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
       {/* Schools Table */}
       <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] rounded-3xl border border-white/10 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-black/50 text-gray-400 uppercase text-[10px] border-b border-white/10 font-bold tracking-wider">
+          <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+            <thead className="bg-black/50 text-gray-400 uppercase text-[10px] border-b border-white/10 font-bold tracking-wider whitespace-nowrap">
               <tr>
                 <th className="py-3.5 px-4">School Institution</th>
                 <th className="py-3.5 px-4">District & Cluster</th>
@@ -410,7 +410,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
                     </td>
 
                     {/* District & Cluster */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="space-y-0.5">
                         <span className="font-bold text-gray-200 block">{s.district}</span>
                         <span className="text-[10px] text-gray-400 block">{s.block_or_cluster || 'General Cluster'}</span>
@@ -418,8 +418,8 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
                     </td>
 
                     {/* Board */}
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 inline-block">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 inline-flex items-center justify-center whitespace-nowrap shadow-xs">
                         {s.board || 'Matriculation'}
                       </span>
                     </td>

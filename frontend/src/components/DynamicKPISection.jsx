@@ -45,7 +45,7 @@ const KPI_COLORS = {
   conversion_pct: 'from-rose-500/20 to-red-500/5 text-rose-400 border-rose-500/30'
 };
 
-export default function DynamicKPISection({ currentUser }) {
+export default function DynamicKPISection({ currentUser, refreshTrigger }) {
   const [kpiData, setKpiData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export default function DynamicKPISection({ currentUser }) {
 
   useEffect(() => {
     loadKPIs();
-  }, [currentUser]);
+  }, [currentUser, refreshTrigger]);
 
   const loadKPIs = async () => {
     setLoading(true);

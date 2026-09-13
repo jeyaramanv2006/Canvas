@@ -12,6 +12,12 @@
     min-height: 100vh;
   }
 
+  /* Prevent broken multi-line inline border-radius and badge clipping */
+  .rounded-full, [class*="rounded-full"] {
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
   /* Disable number increase/decrease spinner stepper arrows globally */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
