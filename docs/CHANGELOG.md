@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0] - Comprehensive Documentation Audit & Codebase Synchronization
+
+- **Comprehensive Documentation Alignment across All 11 Knowledge Specifications**:
+  - `docs/ARCHITECTURE.md`: Synchronized 5-role RBAC architecture (CEO, CFO, CCO, Admin Executive, Canvasser), component registry (`CEODashboard`, `CFODashboard`, `CCODashboard`, `ManagerDashboard`, `CanvasserDashboard`, `MasterSchoolsDirectoryModule`, `UserManagementModule`, `InvoicingModule`, `PendingApprovalsDrawer`, `InvoiceDocumentModal`), and dual SQLite (WAL) / PostgreSQL Neon backend.
+  - `docs/TRD.md`: Replaced outdated "TBD" placeholders with confirmed technical architecture (React 18 + Vite, Node.js / Express REST API, SQLite native `DatabaseSync` / PostgreSQL Neon adapter, bcrypt password hashing, 7-day stateless JWT authentication).
+  - `docs/API.md`: Updated complete catalog of all 28+ active REST endpoints, including user lifecycle management, CEO approval queues, statewide master school catalog with RFC 4180 CSV export, visit audit logs with field diffs, multi-criteria leaderboard sorting, and dynamic line-item invoicing.
+  - `docs/DATABASE.md`: Documented full relational database schema for all 9 tables (`users`, `pending_user_actions`, `visits`, `audit_logs`, `master_schools`, `products`, `quotations`, `invoices`, `payments`) with exact columns, constraints, foreign keys, and data types.
+  - `docs/SECURITY.md`: Aligned security threat model and mitigation policies with the 5-tier role hierarchy, immutable visit audit trails, password hashing (10 rounds), forced reset prompt modals, and CEO approval queues for administrative mutations.
+  - `docs/ROADMAP.md`: Updated roadmap to mark foundational Phases 1–5 as completed and established active Phase 6 production deployment & scaling milestones.
+  - `docs/RISKS.md`: Synchronized operational risk mitigations with the active field audit trail diffing, CEO approval queue governance, and SQLite WAL persistence.
+  - `docs/PRD.md` & `docs/REQUIREMENTS.md`: Standardized user specifications with 5-tier role model, username standard `<name>@<role>`, 8-slab standard monthly commission matrix (2.00% to 5.50%), performance volume incentives, new school acquisition bonus, and custom dynamic line-item quotations.
+
 ## [0.12.0] - Team Leaderboard Multi-Criteria Sorting, Itemized Per-Invoice Pay Calculation & Executive Development Overlays
 
 - **Non-Technical UI Phrasing & Plain-Language Copy Overhaul**:

@@ -1,23 +1,25 @@
 # Technical Requirements Document (TRD)
 
 ## Technical Architecture
-- **Pattern**: Client-Server Architecture (REST API).
-- **Frontend Stack**: React, HTML, Tailwind CSS.
-- **Backend Stack**: RESTful API server (Framework TBD).
-- **Database Stack**: Relational Database Management System (RDBMS, Engine TBD).
-- **Security**: JWT (JSON Web Tokens) for session management and stateless authentication.
+- **Pattern**: Client-Server Architecture (RESTful JSON API).
+- **Frontend Stack**: React 18, Vite, HTML5, Tailwind CSS, Lucide Icons, Framer Motion animations.
+- **Backend Stack**: Node.js (ES Modules), Express.js REST API server.
+- **Database Stack**: Dual-Engine Relational Architecture:
+  - **SQLite**: Local development & Railway single-instance production via native Node.js `DatabaseSync` (`node:sqlite`) with Write-Ahead Logging (WAL) and foreign keys enabled.
+  - **PostgreSQL / Neon**: Serverless cloud PostgreSQL via `pgAdapter.js` and `@neondatabase/serverless` when `DATABASE_URL` is set.
+- **Security & Session**: Stateless JWT (JSON Web Tokens) with 7-day expiration, signed with HMAC-SHA256 secret key; bcrypt password hashing (`bcryptjs` with salt factor 10).
 
-## Technical Constraints
-- Password storage must utilize cryptographic password hashing (e.g., bcrypt / argon2).
-- Stateless JWT verification on every protected endpoint.
-- Database foreign keys must strictly enforce user ownership of visit records (`canvasser_id` -> `Users.id`).
+## Technical Constraints & Standards
+- Passwords must be hashed using bcrypt before database storage; plain text is never persisted or logged.
+- Stateless JWT verification on every protected endpoint (`authenticateToken` middleware).
+- Strict database foreign key relationships (`visits.canvasser_id` -> `users.id`, `quotations.canvasser_id` -> `users.id`, `payments.invoice_id` -> `invoices.id`).
+- All visit updates and discovery verifications must produce append-only audit trail records in `audit_logs`.
+- Master School mutations by non-CEO roles must pass through the `pending_user_actions` queue.
+- CSV exports must conform strictly to RFC 4180 standards with quoted escaping.
 
-## Technology Considerations
-- **Frontend Framework**: React for dynamic component state (product chips, interest levels, dashboard charts).
-- **Styling**: Tailwind CSS for responsive utility-first styling.
-- **Backend Runtime Choice**: Node.js/Express, Python/FastAPI, or Go (Decision Required).
-- **Database Choice**: PostgreSQL, MySQL, or SQLite (Decision Required).
+## Implementation Architecture
+- **Frontend Runtime**: Single Page Application (SPA) bundled via Vite, deployed on Vercel or static CDN.
+- **Backend Runtime**: Node.js 20+ service running Express server on port 5000 (configurable via `PORT` environment variable).
+- **Persistence Path**: SQLite data directory at `backend/data/canvas.db` (or configurable volume mount in production).
+- **CORS Configuration**: Supports preflight and cross-origin requests for decoupled web clients.
 
-## Infrastructure & Runtime Requirements
-- Server runtime capable of executing REST endpoints and processing database queries.
-- HTTPS configuration for secure JWT transmission in production.
