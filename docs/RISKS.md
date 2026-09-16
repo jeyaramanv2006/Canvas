@@ -4,7 +4,9 @@
 
 | Risk ID | Category | Description | Severity | Mitigation Strategy |
 |---|---|---|---|---|
-| RSK-001 | Technical / UX | Weak mobile network connectivity at school campuses causing sync delays. | Medium | Design frontend form state to withstand temporary connection drops; consider offline `localStorage` queue for pilot. |
-| RSK-002 | Data Quality | Inaccurate or incomplete field notes logged by canvassers. | Medium | Use quick multi-select product chips and required dropdown fields (Interest Level, Outcome Status) to standardize input. |
-| RSK-003 | Security | Password leaks or JWT secret exposure. | High | Hash passwords securely; store JWT secret in server environment variables; enforce HTTPS. |
-| RSK-004 | Operational | Managers modifying or logging visits directly, compromising data authenticity. | Low | Enforce API authorization rule disallowing manager roles from creating visit entries. |
+| RSK-001 | Technical / UX | Weak mobile network connectivity at rural school campuses causing sync delays. | Medium | Design resilient form state with optimistic local storage caching; prepare offline queue for future phases. |
+| RSK-002 | Data Quality | Inaccurate or incomplete field notes logged by canvassers. | Medium | Use Institutional Master School search picker to auto-populate school details, standard dropdowns, and mandatory contact fields. |
+| RSK-003 | Security | Password leaks or JWT secret exposure. | High | Hash passwords with bcrypt (10 rounds); store JWT secret securely in environment variables; enforce HTTPS and mandatory password resets. |
+| RSK-004 | Operational / Governance | Unauthorized administrative edits or tampering with field records. | Medium | Record all visit updates in immutable `audit_logs` with actor name, role, timestamp, and field diffs; route user and school modifications through CEO approval queue. |
+| RSK-005 | Single Datastore Persistence | Concurrent writes or file lock contention during high-volume field canvassing on SQLite. | Low | Configure Write-Ahead Logging (`WAL` mode) and busy timeout in SQLite; retain seamless migration path to PostgreSQL / Neon via `pgAdapter.js`. |
+

@@ -2,29 +2,44 @@
 
 ## Functional Requirements
 
-### Two-Role RBAC Model with Layer Access Scoping
-- **Admin Role (`admin`)**:
-  - Layers Covered: **L1 through L3 (Executive, Commercial, Finance, Marketing Manager)**.
-  - Primary KPIs: Total Revenue, Gross Profit, EBITDA, Net Cash Flow, Marketing ROI, Collection Rate.
-  - Capabilities: Full read/write/edit/delete authority across all visits, complete Invoicing & Commercial workspace (quotes, invoices, payments, product master pricing), CSV data export, and Canvasser order attribution.
-- **Canvasser Role (`canvasser`)**:
-  - Layers Covered: **L4 (Sales / Field Canvassing & Relationship Management)**.
-  - Primary KPIs: School Visits Logged, Active Leads Generated, Orders Won, Invoices Credited (₹), Team Rank, Conversion Rate %.
-  - Capabilities: Single-screen visit logging, scoped "My Visits" feed with audit history, and live **Competitive Field Leaderboard**.
-  - Access Restrictions: Invoicing and Marketing tabs/actions are completely removed from Canvassers. Quotation & Invoice creation is handled exclusively by Admin.
+### Five-Tier Enterprise Role Model with Layer Access Scoping
+- **Chief Executive Officer (`ceo`)**:
+  - Layers Covered: **Global Command across L1 (Executive) through L4 (Field Operations)**.
+  - Primary KPIs: Total Sales, Gross Profit, GP %, Collections, Overdue Receivables.
+  - Capabilities: Unrestricted access to all dashboards, financials, operational data, school directories, user governance, and final approval/rejection of queued administrative mutations.
+- **Chief Financial Officer (`cfo`)**:
+  - Layers Covered: **L1 & L2 (Executive Financials & Treasury)**.
+  - Primary KPIs: Revenue, Gross Profit, GP %, Collection Rate, Receivables Aging.
+  - Capabilities: Full financial reports, P&L, cash flow tracking, invoice auditing, and pricing oversight.
+- **Chief Coordinating Officer (`cco`)**:
+  - Layers Covered: **L2 & L3 (Executive Operations & Field Coordination)**.
+  - Primary KPIs: Total School Visits, Conversion Rate (Visits → Won), Orders Won, Sales Generated, Active Canvassers.
+  - Capabilities: Operational performance oversight, canvasser activity tracking, and team coordination.
+- **Admin Executive (`admin_exec` / `admin`)**:
+  - Layers Covered: **L3 (Data Management, Commercial Invoicing & Operational Support)**.
+  - Primary KPIs: Total Field Visits, Open Leads, Samples Sent, Orders Won, Active Field Team.
+  - Capabilities: Full read/write/edit/delete authority across all visit logs with immutable audit trails, custom line-item Quotation and Tax Invoice generation (`INV-2026-XXX`), payment recording, and submission of user and master school actions to CEO approval queue.
+- **Canvasser (`canvasser` / `cvs`)**:
+  - Layers Covered: **L4 (Sales / Field Canvassing & Execution)**.
+  - Primary KPIs: School Visits Logged, Orders Won, Invoiced Sales Credited (₹), Commission Earned (₹), Active Slab Tier, Leaderboard Rank.
+  - Capabilities: Search-first school visit logging with unlisted fallback, fabric specifications notes, sample photo attachments, scoped "My Visits" feed, and multi-criteria gamified leaderboard. Top-level executive corporate financials are strictly masked.
 
 ### Dynamic Role KPI Dashboards
 - Render Primary KPIs tailored for the logged-in user:
-  - Admin sees management/leadership financials (Revenue, EBITDA, Profit, Cash Flow, ROI, Collections).
-  - Canvasser sees operational field performance (Visits, Leads, Invoices Credited, Team Rank, Orders Won, Conversion %).
+  - CEO and CFO see executive management financials (Sales, Gross Profit, Margin %, Receivables, Collections).
+  - CCO and Admin see operational and team conversion metrics (Visits, Leads, Orders Won, Conversion %).
+  - Canvassers see field performance (Visits, Orders Won, Invoices Credited, Commission Earned, Tier Progress, Rank).
 
 ### Authentication & Authorization
-- Every user authenticates with `email` and `password`.
-- Passwords stored as secure hashes (`password_hash`).
-- Authentication returns signed JWT with user role (`admin` or `canvasser`).
-- Demo logins on Login page:
-  - Admin: `manager@murugan.com` (password: `password`)
-  - Canvassers: `field@murugan.com`, `field2@murugan.com`, `field3@murugan.com` (password: `password`)
+- Every user authenticates with username in format `<name>@<role>` (or email) and password.
+- Passwords stored as secure cryptographic hashes using `bcrypt` (10 rounds).
+- Authentication returns signed 7-day JWT with user ID, username, name, and role.
+- Standard default user accounts:
+  - CEO: `sudhan@ceo` (password: `password`)
+  - CFO: `abhishek@cfo` (password: `password`)
+  - CCO: `varshini@cco` (password: `password`)
+  - Admin: `admin@admin` (password: `password`)
+  - Canvassers: `murugan@cvs`, `gokul@cvs` (password: `password`)
 
 ### Field Operations & Master School Directory
 - **Institutional Master Database Search**: Canvassers search by School Name, District, or Block/Cluster across the pre-cataloged master directory of verified schools across Tamil Nadu.
@@ -38,17 +53,23 @@
 - **Edit & Delete Visit**: Canvassers can edit notes, specifications, photos, and delete their own logged visits.
 
 ### Commission Slab, Per-Invoice Pay & Competitive Leaderboard Requirements
-- **Per-Invoice Pay Calculation**:
-  - For every invoice converted from field canvassing, the canvasser receives a pay amount.
-  - Pay is calculated based on the canvasser's active percentage slab applied to each converted invoice: `Invoice Payout = (Invoice Grand Total × Active Slab Rate) / 100`.
-  - The canvasser's total cumulative invoiced volume determines their active slab tier:
-    - `₹0 – ₹5,00,000 (1 - 5L)`: **1% per Invoice**
-    - `₹5,00,001 – ₹10,00,000 (5 - 10L)`: **2% per Invoice**
-    - `₹10,00,001 – ₹15,00,000 (10 - 15L)`: **3% per Invoice**
-    - `₹15,00,001 – ₹20,00,000 (15 - 20L)`: **4% per Invoice**
-    - `> ₹20,00,000 (> 20L)`: **5% Max Payout**
-  - Total Pay Earned = Sum of payouts across all converted invoices.
-- **Multi-Criteria Sorting & Comparisons**:
+- **Standard Monthly Commission Slabs**:
+  - Applied to monthly net realized sales attributed to the canvasser:
+    - `₹0 – ₹99,999`: **2.00%**
+    - `₹1,00,000 – ₹2,49,999`: **2.50%**
+    - `₹2,50,000 – ₹4,99,999`: **3.00%**
+    - `₹5,00,000 – ₹7,49,999`: **3.50%**
+    - `₹7,50,000 – ₹9,99,999`: **4.00%**
+    - `₹10,00,000 – ₹14,99,999`: **4.50%**
+    - `₹15,00,000 – ₹24,99,999`: **5.00%**
+    - `₹25,00,000 and above`: **5.50%**
+- **Monthly Performance Incentive (Tiered Volume Bonus)**:
+  - `₹5L+`: **+₹2,000** | `₹7.5L+`: **+₹4,000** | `₹10L+`: **+₹7,500** | `₹15L+`: **+₹12,500** | `₹20L+`: **+₹20,000** | `₹25L+`: **+₹30,000**
+- **New School Acquisition Incentive**:
+  - **₹1,000** bonus per converted newly acquired school account.
+- **Monthly Settlement Cycle**:
+  - Payout is calculated across base commission, volume incentives, and new school bonuses, finalized and credited on the **1st of every month**.
+- **Multi-Criteria Dynamic Leaderboard Sorting**:
   - The leaderboard provides interactive sorting and ranking across:
     1. **Pay Earned (₹)**: Highest to lowest pay earned (or ascending).
     2. **Schools Canvassed**: Number of schools visited/canvassed.
@@ -63,15 +84,16 @@
   - Dynamic rank badges (`#1 🏆 Top Earner`, `#2 🥈 Senior Canvasser`, `#3 🥉 Field Canvasser`).
   - Interactive upgrade progress bar indicating distance to level up to the next slab percentage tier.
 
-### Invoicing & Commercial Pipeline (Admin Exclusive Authority)
-- **Quotation Generation**: Admin creates formal Sales Quotations from visit records and specifications, tracks negotiation attempts.
-- **Tax Invoices & Order Attribution**: Admin generates itemized Tax Invoices (`INV-2026-XXX`), calculates GST (18% default), HSN codes, marks the visit as `Won`, and attributes the invoice to the originating Canvasser (`canvasser_id`), automatically computing their commission slab.
+### Invoicing & Commercial Pipeline
+- **Dynamic Quotation Generation**: Admin creates formal Sales Quotations with custom line items, sizes, rates, and GST calculations; auto-links to visits.
+- **Tax Invoices & Order Attribution**: Admin generates itemized Tax Invoices (`INV-2026-XXX`), calculates GST (18% default), marks the visit as `Won`, and attributes the invoice to the originating Canvasser (`canvasser_id`), automatically computing their commission slab.
+- **Printable Watermark Document Rendering**: Previews and prints official A4 documents with Murugan Enterprises corporate header, official bank details / terms & conditions, and centered background watermark logo.
 - **Payment Tracking**: Log partial and full payment collections with payment modes (NEFT, UPI, Cheque, Cash) and reference IDs, updating pending balances dynamically.
 - **Marketing Hub Removal**: The Marketing Hub section is completely removed from both Canvasser and Admin interfaces.
 
 ### Visit Audit Trail & Change History Requirements
 - **Edit Tracking**: Whenever a visit record is updated, record the editor's identity (`last_edited_by_name`, `last_edited_by_role`) and timestamp (`last_edited_at`).
-- **Field-Level Diffing**: Automatically calculate specific field changes and store them in an append-only `edit_history` audit array.
+- **Field-Level Diffing**: Automatically calculate specific field changes and store them in an append-only `edit_history` audit array and central `audit_logs` table.
 - **Audit Timeline Viewer**: Inspect the complete revision timeline of any visit log via an interactive modal (`EditHistoryModal.jsx`).
 
 ### User Directory, Role Governance & Lifecycle Requirements
@@ -93,10 +115,9 @@
   - Admin and CEO can trigger instant Password Resets for any user without CEO approval queue.
   - Flagged users receive an interactive prompt modal (`ForcePasswordResetModal.jsx`) upon login to enter and confirm their new password.
 
-
 ### Master Schools Database & Statewide Catalog Requirements
 - **Relational Persistence**:
-  - Full relational persistence in SQLite (`master_schools` table) with fields: `id`, `code`, `school_name`, `district`, `block_cluster`, `zone`, `board`, `area`, `contact_person`, `phone`, `email`, `student_strength`, `created_at`, `updated_at`.
+  - Full relational persistence in SQLite (`master_schools` table) with fields: `id`, `school_name`, `district`, `block_or_cluster`, `zone`, `board`, `area`, `student_strength`, `contact_person`, `phone`, `priority`, `status`, `created_at`, `updated_at`.
 - **CEO & Admin Access**:
   - Available as a dedicated workspace module in both **CEO Dashboard** (`CEODashboard.jsx`) and **Admin Executive Dashboard** (`ManagerDashboard.jsx`).
 - **Dedicated Student Strength Column & Unknown Handling**:
@@ -114,18 +135,19 @@
   - Unknown student strengths, contact persons, and phone numbers are exported as `"-"`.
   - Frontend provides a prominent "Export Database (CSV)" button for instant single-click export.
 
-### Non-Functional Requirements
+## Non-Functional Requirements
 - **Mobile-First UX**: Optimized touch targets and responsive UI for smartphones and desktop command rooms.
 - **Data Security**: Secure token-based validation and role-based permissions scoping.
 - **Performance**: Instant data persistence and fast client-side calculations.
 
 ## Confirmed Requirements
-- Email/Password login with 2-role RBAC (Admin L1–L3, Canvasser L4).
+- `<name>@<role>` username login with 5-tier RBAC (CEO, CFO, CCO, Admin Executive, Canvasser).
 - Master School Database search with unlisted custom fallback.
 - Master School Database management with CEO direct execution, Admin CEO approval queue, and RFC 4180 CSV export.
 - Product Specifications notes and Sample Photo attachments.
 - Canvasser outcome status restricted to `Open`, `Sample Sent`, `Not Interested`.
 - Flexible follow-up (Date or None).
-- Admin management of Quotes, Invoices, Status updates to `Won`/`Lost`, and Canvasser attribution.
-- 5-Tier Commission Slab structure (1% to 5%) with leaderboard earnings and progression.
-- Removal of Marketing Hub from both Canvasser and Admin views.
+- Admin management of custom Quotes, Invoices, Status updates to `Won`/`Lost`, and Canvasser attribution.
+- 8-Tier Monthly Commission Slab structure (2.00% to 5.50%), Volume Bonus Tiers, and 1st-of-month settlement cycle.
+- Immutable visit audit trail with diff logging.
+- Removal of Marketing Hub from active workflows.
