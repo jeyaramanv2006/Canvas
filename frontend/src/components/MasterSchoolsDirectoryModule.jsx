@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Search, Filter, Plus, Edit2, Trash2, MapPin, 
@@ -41,6 +42,16 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
   const [actionError, setActionError] = useState('');
 
   const isCEO = currentUser?.role === 'ceo';
+
+  useEffect(() => {
+    if (modalOpen || deleteModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [modalOpen, deleteModalOpen]);
 
   useEffect(() => {
     loadSchools();
@@ -525,9 +536,9 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
       </div>
 
       {/* ── ADD / EDIT MODAL ───────────────────────────────────────────────── */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl text-white">
+      {modalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl text-white my-auto max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Building2 className="w-4 h-4 text-amber-400" />
               {editingSchool 
@@ -657,13 +668,14 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── DELETE MODAL ───────────────────────────────────────────────────── */}
-      {deleteModalOpen && targetSchool && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white">
+      {deleteModalOpen && targetSchool && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Trash2 className="w-4 h-4 text-rose-400" />
               <span>{isCEO ? "Confirm School Deletion" : "Submit Deletion Proposal to CEO"}</span>
@@ -696,7 +708,8 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

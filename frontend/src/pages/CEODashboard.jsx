@@ -135,41 +135,37 @@ export default function CEODashboard() {
             exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
           >
-            {/* TAB 1: CEO DASHBOARD COMMAND CENTER */}
-            {(activeTab === 'dashboard' || activeTab === 'overview') && (
-              <div className="rounded-3xl border border-white/10 bg-[#0f1015] p-16 sm:p-24 flex items-center justify-center text-center shadow-2xl min-h-[360px]">
-                <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-white uppercase">
-                  Under Construction
-                </h2>
-              </div>
-            )}
+            <ErrorBoundary>
+              {/* TAB 1: CEO DASHBOARD COMMAND CENTER */}
+              {(activeTab === 'dashboard' || activeTab === 'overview') && (
+                <CEOExecutiveOverview currentUser={user} />
+              )}
 
-            {/* TAB 2: MASTER SCHOOLS DATABASE */}
-            {activeTab === 'schools' && (
-              <MasterSchoolsDirectoryModule currentUser={user} />
-            )}
+              {/* TAB 2: MASTER SCHOOLS DATABASE */}
+              {activeTab === 'schools' && (
+                <MasterSchoolsDirectoryModule currentUser={user} />
+              )}
 
-            {/* TAB 3: INVOICING & FINANCIAL RECORDS */}
-            {activeTab === 'invoicing' && (
-              <InvoicingModule currentUser={user} />
-            )}
+              {/* TAB 3: INVOICING & FINANCIAL RECORDS */}
+              {activeTab === 'invoicing' && (
+                <InvoicingModule currentUser={user} />
+              )}
 
-            {/* TAB 4: CENTRAL VISIT LOGS */}
-            {activeTab === 'logs' && (
-              <FieldVisitRegistry currentUser={user} />
-            )}
+              {/* TAB 4: CENTRAL VISIT LOGS */}
+              {activeTab === 'logs' && (
+                <FieldVisitRegistry currentUser={user} />
+              )}
 
-            {/* TAB 5: TEAM LEADERBOARD */}
-            {activeTab === 'team' && (
-              <ErrorBoundary>
+              {/* TAB 5: TEAM LEADERBOARD */}
+              {activeTab === 'team' && (
                 <CanvasserLeaderboard currentUser={user} />
-              </ErrorBoundary>
-            )}
+              )}
 
-            {/* TAB 6: USER DIRECTORY & ROLES */}
-            {activeTab === 'users' && (
-              <UserManagementModule currentUser={user} />
-            )}
+              {/* TAB 6: USER DIRECTORY & ROLES */}
+              {activeTab === 'users' && (
+                <UserManagementModule currentUser={user} />
+              )}
+            </ErrorBoundary>
           </motion.div>
         </AnimatePresence>
 

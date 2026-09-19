@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image, AlertCircle } from 'lucide-react';
 import { mockApi } from '../mockApi';
@@ -26,6 +27,16 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [modalError, setModalError] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     mockApi.getProducts().then(prods => {
@@ -137,14 +148,14 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
     }
   };
 
-  return (
+  const modalContent = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-murugan-card border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+          className="bg-murugan-card border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-white/10 bg-black/40">
@@ -503,4 +514,6 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
       </div>
     </AnimatePresence>
   );
+
+  return createPortal(modalContent, document.body);
 }

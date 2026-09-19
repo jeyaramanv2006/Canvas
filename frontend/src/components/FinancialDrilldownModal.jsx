@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, ChevronRight, ArrowLeft, Download, Search, CheckCircle2, 
@@ -23,6 +24,17 @@ export default function FinancialDrilldownModal({
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   // Reset drill-down stack whenever modal opens or metric changes
   useEffect(() => {
@@ -97,8 +109,8 @@ export default function FinancialDrilldownModal({
     document.body.removeChild(link);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -733,4 +745,6 @@ export default function FinancialDrilldownModal({
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

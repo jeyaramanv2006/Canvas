@@ -109,27 +109,27 @@ export default function ManagerDashboard() {
             exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
           >
-            {activeTab === 'schools' && (
-              <MasterSchoolsDirectoryModule currentUser={user} />
-            )}
+            <ErrorBoundary>
+              {activeTab === 'schools' && (
+                <MasterSchoolsDirectoryModule currentUser={user} />
+              )}
 
-            {activeTab === 'users' && (
-              <UserManagementModule currentUser={user} />
-            )}
+              {activeTab === 'users' && (
+                <UserManagementModule currentUser={user} />
+              )}
 
-            {activeTab === 'invoicing' && (
-              <InvoicingModule currentUser={user} />
-            )}
+              {activeTab === 'invoicing' && (
+                <InvoicingModule currentUser={user} />
+              )}
 
-            {activeTab === 'logs' && (
-              <FieldVisitRegistry currentUser={user} />
-            )}
+              {activeTab === 'logs' && (
+                <FieldVisitRegistry currentUser={user} />
+              )}
 
-            {activeTab === 'team' && (
-              <ErrorBoundary>
+              {activeTab === 'team' && (
                 <CanvasserLeaderboard currentUser={user} />
-              </ErrorBoundary>
-            )}
+              )}
+            </ErrorBoundary>
           </motion.div>
         </AnimatePresence>
       </main>

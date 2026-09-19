@@ -1,4 +1,5 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LogOut, AlertTriangle, TrendingUp, TrendingDown, IndianRupee,
@@ -51,6 +52,17 @@ export default function CFODashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('cfo_overview'); // 'cfo_overview', 'invoicing', 'logs', 'team'
   const [showAlertsDrawer, setShowAlertsDrawer] = useState(false);
+
+  // Lock body scroll when alerts drawer is open
+  useEffect(() => {
+    if (showAlertsDrawer) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [showAlertsDrawer]);
 
   // Under Construction Overlay State
   // Set to true by default to hide the workspace from viewers while developing underneath.
@@ -786,13 +798,13 @@ export default function CFODashboard() {
 
       {/* Red Alert Drawer Modal */}
       <AnimatePresence>
-        {showAlertsDrawer && (
+        {showAlertsDrawer && createPortal(
           <div
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
             onClick={() => setShowAlertsDrawer(false)}
           >
             <div
-              className="bg-gradient-to-br from-[#1c1d27] via-[#161720] to-[#121319] border border-white/20 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-white"
+              className="bg-gradient-to-br from-[#1c1d27] via-[#161720] to-[#121319] border border-white/20 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-white my-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -841,7 +853,8 @@ export default function CFODashboard() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </AnimatePresence>
 

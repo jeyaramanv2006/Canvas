@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, UserPlus, Shield, KeyRound, UserX, CheckCircle2, 
@@ -42,6 +43,16 @@ export default function UserManagementModule({ currentUser }) {
   const [updatedRole, setUpdatedRole] = useState('canvasser');
 
   const isCEO = currentUser?.role === 'ceo';
+
+  useEffect(() => {
+    if (createModalOpen || editRoleModalOpen || confirmModal) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [createModalOpen, editRoleModalOpen, confirmModal]);
 
   useEffect(() => {
     loadUsers();
@@ -617,9 +628,9 @@ export default function UserManagementModule({ currentUser }) {
       </div>
 
       {/* ── CREATE USER MODAL ──────────────────────────────────────────────── */}
-      {createModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white">
+      {createModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <UserPlus className="w-4 h-4 text-amber-400" />
               {isCEO ? "Provision New System Account" : "Submit User Creation Request to CEO"}
@@ -692,13 +703,14 @@ export default function UserManagementModule({ currentUser }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── EDIT ROLE MODAL ────────────────────────────────────────────────── */}
-      {editRoleModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white">
+      {editRoleModalOpen && selectedUser && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Shield className="w-4 h-4 text-purple-400" />
               {isCEO ? `Modify Role: ${selectedUser.name}` : `Request Role Upgrade: ${selectedUser.name}`}
@@ -749,13 +761,14 @@ export default function UserManagementModule({ currentUser }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── CONFIRMATION MODAL FOR PAUSE / DELETE ──────────────────────────── */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white">
+      {confirmModal && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               {confirmModal.type === 'DELETE' ? (
                 <>
@@ -813,7 +826,8 @@ export default function UserManagementModule({ currentUser }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

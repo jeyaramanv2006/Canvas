@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { mockApi } from '../mockApi';
 import InvoiceDocumentModal from './InvoiceDocumentModal';
 import {
@@ -48,7 +49,16 @@ export default function InvoicingModule({ currentUser }) {
   const [payRef, setPayRef] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
-  const [payError, setPayError] = useState(null);
+  // Lock body scroll when payment modal is open
+  useEffect(() => {
+    if (payModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [payModalOpen]);
 
   useEffect(() => {
     loadAllFinancialData();
@@ -643,9 +653,9 @@ export default function InvoicingModule({ currentUser }) {
       )}
 
       {/* Record Payment Modal */}
-      {payModalOpen && selectedInvoiceForPay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-[#15161f] border border-white/15 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-white">
+      {payModalOpen && selectedInvoiceForPay && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="bg-[#15161f] border border-white/15 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-white my-auto">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-emerald-400" />
@@ -749,7 +759,8 @@ export default function InvoicingModule({ currentUser }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Invoice / Quotation Modal */}

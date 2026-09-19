@@ -1,4 +1,5 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeyRound, Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { AuthContext } from '../App';
@@ -13,8 +14,21 @@ export default function ForcePasswordResetModal() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const isVisible = Boolean(user && user.requires_password_reset);
+
+  // Lock body scroll when force reset modal is active
+  useEffect(() => {
+    if (isVisible) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isVisible]);
+
   // If user is not logged in or doesn't require password reset, do not show
-  if (!user || !user.requires_password_reset) {
+  if (!isVisible) {
     return null;
   }
 
@@ -52,8 +66,8 @@ export default function ForcePasswordResetModal() {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -154,4 +168,6 @@ export default function ForcePasswordResetModal() {
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

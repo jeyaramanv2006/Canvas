@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, 
@@ -27,8 +28,13 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
 
   useEffect(() => {
     if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
       loadApprovals();
       setDrawerError(null);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
     }
   }, [isOpen]);
 
@@ -102,8 +108,8 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
 
   const pendingList = approvals.filter(a => a.status === 'PENDING');
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end" onClick={onClose}>
+  const drawerContent = (
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex justify-end" onClick={onClose}>
       <motion.div 
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
@@ -166,28 +172,25 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
                     {req.type === 'USER_RESUME' && <PlayCircle className="w-4 h-4 text-emerald-400" />}
                     {req.type === 'USER_DELETE' && <Trash2 className="w-4 h-4 text-rose-400" />}
                     {req.type === 'SCHOOL_CREATION' && <Building2 className="w-4 h-4 text-blue-400" />}
+                    {req.type === 'SCHOOL_EDIT' && <Building2 className="w-4 h-4 text-amber-400" />}
+                    {req.type === 'SCHOOL_DELETE' && <Trash2 className="w-4 h-4 text-rose-400" />}
                     {req.type === 'DISCOUNT_APPROVAL' && <Percent className="w-4 h-4 text-amber-400" />}
-                    <span className="text-xs font-bold text-white">{req.title}</span>
+                    <span className="font-bold text-xs text-white leading-snug">{req.title}</span>
                   </div>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono shrink-0">
                     {req.id}
                   </span>
                 </div>
 
-                <div className="bg-white/5 p-3 rounded-xl text-xs space-y-1 text-gray-300">
-                  <p className="text-[10px] text-gray-400">Requested by: <strong className="text-white">{req.requestedBy}</strong></p>
-                  
-                  {req.details.username && <p>Username: <code className="text-amber-300">{req.details.username}</code></p>}
-                  {req.details.role && <p>Role: <strong className="text-white">{req.details.role.toUpperCase()}</strong></p>}
-                  {req.details.requested_role && <p>Target Role: <strong className="text-purple-300">{req.details.requested_role.toUpperCase()}</strong></p>}
-                  {req.details.school_name && <p>School: <strong>{req.details.school_name}</strong> ({req.details.district})</p>}
-                  {req.details.discount_percent && <p>Discount: <strong className="text-emerald-400">{req.details.discount_percent}%</strong> (₹{req.details.discount_amount})</p>}
+                <div className="text-[11px] text-gray-400 space-y-1 bg-white/5 p-2.5 rounded-xl border border-white/5">
+                  <p>Submitted by: <strong className="text-gray-200">{req.requestedBy}</strong></p>
+                  <p className="text-[10px] text-gray-500 font-mono">Timestamp: {new Date(req.requestedAt).toLocaleString()}</p>
                 </div>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     disabled={processingId === req.id}
-                    onClick={() => handleAction(req.id, 'APPROVE')}
+                    onClick={() => handleProcessApproval(req.id, 'APPROVE')}
                     className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -195,7 +198,7 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
                   </button>
                   <button
                     disabled={processingId === req.id}
-                    onClick={() => handleAction(req.id, 'REJECT')}
+                    onClick={() => handleProcessApproval(req.id, 'REJECT')}
                     className="flex-1 py-2 bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" />
@@ -209,4 +212,6 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
       </motion.div>
     </div>
   );
+
+  return createPortal(drawerContent, document.body);
 }
