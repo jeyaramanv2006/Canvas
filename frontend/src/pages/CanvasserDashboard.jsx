@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
@@ -49,6 +50,17 @@ export default function CanvasserDashboard() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Lock body scroll when image preview is open
+  useEffect(() => {
+    if (previewImage) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [previewImage]);
 
   // Editing and Modal State
   const [editingVisit, setEditingVisit] = useState(null);
@@ -987,12 +999,12 @@ export default function CanvasserDashboard() {
 
       {/* Image Lightbox Modal */}
       <AnimatePresence>
-        {previewImage && (
+        {previewImage && createPortal(
           <div 
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
             onClick={() => setPreviewImage(null)}
           >
-            <div className="relative max-w-xl max-h-[85vh] p-2 bg-murugan-card border border-white/20 rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="relative max-w-xl max-h-[85vh] p-2 bg-murugan-card border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setPreviewImage(null)}
@@ -1002,7 +1014,8 @@ export default function CanvasserDashboard() {
               </button>
               <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </AnimatePresence>
 

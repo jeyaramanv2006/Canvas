@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Check, AlertCircle, Building2, MapPin, Search, Sparkles, 
@@ -9,6 +10,16 @@ import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 
 export default function VerifySchoolDiscoveryModal({ isOpen, onClose, visit, onVerified }) {
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   const [activeTab, setActiveTab] = useState('link'); // 'link' | 'new'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -146,13 +157,13 @@ export default function VerifySchoolDiscoveryModal({ isOpen, onClose, visit, onV
 
   if (!isOpen || !visit) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        className="bg-gradient-to-b from-[#1c1d27] to-[#13141a] border border-white/10 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl my-8 max-h-[90vh] flex flex-col"
+        className="bg-gradient-to-b from-[#1c1d27] to-[#13141a] border border-white/10 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl my-auto max-h-[90vh] flex flex-col"
       >
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-white/10 flex items-start justify-between bg-black/40">
@@ -505,4 +516,6 @@ export default function VerifySchoolDiscoveryModal({ isOpen, onClose, visit, onV
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

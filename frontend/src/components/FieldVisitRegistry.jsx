@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Download, Users, Search, Filter, Edit3, Trash2, Phone, MapPin, 
@@ -24,6 +25,7 @@ export default function FieldVisitRegistry({ currentUser }) {
   const [selectedInterest, setSelectedInterest] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedOrigin, setSelectedOrigin] = useState('all');
+  const [selectedProduct, setSelectedProduct] = useState('all');
 
   // Modals & Lightbox
   const [editingVisit, setEditingVisit] = useState(null);
@@ -33,6 +35,17 @@ export default function FieldVisitRegistry({ currentUser }) {
   const [docModalType, setDocModalType] = useState('quote');
   const [previewImage, setPreviewImage] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Lock body scroll when image preview is open
+  useEffect(() => {
+    if (previewImage) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [previewImage]);
 
   useEffect(() => {
     loadData();
@@ -425,12 +438,12 @@ export default function FieldVisitRegistry({ currentUser }) {
 
       {/* Image Lightbox Modal */}
       <AnimatePresence>
-        {previewImage && (
+        {previewImage && createPortal(
           <div 
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
             onClick={() => setPreviewImage(null)}
           >
-            <div className="relative max-w-xl max-h-[85vh] p-2 bg-[#181922] border border-white/20 rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="relative max-w-xl max-h-[85vh] p-2 bg-[#181922] border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setPreviewImage(null)}
@@ -440,7 +453,8 @@ export default function FieldVisitRegistry({ currentUser }) {
               </button>
               <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </AnimatePresence>
 
