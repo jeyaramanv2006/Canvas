@@ -25,7 +25,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -104,7 +105,22 @@ app.get('/api/cfo/analytics', authenticateToken, financialsController.getCFOAnal
 // ── Error Handling Middleware ────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    return res.status(413).json({
+      error: 'Uploaded photo or data is too large. Please select a smaller image or compress it before attaching.',
+      details: err.message
+    });
+  }
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      error: 'Malformed request data sent to server.',
+      details: err.message
+    });
+  }
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    details: err.message
+  });
 });
 
 const isMainModule = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].includes('server.js'));

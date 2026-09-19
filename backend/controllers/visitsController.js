@@ -1,17 +1,23 @@
 import { db } from '../database/db.js';
 import { calculateVisitDiff } from '../utils/diff.js';
 
+function safeJsonParse(val, fallback = []) {
+  if (!val) return fallback;
+  if (typeof val !== 'string') return Array.isArray(val) || typeof val === 'object' ? val : fallback;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
 function formatVisitRow(row, auditLogs = []) {
   if (!row) return null;
   return {
     ...row,
     is_from_master_db: Boolean(row.is_from_master_db),
-    product_interests: typeof row.product_interests === 'string'
-      ? JSON.parse(row.product_interests || '[]')
-      : (row.product_interests || []),
-    attachments: typeof row.attachments === 'string'
-      ? JSON.parse(row.attachments || '[]')
-      : (row.attachments || []),
+    product_interests: safeJsonParse(row.product_interests, ['Socks']),
+    attachments: safeJsonParse(row.attachments, []),
     discovery_status: row.discovery_status || (row.is_from_master_db ? 'NOT_APPLICABLE' : 'PENDING_VERIFICATION'),
     discovery_bonus_awarded: Boolean(row.discovery_bonus_awarded),
     discovery_bonus_amount: Number(row.discovery_bonus_amount) || 0,
@@ -19,15 +25,13 @@ function formatVisitRow(row, auditLogs = []) {
     verified_by_name: row.verified_by_name || null,
     verified_at: row.verified_at || null,
     verification_notes: row.verification_notes || '',
-    edit_history: auditLogs.map(log => ({
+    edit_history: (auditLogs || []).map(log => ({
       id: `EDT-${log.id}`,
       editor_name: log.actor_name,
       editor_role: log.actor_role,
       action: log.action,
       timestamp: log.timestamp,
-      changes: typeof log.changed_fields === 'string'
-        ? JSON.parse(log.changed_fields || '[]')
-        : (log.changed_fields || [])
+      changes: safeJsonParse(log.changed_fields, [])
     }))
   };
 }
@@ -113,10 +117,19 @@ export async function getVisitById(req, res) {
 export async function createVisit(req, res) {
   try {
     const user = req.user;
-    const body = req.body;
+    const body = req.body || {};
 
-    if (!body.school_name || !body.district || !body.institution_type || !body.contact_person || !body.phone) {
-      return res.status(400).json({ error: 'Required fields: school_name, district, institution_type, contact_person, phone' });
+    const missing = [];
+    if (!body.school_name || !String(body.school_name).trim()) missing.push('School Name');
+    if (!body.district || !String(body.district).trim()) missing.push('District');
+    if (!body.institution_type || !String(body.institution_type).trim()) missing.push('Board / Institution Type');
+    if (!body.contact_person || !String(body.contact_person).trim()) missing.push('Contact Person');
+    if (!body.phone || !String(body.phone).trim()) missing.push('Phone Number');
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        error: `Please fill in required fields: ${missing.join(', ')}`
+      });
     }
 
     const now = new Date().toISOString();
@@ -125,6 +138,15 @@ export async function createVisit(req, res) {
 
     const isFromMaster = body.is_from_master_db ? 1 : 0;
     const discoveryStatus = isFromMaster ? 'NOT_APPLICABLE' : 'PENDING_VERIFICATION';
+
+    // Extract numbers safely from student_strength (e.g. "500 students" -> 500)
+    let parsedStrength = null;
+    if (body.student_strength !== undefined && body.student_strength !== null && body.student_strength !== '') {
+      const digits = String(body.student_strength).replace(/[^\d]/g, '');
+      if (digits) {
+        parsedStrength = parseInt(digits, 10);
+      }
+    }
 
     const stmt = db.prepare(`
       INSERT INTO visits (
@@ -149,20 +171,20 @@ export async function createVisit(req, res) {
       user.name || 'Field Canvasser',
       isFromMaster,
       body.master_school_id || null,
-      body.school_name,
-      body.district,
-      body.cluster_or_block || '',
-      body.institution_type,
-      body.contact_person,
-      body.phone,
-      body.student_strength ? Number(body.student_strength) : null,
+      String(body.school_name).trim(),
+      String(body.district).trim(),
+      body.cluster_or_block ? String(body.cluster_or_block).trim() : '',
+      String(body.institution_type).trim(),
+      String(body.contact_person).trim(),
+      String(body.phone).trim(),
+      parsedStrength,
       productInterests,
-      body.product_specifications || '',
+      body.product_specifications ? String(body.product_specifications).trim() : '',
       attachments,
       body.interest_level || 'Warm',
       body.outcome_status || 'Open',
       body.follow_up_date || null,
-      body.notes || '',
+      body.notes ? String(body.notes).trim() : '',
       discoveryStatus,
       0,
       0,

@@ -18,7 +18,8 @@ import {
   Plus,
   X,
   Eye,
-  Send
+  Send,
+  AlertCircle
 } from 'lucide-react';
 
 export default function InvoicingModule({ currentUser }) {
@@ -47,6 +48,7 @@ export default function InvoicingModule({ currentUser }) {
   const [payRef, setPayRef] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
+  const [payError, setPayError] = useState(null);
 
   useEffect(() => {
     loadAllFinancialData();
@@ -116,6 +118,7 @@ export default function InvoicingModule({ currentUser }) {
     if (!selectedInvoiceForPay || !payAmount || Number(payAmount) <= 0) return;
 
     setPaySubmitting(true);
+    setPayError(null);
     try {
       await mockApi.recordPayment(selectedInvoiceForPay.id, {
         amount: Number(payAmount),
@@ -127,7 +130,7 @@ export default function InvoicingModule({ currentUser }) {
       setPayModalOpen(false);
       await loadAllFinancialData();
     } catch (err) {
-      alert(err.message || "Failed to record payment");
+      setPayError(err.message || "Failed to record payment");
     } finally {
       setPaySubmitting(false);
     }
@@ -720,6 +723,13 @@ export default function InvoicingModule({ currentUser }) {
                   className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-murugan-accent"
                 />
               </div>
+
+              {payError && (
+                <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>{payError}</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-end space-x-2 pt-3 border-t border-murugan-border">
                 <button

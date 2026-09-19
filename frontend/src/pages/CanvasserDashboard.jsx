@@ -19,6 +19,7 @@ import ProductBadge from '../components/ProductBadge';
 import { COMPANY_DIVISIONS } from '../lib/companyProducts';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
+import { compressImage } from '../lib/imageUtils';
 
 const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
@@ -52,7 +53,8 @@ export default function CanvasserDashboard() {
   // Editing and Modal State
   const [editingVisit, setEditingVisit] = useState(null);
   const [inspectHistoryVisit, setInspectHistoryVisit] = useState(null);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toast, setToast] = useState(null); // { message: string, type: 'success' | 'error' }
+  const [formError, setFormError] = useState(null);
 
   // Filters for "My Visits" tab
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,9 +86,9 @@ export default function CanvasserDashboard() {
     }
   };
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
+  const showToast = (msg, type = 'success') => {
+    setToast({ message: msg, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
   const loadVisits = async () => {
@@ -112,27 +114,30 @@ export default function CanvasserDashboard() {
     });
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
+    for (const file of files) {
+      try {
+        const compressedUrl = await compressImage(file);
+        if (!compressedUrl) continue;
         const newAttachment = {
           id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           name: file.name,
-          url: uploadEvent.target.result,
-          type: file.type,
+          url: compressedUrl,
+          type: file.type || 'image/jpeg',
           timestamp: new Date().toISOString()
         };
         setFormData(prev => ({
           ...prev,
           attachments: [...(prev.attachments || []), newAttachment]
         }));
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.warn('Image processing warning:', err);
+      }
+    }
+    e.target.value = '';
   };
 
   const handleRemoveAttachment = (attId) => {
@@ -144,6 +149,25 @@ export default function CanvasserDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError(null);
+
+    if (!formData.school_name || !formData.school_name.trim()) {
+      setFormError("Please provide the School Name before saving.");
+      return;
+    }
+    if (!formData.district || !formData.district.trim()) {
+      setFormError("Please select or enter the District.");
+      return;
+    }
+    if (!formData.contact_person || !formData.contact_person.trim()) {
+      setFormError("Please provide the Contact Person (Principal / Correspondent / Admin).");
+      return;
+    }
+    if (!formData.phone || !formData.phone.trim()) {
+      setFormError("Please provide a Contact Phone number.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -151,7 +175,7 @@ export default function CanvasserDashboard() {
         follow_up_date: formData.noFollowUp ? null : (formData.follow_up_date || null)
       };
       await mockApi.addVisit(payload, user.id, user.name);
-      showToast("School visit logged successfully!");
+      showToast("School visit logged successfully!", "success");
       
       setFormData({
         school_name: '', district: '', institution_type: 'School', 
@@ -160,25 +184,34 @@ export default function CanvasserDashboard() {
         interest_level: 'Warm', outcome_status: 'Open', follow_up_date: '', noFollowUp: false, notes: '',
         is_from_master_db: false, master_school_id: null, cluster_or_block: ''
       });
+      setFormError(null);
       setActiveTab('list');
       await loadVisits();
     } catch (err) {
-      alert("Failed to save visit: " + err.message);
+      setFormError(err.message || "Failed to save visit. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleUpdateVisit = async (id, updatedData) => {
-    await mockApi.updateVisit(id, updatedData, user);
-    showToast("Visit updated successfully!");
-    await loadVisits();
+    try {
+      await mockApi.updateVisit(id, updatedData, user);
+      showToast("Visit updated successfully!", "success");
+      await loadVisits();
+    } catch (err) {
+      showToast(err.message || "Failed to update visit", "error");
+    }
   };
 
   const handleDeleteVisit = async (id) => {
-    await mockApi.deleteVisit(id);
-    showToast("Visit deleted successfully!");
-    await loadVisits();
+    try {
+      await mockApi.deleteVisit(id);
+      showToast("Visit deleted successfully!", "success");
+      await loadVisits();
+    } catch (err) {
+      showToast(err.message || "Failed to delete visit", "error");
+    }
   };
 
   const filteredVisits = visits.filter(v => {
@@ -651,6 +684,25 @@ export default function CanvasserDashboard() {
                 />
               </div>
 
+              {/* In-App Inline Form Error Banner */}
+              {formError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <div className="flex-1 font-medium leading-relaxed">{formError}</div>
+                  <button 
+                    type="button" 
+                    onClick={() => setFormError(null)} 
+                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              )}
+
               {/* Submit Button */}
               <motion.button
                 whileTap={{ scale: 0.98 }}
@@ -956,15 +1008,20 @@ export default function CanvasserDashboard() {
 
       {/* Toast Notification */}
       <AnimatePresence>
-        {toastMessage && (
+        {toast && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-5 py-2.5 rounded-full font-bold text-xs shadow-2xl flex items-center gap-2 z-50 whitespace-nowrap"
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className={cn(
+              "fixed bottom-20 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-full font-bold text-xs shadow-2xl flex items-center gap-2 z-50 whitespace-nowrap backdrop-blur-md",
+              toast.type === 'error'
+                ? "bg-red-600/95 text-white shadow-red-600/30 border border-red-400/30"
+                : "bg-emerald-500/95 text-white shadow-emerald-500/30 border border-emerald-400/30"
+            )}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            {toastMessage}
+            {toast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+            {toast.message}
           </motion.div>
         )}
       </AnimatePresence>

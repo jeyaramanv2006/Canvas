@@ -23,41 +23,20 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [drawerError, setDrawerError] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       loadApprovals();
+      setDrawerError(null);
     }
   }, [isOpen]);
 
   const loadApprovals = async () => {
     setLoading(true);
     try {
-      const stored = localStorage.getItem('mg_pending_approvals');
-      if (stored) {
-        setApprovals(JSON.parse(stored));
-      } else {
-        const defaultApprovals = [
-          {
-            id: "APP-101",
-            type: "SCHOOL_CREATION",
-            title: "New School Addition: SBOA Matriculation Higher Secondary",
-            requestedBy: "Admin Executive (Admin)",
-            requestedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-            details: {
-              school_name: "SBOA Matriculation Higher Secondary",
-              district: "Madurai",
-              cluster: "Madurai Southzone",
-              board: "MATRIC",
-              student_strength: 1450,
-              contact_person: "Fr. Jacob (Principal)"
-            },
-            status: "PENDING"
-          }
-        ];
-        localStorage.setItem('mg_pending_approvals', JSON.stringify(defaultApprovals));
-        setApprovals(defaultApprovals);
-      }
+      const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
+      setApprovals(storedApprovals);
     } catch (e) {
       console.error("Failed to load approvals", e);
     } finally {
@@ -65,15 +44,22 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
     }
   };
 
-  const handleAction = async (approvalId, action) => {
+  const handleProcessApproval = async (approvalId, action) => {
     setProcessingId(approvalId);
+    setDrawerError(null);
     try {
       const targetReq = approvals.find(a => a.id === approvalId);
-
-      // If approved, execute the corresponding data modification
-      if (action === 'APPROVE' && targetReq) {
+      if (targetReq && action === 'APPROVE') {
+        // Apply changes directly to live SQLite backend
         if (targetReq.type === 'USER_CREATION') {
-          await mockApi.createUser(targetReq.details);
+          await mockApi.createUser({
+            name: targetReq.details.name,
+            username: targetReq.details.username,
+            role: targetReq.details.role,
+            roleTitle: targetReq.details.roleTitle,
+            password: targetReq.details.password,
+            initial_password: targetReq.details.password
+          });
         } else if (targetReq.type === 'ROLE_CHANGE') {
           await mockApi.updateUserRole(targetReq.details.target_user_id, targetReq.details.requested_role);
         } else if (targetReq.type === 'USER_PAUSE') {
@@ -106,7 +92,7 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
       setApprovals(updated);
       if (onApprovalUpdated) onApprovalUpdated();
     } catch (e) {
-      alert("Failed to process approval: " + e.message);
+      setDrawerError("Failed to process approval: " + e.message);
     } finally {
       setProcessingId(null);
     }
@@ -144,6 +130,18 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
 
         {/* List of Requests */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {drawerError && (
+            <div className="p-3.5 bg-red-500/15 border border-red-500/30 rounded-2xl text-red-300 text-xs font-bold flex items-center justify-between gap-2.5 shadow-lg">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{drawerError}</span>
+              </div>
+              <button onClick={() => setDrawerError(null)} className="text-red-400/60 hover:text-red-400 p-0.5">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="flex justify-between items-center text-xs">
             <span className="font-bold text-gray-300">Pending Review ({pendingList.length})</span>
             <span className="text-[10px] text-amber-400 uppercase font-semibold">Direct CEO Authority</span>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Search, Filter, Plus, Edit2, Trash2, MapPin, 
   Phone, Users, Sparkles, CheckCircle2, AlertTriangle, RefreshCw,
-  ChevronLeft, ChevronRight, Download, ShieldCheck, Clock, Check
+  ChevronLeft, ChevronRight, Download, ShieldCheck, Clock, Check, AlertCircle
 } from 'lucide-react';
 import { TAMIL_NADU_DISTRICTS } from '../data/masterSchools';
 import { mockApi } from '../mockApi';
@@ -38,6 +38,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
     priority: 'Medium'
   });
   const [actionSuccess, setActionSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const isCEO = currentUser?.role === 'ceo';
 
@@ -61,7 +62,14 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
 
   const showSuccess = (msg) => {
     setActionSuccess(msg);
+    setActionError('');
     setTimeout(() => setActionSuccess(''), 4500);
+  };
+
+  const showError = (msg) => {
+    setActionError(msg);
+    setActionSuccess('');
+    setTimeout(() => setActionError(''), 6000);
   };
 
   // Filter logic
@@ -115,7 +123,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
       document.body.removeChild(link);
       showSuccess("Master Schools database exported to CSV successfully!");
     } catch (err) {
-      alert("Failed to export CSV: " + err.message);
+      showError("Failed to export CSV: " + err.message);
     } finally {
       setExporting(false);
     }
@@ -194,7 +202,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
       setModalOpen(false);
       await loadSchools();
     } catch (err) {
-      alert("Failed to save school: " + err.message);
+      showError("Failed to save school: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -240,7 +248,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
       setTargetSchool(null);
       await loadSchools();
     } catch (err) {
-      alert("Failed to delete school: " + err.message);
+      showError("Failed to delete school: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -305,6 +313,18 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{actionSuccess}</span>
+        </motion.div>
+      )}
+
+      {/* Error Notification */}
+      {actionError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-red-500/15 border border-red-500/30 rounded-2xl text-red-300 text-xs font-bold flex items-center gap-2.5 shadow-lg"
+        >
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <span>{actionError}</span>
         </motion.div>
       )}
 
