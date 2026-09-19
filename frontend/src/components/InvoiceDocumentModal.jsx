@@ -16,7 +16,8 @@ import {
   Layers,
   ArrowRight,
   Search,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
@@ -43,6 +44,7 @@ export default function InvoiceDocumentModal({
   const [formMode, setFormMode] = useState(mode);
   const [previewTab, setPreviewTab] = useState(mode === 'view');
   const [saving, setSaving] = useState(false);
+  const [docError, setDocError] = useState(null);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
 
   // Document Type Header
@@ -266,8 +268,9 @@ export default function InvoiceDocumentModal({
   // Save Document
   const handleSaveDocument = async (e) => {
     if (e) e.preventDefault();
+    setDocError(null);
     if (!schoolName.trim()) {
-      alert("Please enter the School / Institution Name");
+      setDocError("Please enter the School / Institution Name");
       return;
     }
 
@@ -312,7 +315,7 @@ export default function InvoiceDocumentModal({
       }
       onClose();
     } catch (err) {
-      alert(err.message || "Failed to save document");
+      setDocError(err.message || "Failed to save document");
     } finally {
       setSaving(false);
     }
@@ -541,6 +544,21 @@ export default function InvoiceDocumentModal({
                   <span className="text-sm font-black text-amber-400 font-mono">₹{grandTotal.toLocaleString('en-IN')}.00</span>
                 </div>
               </div>
+
+              {/* In-Modal Error Alert Banner */}
+              {docError && (
+                <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <div className="flex-1 font-medium leading-relaxed">{docError}</div>
+                  <button 
+                    type="button" 
+                    onClick={() => setDocError(null)} 
+                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Document Meta Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image } from 'lucide-react';
+import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image, AlertCircle } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
+import { compressImage } from '../lib/imageUtils';
 import EditHistoryModal from './EditHistoryModal';
 import CompanyProductSelector from './CompanyProductSelector';
 
@@ -24,6 +25,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [modalError, setModalError] = useState(null);
 
   useEffect(() => {
     mockApi.getProducts().then(prods => {
@@ -43,32 +45,36 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
         follow_up_date: visit.follow_up_date || ''
       });
       setConfirmDelete(false);
+      setModalError(null);
     }
   }, [visit]);
 
   if (!isOpen || !formData) return null;
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
+    for (const file of files) {
+      try {
+        const compressedUrl = await compressImage(file);
+        if (!compressedUrl) continue;
         const newAttachment = {
           id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           name: file.name,
-          url: uploadEvent.target.result,
-          type: file.type,
+          url: compressedUrl,
+          type: file.type || 'image/jpeg',
           timestamp: new Date().toISOString()
         };
         setFormData(prev => ({
           ...prev,
           attachments: [...(prev.attachments || []), newAttachment]
         }));
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.warn('Image processing warning:', err);
+      }
+    }
+    e.target.value = '';
   };
 
   const handleRemoveAttachment = (attId) => {
@@ -92,12 +98,23 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setModalError(null);
+
+    if (!formData.school_name || !formData.school_name.trim()) {
+      setModalError("Please provide the School Name before saving.");
+      return;
+    }
+    if (!formData.district || !formData.district.trim()) {
+      setModalError("Please select or enter the District.");
+      return;
+    }
+
     setSaving(true);
     try {
       await onSave(formData.id, formData);
       onClose();
     } catch (err) {
-      alert("Failed to update visit: " + err.message);
+      setModalError(err.message || "Failed to update visit. Please check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -109,11 +126,12 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
       return;
     }
     setDeleting(true);
+    setModalError(null);
     try {
       await onDelete(formData.id);
       onClose();
     } catch (err) {
-      alert("Failed to delete visit: " + err.message);
+      setModalError("Failed to delete visit: " + err.message);
     } finally {
       setDeleting(false);
     }
@@ -405,6 +423,25 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none text-sm placeholder:text-gray-600"
               />
+
+              {/* In-Modal Error Alert Banner */}
+              {modalError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <div className="flex-1 font-medium leading-relaxed">{modalError}</div>
+                  <button 
+                    type="button" 
+                    onClick={() => setModalError(null)} 
+                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              )}
             </div>
           </form>
 

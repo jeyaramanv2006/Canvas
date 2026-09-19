@@ -4,7 +4,7 @@ import {
   Users, UserPlus, Shield, KeyRound, UserX, CheckCircle2, 
   AlertTriangle, RefreshCw, Clock, Search, Filter, ShieldCheck,
   Building2, ChevronRight, Lock, Eye, EyeOff, PauseCircle, PlayCircle,
-  Trash2, ShieldAlert, Sparkles, Send
+  Trash2, ShieldAlert, Sparkles, Send, AlertCircle
 } from 'lucide-react';
 import { mockApi, formatUsername } from '../mockApi';
 import { cn } from '../lib/utils';
@@ -30,6 +30,7 @@ export default function UserManagementModule({ currentUser }) {
   const [confirmModal, setConfirmModal] = useState(null); // { type: 'DELETE' | 'PAUSE' | 'RESUME', user }
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionSuccess, setActionSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
 
   // New User Form State
   const [newName, setNewName] = useState('');
@@ -60,7 +61,14 @@ export default function UserManagementModule({ currentUser }) {
 
   const showSuccess = (msg) => {
     setActionSuccess(msg);
+    setActionError('');
     setTimeout(() => setActionSuccess(''), 4500);
+  };
+
+  const showError = (msg) => {
+    setActionError(msg);
+    setActionSuccess('');
+    setTimeout(() => setActionError(''), 6000);
   };
 
   // ── 1. Create User ──────────────────────────────────────────────────────────
@@ -109,7 +117,7 @@ export default function UserManagementModule({ currentUser }) {
       setNewPassword('password');
       await loadUsers();
     } catch (err) {
-      alert("Failed to create user: " + err.message);
+      showError("Failed to create user: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +169,7 @@ export default function UserManagementModule({ currentUser }) {
       setEditRoleModalOpen(false);
       await loadUsers();
     } catch (err) {
-      alert("Failed to update role: " + err.message);
+      showError("Failed to update role: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +205,7 @@ export default function UserManagementModule({ currentUser }) {
       setConfirmModal(null);
       await loadUsers();
     } catch (err) {
-      alert("Failed to pause user: " + err.message);
+      showError("Failed to pause user: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -232,7 +240,7 @@ export default function UserManagementModule({ currentUser }) {
       setConfirmModal(null);
       await loadUsers();
     } catch (err) {
-      alert("Failed to resume user: " + err.message);
+      showError("Failed to resume user: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -267,7 +275,7 @@ export default function UserManagementModule({ currentUser }) {
       setConfirmModal(null);
       await loadUsers();
     } catch (err) {
-      alert("Failed to delete user: " + err.message);
+      showError("Failed to delete user: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -281,7 +289,7 @@ export default function UserManagementModule({ currentUser }) {
       showSuccess(`Password reset for "${u.username || u.name}"! Temporary password is set to "reset". They can now log in using password "reset" and set a new password.`);
       await loadUsers();
     } catch (err) {
-      alert("Failed to trigger password reset: " + err.message);
+      showError("Failed to trigger password reset: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -369,6 +377,18 @@ export default function UserManagementModule({ currentUser }) {
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
           <span>{actionSuccess}</span>
+        </motion.div>
+      )}
+
+      {/* Error Notification */}
+      {actionError && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-red-500/15 border border-red-500/30 rounded-2xl text-red-300 text-xs font-bold flex items-center gap-2.5 shadow-lg"
+        >
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <span>{actionError}</span>
         </motion.div>
       )}
 
