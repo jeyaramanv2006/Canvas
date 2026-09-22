@@ -21,6 +21,7 @@ import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryMo
 import UserManagementModule from '../components/UserManagementModule';
 import PendingApprovalsDrawer from '../components/PendingApprovalsDrawer';
 import FollowUpsPipelineModule from '../components/FollowUpsPipelineModule';
+import CEODashboardOverview from '../components/CEODashboardOverview';
 import { cn } from '../lib/utils';
 
 export default function CEODashboard() {
@@ -141,11 +142,11 @@ export default function CEODashboard() {
             <ErrorBoundary>
               {/* TAB 1: CEO DASHBOARD COMMAND CENTER */}
               {(activeTab === 'dashboard' || activeTab === 'overview') && (
-                <div className="rounded-3xl border border-white/10 bg-[#0f1015] p-16 sm:p-24 flex items-center justify-center text-center shadow-2xl min-h-[360px]">
-                  <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-white uppercase">
-                    Under Construction
-                  </h2>
-                </div>
+                <CEODashboardOverview
+                  currentUser={user}
+                  onOpenApprovals={() => setApprovalsDrawerOpen(true)}
+                  onNavigateTab={(tabId) => setActiveTab(tabId)}
+                />
               )}
 
               {/* TAB: PRIORITY FOLLOW-UPS */}
