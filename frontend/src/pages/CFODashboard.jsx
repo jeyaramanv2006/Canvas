@@ -6,8 +6,8 @@ import {
   Wallet, CreditCard, Package, Users, BarChart3, Landmark,
   Receipt, History, Trophy, Bell, ChevronDown, CheckCircle2,
   Calendar, Layers, Sparkles, Filter, X, ArrowUpRight, ArrowDownRight,
-  Info, HelpCircle, BookOpen, AlertCircle, Eye, Construction, Lock,
-  EyeOff, Wrench, Clock
+  Info, HelpCircle, BookOpen, AlertCircle, Eye, Clock, ShieldAlert,
+  Database, Calculator
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
@@ -64,9 +64,6 @@ export default function CFODashboard() {
     }
   }, [showAlertsDrawer]);
 
-  // Under Construction Overlay State
-  // Set to true by default to hide the workspace from viewers while developing underneath.
-  const [isOverlayLocked, setIsOverlayLocked] = useState(true);
 
   // Drilldown Modal State
   const [drilldownOpen, setDrilldownOpen] = useState(false);
@@ -183,21 +180,56 @@ export default function CFODashboard() {
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
           >
             {activeTab === 'cfo_overview' && (
-              <div className="relative">
+              <div className="space-y-6">
 
-            {/* UNDER CONSTRUCTION OVERLAY CONTAINER */}
-            <div className={cn(
-              "relative rounded-3xl overflow-hidden border border-white/10 bg-[#0d0e13]",
-              isOverlayLocked ? "max-h-[560px]" : "max-h-none"
-            )}>
+                {/* ── CFO STRATEGY HEADER & DATA INTEGRITY BANNER ────────────────── */}
+                <div className="bg-gradient-to-r from-[#181924] via-[#151620] to-[#12131a] border border-amber-500/20 rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-              {/* UNDERLYING WORKSPACE (Developer works under this layer) */}
-              <div
-                className={cn(
-                  "space-y-6 p-4 sm:p-6 transition-all duration-300",
-                  isOverlayLocked ? "filter blur-lg opacity-25 select-none pointer-events-none max-h-[560px] overflow-hidden" : "filter-none opacity-100"
-                )}
-              >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[11px] font-black tracking-widest text-emerald-400 uppercase">
+                          CFO Financial Intelligence & Treasury MIS
+                        </span>
+                        <span className="text-[10px] bg-white/10 text-gray-300 px-2 py-0.5 rounded-md font-mono">
+                          FY 2026-27 Active
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                        Executive 8-Report Financial Strategy Suite
+                      </h2>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Comprehensive management information system for commercial realization, liquidity, margins, and target variance.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openDrilldown('sales_trend', 'Jun')}
+                        className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Interactive Audit Trail</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Data Source Transparency Indicator */}
+                  <div className="flex items-center gap-3 text-[11px] bg-black/40 border border-white/10 px-3.5 py-2.5 rounded-xl text-gray-400 flex-wrap mt-4">
+                    <span className="font-bold text-gray-200">Data Integrity Breakdown:</span>
+                    <span className="flex items-center gap-1.5 text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      Verified Live DB Logic: Receivables Aging Distribution, Invoice Balances & Overdue Age Calculation
+                    </span>
+                    <span className="flex items-center gap-1.5 text-amber-300 font-semibold bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      Fabricated / Modeled: 6-Month Sales Curve, Gross Profit (66% COGS), Warehouse Stock, Cash Flow — Concrete Formulas Displayed Below
+                    </span>
+                  </div>
+                </div>
+
                 {/* ════════════ 8-REPORT DASHBOARD GRID (2x4) ════════════ */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -205,13 +237,18 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-amber-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold font-mono">1</span>
-                          Sales Trend — Month-wise
-                        </h3>
-                        <span className="text-[10px] text-gray-400 font-bold">₹ Lakh</span>
+                          <h3 className="text-sm font-black text-white">Sales Trend — Month-wise</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Fabricated Model
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">₹ Lakh</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows month-wise total sales performance.</p>
+                      <p className="text-xs text-gray-400">Shows month-wise total sales performance across the semester.</p>
                     </div>
 
                     <div className="h-56 mt-4">
@@ -242,19 +279,25 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('sales_trend', 'Jun')}
-                      className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-amber-400 font-black">₹32L</span></p>
-                        <p className="text-gray-400 text-[11px]">Last Month (May): ₹27L</p>
+                    <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('sales_trend', 'Jun')}
+                        className="flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-amber-400 font-black">₹32L</span></p>
+                          <p className="text-gray-400 text-[11px]">Last Month (May): ₹27L</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
+                            ↑ 18.5%
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
-                          ↑ 18.5%
-                        </span>
-                        <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+
+                      <div className="text-[10px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
+                        Formula: MoM Growth % = ((Sales_Jun - Sales_May) / Sales_May) × 100 • 6M Curve is Modeled Benchmark
                       </div>
                     </div>
                   </div>
@@ -263,16 +306,21 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">2</span>
-                          Gross Profit Trend
-                        </h3>
-                        <div className="flex items-center gap-3 text-[10px] font-bold">
-                          <span className="text-emerald-400 flex items-center gap-1">■ GP (₹ Lakh)</span>
-                          <span className="text-emerald-300 flex items-center gap-1">● GP %</span>
+                          <h3 className="text-sm font-black text-white">Gross Profit Trend</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Fabricated Model
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px] font-bold">
+                            <span className="text-emerald-400">■ GP</span>
+                            <span className="text-emerald-300">● GP %</span>
+                          </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows month-wise Gross Profit (₹) and GP% trend.</p>
+                      <p className="text-xs text-gray-400">Shows month-wise Gross Profit (₹) and GP% margin trend.</p>
                     </div>
 
                     <div className="h-56 mt-4">
@@ -297,19 +345,25 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('gp_trend', 'Jun')}
-                      className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-emerald-400 font-black">₹11.0L (34%)</span></p>
-                        <p className="text-gray-400 text-[11px]">Last Month (May): ₹9.2L (34%)</p>
+                    <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('gp_trend', 'Jun')}
+                        className="flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-emerald-400 font-black">₹11.0L (34.4%)</span></p>
+                          <p className="text-gray-400 text-[11px]">Last Month (May): ₹9.2L (34.1%)</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
+                            ↑ 19.6% (₹)
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">GP% stable</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-xs">
-                          ↑ 19.6% (₹)
-                        </span>
-                        <span className="text-[10px] text-gray-400 block mt-0.5">GP% 0 pp</span>
+
+                      <div className="text-[10px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
+                        Formula: COGS = Sales × 66% • GP = Sales - COGS (₹32L - ₹21L = ₹11L) • GP % = (GP / Sales) × 100 = 34.4%
                       </div>
                     </div>
                   </div>
@@ -318,16 +372,21 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-blue-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold font-mono">3</span>
-                          Collection vs Sales
-                        </h3>
-                        <div className="flex items-center gap-3 text-[10px] font-bold">
-                          <span className="text-blue-400">■ Sales (₹ Lakh)</span>
-                          <span className="text-amber-400">■ Collection (₹ Lakh)</span>
+                          <h3 className="text-sm font-black text-white">Collection vs Sales</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Fabricated Model
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px] font-bold">
+                            <span className="text-blue-400">■ Sales</span>
+                            <span className="text-amber-400">■ Collections</span>
+                          </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">Compares sales booked vs cash collected.</p>
+                      <p className="text-xs text-gray-400">Compares billed invoice revenue vs realized cash receipts.</p>
                     </div>
 
                     <div className="h-56 mt-4">
@@ -352,19 +411,25 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('collection_vs_sales', 'Jun')}
-                      className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
-                    >
-                      <div>
-                        <p className="font-bold text-white">
-                          This Month (Jun): Sales <strong className="font-mono text-blue-400">₹32L</strong> | Collection <strong className="font-mono text-amber-400">₹23L</strong>
-                        </p>
+                    <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('collection_vs_sales', 'Jun')}
+                        className="flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                      >
+                        <div>
+                          <p className="font-bold text-white">
+                            This Month (Jun): Sales <strong className="font-mono text-blue-400">₹32L</strong> | Collection <strong className="font-mono text-amber-400">₹23L</strong>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                            Collection Rate: 72%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg border border-amber-500/30">
-                          Collection % of Sales: 72%
-                        </span>
+
+                      <div className="text-[10px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
+                        Formula: Collection Rate % = (Realized Cash Collections / Total Billed Sales) × 100 = (₹23L / ₹32L) × 100 = 71.9%
                       </div>
                     </div>
                   </div>
@@ -373,13 +438,18 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-purple-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold font-mono">4</span>
-                          Receivables / Overdue
-                        </h3>
-                        <span className="text-[10px] text-gray-400 font-bold">Ageing Distribution</span>
+                          <h3 className="text-sm font-black text-white">Receivables / Overdue</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Live DB Logic
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">Aging Brackets</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows total receivables and overdue amount.</p>
+                      <p className="text-xs text-gray-400">Calculates total outstanding credit and overdue debt by age bucket.</p>
                     </div>
 
                     {/* Dual KPI Mini Cards */}
@@ -429,14 +499,20 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('receivables_ageing', 'Jun', '90+ Days')}
-                      className="mt-3 pt-2.5 border-t border-white/10 text-xs bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20 cursor-pointer hover:bg-rose-500/20 transition flex items-center justify-between"
-                    >
-                      <p className="text-[11px] text-rose-300 font-bold">
-                        Overdue &gt; 90 Days is 33% of Total Receivables. Action needed to improve collections.
-                      </p>
-                      <ChevronDown className="w-3.5 h-3.5 text-rose-400 -rotate-90 flex-shrink-0" />
+                    <div className="space-y-2 mt-3 pt-2.5 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('receivables_ageing', 'Jun', '90+ Days')}
+                        className="text-xs bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20 cursor-pointer hover:bg-rose-500/20 transition flex items-center justify-between"
+                      >
+                        <p className="text-[11px] text-rose-300 font-bold">
+                          Overdue &gt; 90 Days is 33% of Total Receivables. Immediate legal recovery action required.
+                        </p>
+                        <ChevronDown className="w-3.5 h-3.5 text-rose-400 -rotate-90 flex-shrink-0" />
+                      </div>
+
+                      <div className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
+                        Formula: Age (days) = ⌊(Today - Invoice_Date) / 86,400,000⌋ • Receivables = Σ(Total - Paid) • Overdue = Σ(Balance where Age &gt; 30d)
+                      </div>
                     </div>
                   </div>
 
@@ -444,13 +520,18 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-cyan-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold font-mono">5</span>
-                          Inventory Value
-                        </h3>
-                        <span className="text-[10px] text-cyan-400 font-bold">■ Inventory Value (₹ Lakh)</span>
+                          <h3 className="text-sm font-black text-white">Inventory Value</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Fabricated Model
+                          </span>
+                          <span className="text-[10px] text-cyan-400 font-bold">■ Stock (₹ Lakh)</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows month-wise inventory value.</p>
+                      <p className="text-xs text-gray-400">Shows warehouse inventory valuation across raw materials & finished goods.</p>
                     </div>
 
                     <div className="h-56 mt-4">
@@ -473,19 +554,25 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('inventory_value', 'Jun')}
-                      className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-cyan-400 font-black">₹30L</span></p>
-                        <p className="text-gray-400 text-[11px]">Last Month (May): ₹28L</p>
+                    <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('inventory_value', 'Jun')}
+                        className="flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-white">This Month (Jun): <span className="font-mono text-cyan-400 font-black">₹30L</span></p>
+                          <p className="text-gray-400 text-[11px]">Last Month (May): ₹28L</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center gap-1 font-extrabold text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg text-xs">
+                            ↑ ₹2.0L
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 font-extrabold text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg text-xs">
-                          ↑ ₹2.0L
-                        </span>
-                        <span className="text-[10px] text-gray-400 block mt-0.5">vs May</span>
+
+                      <div className="text-[10px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
+                        Formula: Inventory Valuation = Σ(Warehouse Batch Qty × Unit Cost) [Yarn 40%, Finished 38%, WIP 15%, Trims 7%]
                       </div>
                     </div>
                   </div>
@@ -494,17 +581,22 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">6</span>
-                          Cash Flow Trend
-                        </h3>
-                        <div className="flex items-center gap-2 text-[10px] font-bold">
-                          <span className="text-emerald-400">■ In</span>
-                          <span className="text-rose-400">■ Out</span>
-                          <span className="text-white">● Net</span>
+                          <h3 className="text-sm font-black text-white">Cash Flow Trend</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Fabricated Model
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px] font-bold">
+                            <span className="text-emerald-400">■ In</span>
+                            <span className="text-rose-400">■ Out</span>
+                            <span className="text-white">● Net</span>
+                          </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows cash in, cash out and net cash flow.</p>
+                      <p className="text-xs text-gray-400">Shows cash inflows, operational outflows and net liquidity.</p>
                     </div>
 
                     <div className="h-56 mt-4">
@@ -530,17 +622,23 @@ export default function CFODashboard() {
                       </ResponsiveContainer>
                     </div>
 
-                    <div
-                      onClick={() => openDrilldown('cash_flow_trend', 'Jun')}
-                      className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
-                    >
-                      <div>
-                        <p className="font-bold text-white">This Month (Jun): Net Cash Flow <strong className="text-emerald-400 font-mono">₹3L (Positive)</strong></p>
-                        <p className="text-[11px] text-gray-400">Last Month (May): Net Cash Flow ₹3L (Positive)</p>
+                    <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+                      <div
+                        onClick={() => openDrilldown('cash_flow_trend', 'Jun')}
+                        className="flex items-center justify-between text-xs bg-black/30 p-3 rounded-2xl cursor-pointer hover:bg-white/5 transition"
+                      >
+                        <div>
+                          <p className="font-bold text-white">This Month (Jun): Net Cash Flow <strong className="text-emerald-400 font-mono">₹3L (Positive)</strong></p>
+                          <p className="text-[11px] text-gray-400">Last Month (May): Net Cash Flow ₹3L (Positive)</p>
+                        </div>
+                        <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                          Strong Liquidity
+                        </span>
                       </div>
-                      <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                        Strong Liquidity
-                      </span>
+
+                      <div className="text-[10px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
+                        Formula: Net Cash Flow = Total Inflows (Collections + Advances) - Total Outflows (Raw Materials + Factory Opex + Comm + Logistics)
+                      </div>
                     </div>
                   </div>
 
@@ -548,13 +646,18 @@ export default function CFODashboard() {
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-blue-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold font-mono">7</span>
-                          This Month vs Last Month
-                        </h3>
-                        <span className="text-[10px] text-gray-400 font-bold">10 Key KPIs</span>
+                          <h3 className="text-sm font-black text-white">This Month vs Last Month</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Mathematical Audit
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">10 Key KPIs</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400">Compares key numbers with last month.</p>
+                      <p className="text-xs text-gray-400">Compares key financial telemetry with prior month baseline.</p>
                     </div>
 
                     <div className="overflow-x-auto rounded-2xl border border-white/10 mt-4">
@@ -596,22 +699,32 @@ export default function CFODashboard() {
                       </table>
                     </div>
 
-                    <p className="text-[11px] text-gray-400 pt-3 border-t border-white/10 mt-3 text-center">
-                      Helps to understand month-on-month performance. Click row to drill down into variance.
-                    </p>
+                    <div className="space-y-1.5 pt-3 border-t border-white/10 mt-3 text-center">
+                      <div className="text-[10px] font-mono text-cyan-300/90 bg-cyan-500/10 px-2.5 py-1.5 rounded-xl border border-cyan-500/20 text-left">
+                        Formula: Absolute Change = (Value_Jun - Value_May) • % Change = (Change / Value_May) × 100 • Margin Δ = Percentage Points (pp)
+                      </div>
+                      <p className="text-[11px] text-gray-400">
+                        Tracks month-on-month variance. Click any row to drill down into the specific account ledger.
+                      </p>
+                    </div>
                   </div>
 
                   {/* ──────────────── 8. Actual vs Target ──────────────── */}
                   <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-5 sm:p-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col justify-between group hover:border-emerald-400/30 transition-all">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold font-mono">8</span>
-                          Actual vs Target
-                        </h3>
-                        <span className="text-[10px] text-gray-400 font-bold">Target Fulfillment</span>
+                          <h3 className="text-sm font-black text-white">Actual vs Target</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+                            Calculated Metric
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">Target Fulfillment</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400">Shows actual performance vs target.</p>
+                      <p className="text-xs text-gray-400">Shows actual financial realization vs budgeted commercial targets.</p>
                     </div>
 
                     <div className="overflow-x-auto rounded-2xl border border-white/10 mt-4">
@@ -653,117 +766,17 @@ export default function CFODashboard() {
                       </table>
                     </div>
 
-                    <div className="pt-3 border-t border-white/10 mt-3 space-y-1 text-center">
-                      <p className="text-[10px] text-gray-400 font-mono">
-                        Achievement % = (Actual / Target) × 100
-                      </p>
+                    <div className="pt-3 border-t border-white/10 mt-3 space-y-1.5 text-center">
+                      <div className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20 text-left">
+                        Formula: Achievement % = (Actual / Target) × 100 • Gap = Actual - Target • Overdue On-Track if Actual ≤ Target
+                      </div>
                       <p className="text-[11px] text-gray-400">
-                        Helps to track target achievement and identify gap. Click row for segment audit.
+                        Tracks budget variance and execution gaps. Click any row for institutional audit.
                       </p>
                     </div>
                   </div>
 
                 </div>
-              </div>
-
-              {/* OVERLAY: ACTIVE UNDER CONSTRUCTION SHIELD */}
-              <AnimatePresence>
-                {isOverlayLocked && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#090a0f]/90 backdrop-blur-xl border border-amber-500/25 p-4 sm:p-6 text-center overflow-y-auto scrollbar-none"
-                  >
-                    {/* Ambient Glow */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                    <div className="relative max-w-lg mx-auto space-y-4 py-2">
-
-                      {/* Badge */}
-                      <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-black tracking-wider uppercase shadow-lg shadow-amber-500/10">
-                        <Construction className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-                        <span>Under Active Construction</span>
-                      </div>
-
-                      {/* Icon with Glowing Rings */}
-                      <div className="relative mx-auto w-14 h-14 flex items-center justify-center">
-                        <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 animate-ping opacity-30" />
-                        <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1c1d27] to-[#12131a] border border-emerald-500/40 flex items-center justify-center shadow-2xl">
-                          <Landmark className="w-6 h-6 text-emerald-400" />
-                        </div>
-                      </div>
-
-                      {/* Main Title */}
-                      <div className="space-y-1">
-                        <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                          CFO Financial Strategy & Treasury
-                          <br />
-                          <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-400 bg-clip-text text-transparent">
-                            Work In Progress
-                          </span>
-                        </h3>
-                        <p className="text-gray-400 text-xs leading-relaxed max-w-sm mx-auto">
-                          This strategic financial dashboard, 8-report MIS suite, and treasury analytics engine are currently under active configuration and veiled for viewers.
-                        </p>
-                      </div>
-
-                      {/* Architecture & Pipeline Status */}
-                      <div className="bg-[#14151d]/90 border border-white/10 rounded-xl p-3 text-left space-y-1.5 max-w-sm mx-auto shadow-inner">
-                        <div className="flex items-center justify-between text-[11px] font-semibold">
-                          <span className="text-gray-400 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> 8-Report Financial Models
-                          </span>
-                          <span className="text-emerald-400 font-mono text-[10px] font-bold">READY</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] font-semibold">
-                          <span className="text-gray-400 flex items-center gap-1.5">
-                            <Clock className="w-3 h-3 text-amber-400" /> Multi-level Drilldown Engine
-                          </span>
-                          <span className="text-amber-400 font-mono text-[10px] font-bold">CALIBRATING</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] font-semibold">
-                          <span className="text-gray-400 flex items-center gap-1.5">
-                            <Lock className="w-3 h-3 text-blue-400" /> Viewer Veil Protection
-                          </span>
-                          <span className="text-blue-400 font-mono text-[10px] font-bold">ACTIVE</span>
-                        </div>
-                      </div>
-
-                      {/* Dev Toggle Button */}
-                      <div className="pt-1">
-                        <button
-                          onClick={() => setIsOverlayLocked(false)}
-                          className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/40 rounded-xl text-xs font-bold text-gray-300 hover:text-white transition-all flex items-center gap-2 mx-auto group shadow-md"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                          <span>Dev Preview (Temporarily Reveal Workspace)</span>
-                        </button>
-                        <p className="text-[10px] text-gray-500 mt-1 font-medium">
-                          Work on financial modules underneath and lock/unlock anytime.
-                        </p>
-                      </div>
-
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* FLOATING DEVELOPER RE-LOCK BUTTON (Visible when overlay is unlocked in dev mode) */}
-              {!isOverlayLocked && (
-                <div className="absolute top-4 right-4 z-40">
-                  <button
-                    onClick={() => setIsOverlayLocked(true)}
-                    className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-xl text-xs font-bold text-emerald-300 transition-all flex items-center gap-1.5 shadow-lg backdrop-blur-md"
-                  >
-                    <EyeOff className="w-3.5 h-3.5" />
-                    <span>Re-enable Construction Overlay</span>
-                  </button>
-                </div>
-              )}
-
-            </div>
-
               </div>
             )}
 

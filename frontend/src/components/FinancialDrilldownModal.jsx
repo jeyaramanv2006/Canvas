@@ -202,14 +202,26 @@ export default function FinancialDrilldownModal({
         </div>
 
         {/* Calculation Trail Formula Bar */}
-        <div className="px-4 sm:px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-2.5 text-xs text-amber-200">
-          <Calculator className="w-4 h-4 text-amber-400 flex-shrink-0" />
-          <p className="font-medium truncate">
-            {currentLevel === 0 && `Total Metric Trace: Verified from ${metricConfig.title} across category lines and active accounts.`}
-            {currentLevel === 1 && `Sub-Category Filter: Drilled down into "${selectedCategory?.name}". Total = ${selectedCategory?.formatted || 'Verified'}.`}
-            {currentLevel === 2 && `Customer Ledger: Audit trail for "${selectedCustomer?.name}". Showing verified invoice orders.`}
-            {currentLevel === 3 && `Transaction Verification: Source document "${selectedInvoice?.id || 'Invoice'}" verified against bank clearance.`}
-          </p>
+        <div className="px-4 sm:px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-2.5 text-xs text-amber-200">
+          <div className="flex items-center gap-2 truncate">
+            <Calculator className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <p className="font-medium truncate">
+              {currentLevel === 0 && `Total Metric Trace: Verified from ${metricConfig.title} across category lines and active accounts.`}
+              {currentLevel === 1 && `Sub-Category Filter: Drilled down into "${selectedCategory?.name}". Total = ${selectedCategory?.formatted || 'Verified'}.`}
+              {currentLevel === 2 && `Customer Ledger: Audit trail for "${selectedCustomer?.name}". Showing verified invoice orders.`}
+              {currentLevel === 3 && `Transaction Verification: Source document "${selectedInvoice?.id || 'Invoice'}" verified against bank clearance.`}
+            </p>
+          </div>
+          <span className="font-mono text-[10px] text-amber-300 bg-black/40 px-2 py-0.5 rounded border border-amber-500/30 shrink-0 hidden md:inline">
+            Formula: {initialMetric === 'sales_trend' ? 'MoM Growth % = ((Sales_Jun - Sales_May) / Sales_May) × 100' :
+              initialMetric === 'gp_trend' ? 'GP = Sales - COGS (66%) • GP % = (GP / Sales) × 100' :
+              initialMetric === 'collection_vs_sales' ? 'Collection % = (Cash Collections / Total Billed Sales) × 100' :
+              initialMetric === 'receivables_ageing' ? 'Age = ⌊(Today - Invoice_Date) / 86400000⌋ • Receivables = Σ(Balance)' :
+              initialMetric === 'inventory_value' ? 'Valuation = Σ(Warehouse Batch Qty × Standard Cost)' :
+              initialMetric === 'cash_flow_trend' ? 'Net Cash Flow = Cash Inflows - Cash Outflows' :
+              initialMetric === 'mom_comparison' ? 'Variance % = ((Value_Jun - Value_May) / Value_May) × 100' :
+              'Achievement % = (Actual / Target) × 100 • Gap = Actual - Target'}
+          </span>
         </div>
 
         {/* Modal Scrollable Body */}
