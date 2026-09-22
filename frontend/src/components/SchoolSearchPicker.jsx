@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Building2, MapPin, Check, Plus, X, Sparkles } from 'lucide-react';
+import { Search, Building2, MapPin, Check, Plus, X, Sparkles, Loader2 } from 'lucide-react';
 import { MASTER_SCHOOLS_DATABASE, TAMIL_NADU_DISTRICTS } from '../data/masterSchools';
+import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 
 export default function SchoolSearchPicker({
@@ -15,6 +16,8 @@ export default function SchoolSearchPicker({
   const [districtFilter, setDistrictFilter] = useState(selectedDistrict || 'All');
   const [isOpen, setIsOpen] = useState(false);
   const [isManualEntry, setIsManualEntry] = useState(!isFromMasterDb && !!selectedSchoolName);
+  const [liveSchools, setLiveSchools] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -31,15 +34,67 @@ export default function SchoolSearchPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredSchools = MASTER_SCHOOLS_DATABASE.filter(s => {
-    const matchesDist = districtFilter === 'All' || s.district?.toLowerCase() === districtFilter.toLowerCase();
+  // Fetch live schools from database (includes newly verified schools)
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await mockApi.getMasterSchools({
+          q: query.trim(),
+          district: districtFilter && districtFilter.toLowerCase() !== 'all' ? districtFilter : undefined,
+          limit: 50
+        });
+        if (active) {
+          const list = Array.isArray(res) ? res : (res?.schools || []);
+          setLiveSchools(list);
+        }
+      } catch (err) {
+        console.warn("Live school search fallback to local:", err.message);
+      } finally {
+        if (active) setIsSearching(false);
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query, districtFilter]);
+
+  // Combine live database results with local database
+  const filteredSchools = React.useMemo(() => {
     const cleanQ = query.trim().toLowerCase();
-    const matchesQ = !cleanQ || 
-      (s.school_name || '').toLowerCase().includes(cleanQ) || 
-      (s.area || '').toLowerCase().includes(cleanQ) ||
-      (s.block_or_cluster || '').toLowerCase().includes(cleanQ);
-    return matchesDist && matchesQ;
-  }).slice(0, 15);
+    const localFiltered = MASTER_SCHOOLS_DATABASE.filter(s => {
+      const matchesDist = districtFilter === 'All' || s.district?.toLowerCase() === districtFilter.toLowerCase();
+      const matchesQ = !cleanQ || 
+        (s.school_name || '').toLowerCase().includes(cleanQ) || 
+        (s.area || '').toLowerCase().includes(cleanQ) ||
+        (s.block_or_cluster || '').toLowerCase().includes(cleanQ) ||
+        (s.id || '').toLowerCase().includes(cleanQ);
+      return matchesDist && matchesQ;
+    });
+
+    // Merge live database rows ahead of local static rows to prioritize newly verified additions
+    const combined = [];
+    const seenIds = new Set();
+
+    for (const ls of liveSchools) {
+      if (ls && ls.id && !seenIds.has(ls.id)) {
+        seenIds.add(ls.id);
+        combined.push(ls);
+      }
+    }
+
+    for (const loc of localFiltered) {
+      if (loc && loc.id && !seenIds.has(loc.id)) {
+        seenIds.add(loc.id);
+        combined.push(loc);
+      }
+    }
+
+    return combined.slice(0, 20);
+  }, [liveSchools, query, districtFilter]);
 
   const handleSelectSchool = (school) => {
     setIsManualEntry(false);

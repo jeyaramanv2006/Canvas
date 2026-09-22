@@ -82,6 +82,7 @@ app.get('/api/ceo/executive-mis', authenticateToken, dashboardController.getCEOE
 app.get('/api/master-schools', authenticateToken, masterSchoolsController.getMasterSchools);
 app.get('/api/master-schools/export', authenticateToken, masterSchoolsController.exportMasterSchoolsCSV);
 app.get('/api/master-schools/districts', authenticateToken, masterSchoolsController.getSchoolDistricts);
+app.get('/api/master-schools/:id/portfolio', authenticateToken, masterSchoolsController.getSchoolPortfolio);
 app.get('/api/master-schools/:id', authenticateToken, masterSchoolsController.getMasterSchoolById);
 app.post('/api/master-schools', authenticateToken, requireAdmin, masterSchoolsController.createMasterSchool);
 app.put('/api/master-schools/:id', authenticateToken, requireAdmin, masterSchoolsController.updateMasterSchool);

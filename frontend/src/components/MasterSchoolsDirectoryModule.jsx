@@ -4,11 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Search, Filter, Plus, Edit2, Trash2, MapPin, 
   Phone, Users, Sparkles, CheckCircle2, AlertTriangle, RefreshCw,
-  ChevronLeft, ChevronRight, Download, ShieldCheck, Clock, Check, AlertCircle
+  ChevronLeft, ChevronRight, Download, ShieldCheck, Clock, Check, AlertCircle,
+  Briefcase
 } from 'lucide-react';
 import { TAMIL_NADU_DISTRICTS } from '../data/masterSchools';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
+import SchoolPortfolioModal from './SchoolPortfolioModal';
 
 export default function MasterSchoolsDirectoryModule({ currentUser }) {
   const [schools, setSchools] = useState([]);
@@ -22,6 +24,7 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [portfolioSchool, setPortfolioSchool] = useState(null);
   const [targetSchool, setTargetSchool] = useState(null);
   const [editingSchool, setEditingSchool] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -426,7 +429,15 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
                     {/* Name & ID */}
                     <td className="py-3.5 px-4">
                       <div className="space-y-0.5">
-                        <p className="font-bold text-white text-xs">{s.school_name}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPortfolioSchool(s)}
+                          className="font-bold text-white text-xs hover:text-amber-400 text-left transition flex items-center gap-1.5 group cursor-pointer"
+                          title="Click to view institutional portfolio (visits, quotes, invoices)"
+                        >
+                          <span className="group-hover:underline">{s.school_name}</span>
+                          <Briefcase className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100 shrink-0" />
+                        </button>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded">
                             {s.id}
@@ -482,6 +493,15 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setPortfolioSchool(s)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
+                          title="View school activity portfolio"
+                        >
+                          <Briefcase className="w-3 h-3 text-emerald-400" />
+                          <span>Portfolio</span>
+                        </button>
+
                         <button
                           onClick={() => handleOpenEdit(s)}
                           className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
@@ -711,6 +731,14 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
         </div>,
         document.body
       )}
+
+      {/* ── INSTITUTIONAL PORTFOLIO MODAL ─────────────────────────────────── */}
+      <SchoolPortfolioModal
+        isOpen={!!portfolioSchool}
+        onClose={() => setPortfolioSchool(null)}
+        schoolId={portfolioSchool?.id}
+        schoolName={portfolioSchool?.school_name}
+      />
     </div>
   );
 }

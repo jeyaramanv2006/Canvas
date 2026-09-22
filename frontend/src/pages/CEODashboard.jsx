@@ -8,7 +8,8 @@ import {
   Trophy,
   UserCheck,
   Bell,
-  LayoutDashboard
+  LayoutDashboard,
+  CalendarCheck
 } from 'lucide-react';
 
 import { AuthContext } from '../App';
@@ -19,6 +20,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryModule';
 import UserManagementModule from '../components/UserManagementModule';
 import PendingApprovalsDrawer from '../components/PendingApprovalsDrawer';
+import FollowUpsPipelineModule from '../components/FollowUpsPipelineModule';
 import { cn } from '../lib/utils';
 
 export default function CEODashboard() {
@@ -33,6 +35,7 @@ export default function CEODashboard() {
 
   const navTabs = [
     { id: 'dashboard', label: 'Dashboard', mobileLabel: 'Overview', icon: LayoutDashboard },
+    { id: 'followups', label: 'Priority Follow-ups', mobileLabel: 'Follow-ups', icon: CalendarCheck },
     { id: 'schools', label: 'Master Schools DB', mobileLabel: 'Schools', icon: Building2 },
     { id: 'invoicing', label: 'Invoicing & Records', mobileLabel: 'Invoices', icon: Receipt },
     { id: 'logs', label: 'Central Visit Logs', mobileLabel: 'Visits', icon: History },
@@ -145,6 +148,11 @@ export default function CEODashboard() {
                 </div>
               )}
 
+              {/* TAB: PRIORITY FOLLOW-UPS */}
+              {activeTab === 'followups' && (
+                <FollowUpsPipelineModule currentUser={user} />
+              )}
+
               {/* TAB 2: MASTER SCHOOLS DATABASE */}
               {activeTab === 'schools' && (
                 <MasterSchoolsDirectoryModule currentUser={user} />
@@ -176,8 +184,8 @@ export default function CEODashboard() {
       </main>
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-1.5 py-1.5 shadow-2xl">
-        <div className="grid grid-cols-6 gap-1 max-w-lg mx-auto">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-1 py-1.5 shadow-2xl">
+        <div className="grid grid-cols-7 gap-0.5 max-w-lg mx-auto">
           {navTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
