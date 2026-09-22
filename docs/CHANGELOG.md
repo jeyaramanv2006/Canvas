@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.15.3] - CFO Dashboard Preview Removal, Data Classification & In-Dashboard Formulas
+
+- **CFO Construction Preview Veil Removed** (`CFODashboard.jsx`):
+  - Completely removed the "Under Active Construction" overlay shield, developer preview unlock toggle, floating re-lock buttons, and blurring restrictions.
+  - The 8-report strategic MIS suite and hierarchical financial drilldown audit engine are now immediately active, crisp, and interactive upon opening the CFO dashboard.
+- **Data Source Transparency & In-Dashboard Formula Annotations**:
+  - Added the top **Data Integrity Breakdown** bar distinguishing verified database calculations from modeled benchmark projections.
+  - Classified every CFO report with explicit visual badges (`FABRICATED MODEL`, `LIVE DB LOGIC`, `MATHEMATICAL AUDIT`, `CALCULATED METRIC`).
+  - Added dedicated monospace formula callout boxes directly on all 8 report cards:
+    - **Report 1 (Sales Trend)**: `Formula: MoM Growth % = ((Sales_Jun - Sales_May) / Sales_May) × 100 • 6M Curve is Modeled Benchmark`
+    - **Report 2 (Gross Profit Trend)**: `Formula: COGS = Sales × 66% • GP = Sales - COGS • GP % = (GP / Sales) × 100 = 34.4%`
+    - **Report 3 (Collection vs Sales)**: `Formula: Collection Rate % = (Realized Cash Collections / Total Billed Sales) × 100 = 71.9%`
+    - **Report 4 (Receivables / Overdue)**: `Formula: Age = ⌊(Now - Invoice_Date) / 86,400,000⌋ • Receivables = Σ(Total - Paid) • Overdue = Σ(Age > 30d)`
+    - **Report 5 (Inventory Value)**: `Formula: Valuation = Σ(Warehouse Batch Qty × Standard Cost) [Yarn 40%, Finished 38%, WIP 15%, Trims 7%]`
+    - **Report 6 (Cash Flow Trend)**: `Formula: Net Cash Flow = Total Inflows (Collections + Advances) - Total Outflows (Payables + Factory Opex + Comm + Freight)`
+    - **Report 7 (This Month vs Last Month)**: `Formula: Absolute Δ = (Value_Jun - Value_May) • % Change = (Δ / Value_May) × 100 • Margin Δ = pp`
+    - **Report 8 (Actual vs Target)**: `Formula: Achievement % = (Actual / Target) × 100 • Gap = Actual - Target • Overdue On-Track if Actual ≤ Target`
+- **Drilldown Modal Formula Context** (`FinancialDrilldownModal.jsx`):
+  - Added dynamic calculation formula badges in the drilldown calculation trail bar.
+- **Documentation**:
+  - Created `docs/CFO_DASHBOARD_FORMULAS.md` containing the complete classification matrix, variable definitions, and step-by-step arithmetic proofs.
+
 ## [0.15.2] - Visible Fabricated Badges & In-Dashboard Mathematical Formula Annotations
 
 - **Explicit "Fabricated" vs "Live DB" Badging**:
