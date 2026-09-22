@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.15.2] - Visible Fabricated Badges & In-Dashboard Mathematical Formula Annotations
+
+- **Explicit "Fabricated" vs "Live DB" Badging**:
+  - Added visible `FABRICATED` (amber) vs `LIVE DB` (emerald) pill badges directly onto all dashboard KPI cards and sections.
+  - Displayed exact mathematical formulas in dedicated monospace formula boxes right on each respective card:
+    - **Gross Profit**: `Formula: Revenue - (Revenue × 52% COGS)`
+    - **Net Profit (EBITDA)**: `Formula: Gross Profit - (Revenue × 24% Opex)`
+    - **Sales Pipeline**: `Formula: Live Quotes + (Hot × ₹1.2L + Warm × ₹65K)`
+    - **Procurement Sourcing**: `Formula: Total Invoiced × 0.52`
+    - **Marketing Benchmarks**: Explicitly annotated as `Fabricated Model: Est. CAC ₹1,450 / 5.2x ROI`.
+  - Updated `getCEOExecutiveMIS` controller in `backend/controllers/dashboardController.js` with `isFabricated` and `formulaText` properties.
+
+## [0.15.1] - CEO Unified Command Hub & Spacious KPI Cards Layout
+
+- **Unified Command Hub Layout** (`CEODashboardOverview.jsx`):
+  - Removed sub-filter pill tabs (`domainTabs` / `activeDomainFilter`) so all 10 domain command sections render sequentially in a single, executive flow.
+  - Upgraded **Core Executive Financial & Commercial KPIs** grid from cramped 7-column layout to a spacious `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5` with bold `text-2xl sm:text-3xl` fonts and unclipped subtexts.
+  - Removed the static "Product Categories & Price Points" card in Section 4 (Inventory), giving full width to the "Field Demand Frequency by Product" distribution.
+  - Added resilient fallback synthesis in `mockApi.getCEODashboardHubData()` computing telemetry directly from active entity stores when backend endpoints are offline.
+
+## [0.15.0] - CEO 11-Domain Command Center Activation & Data Integrity Transparency
+
+- **CEO Executive Command Center Activated** (`CEODashboardOverview.jsx` & `CEODashboard.jsx`):
+  - Replaced the "Under Construction" placeholder on the CEO Dashboard tab with the live, full-scale executive command center spanning all 11 business domains.
+  - **11 Domain Command Hubs Connected**:
+    1. **Executive KPIs**: Billed Revenue, Gross Profit, Gross Margin, Net Profit (EBITDA), Cash Inflow Collections, Accounts Receivable Aging, Orders Won, and Sales Pipeline.
+    2. **Sales Engine**: Pipeline value, customer penetration, average deal size, highest single deal, and quarterly target progress.
+    3. **Finance & Treasury**: Inflow, receivables aging (0-30, 31-60, 61-90, 90+ days), and canvasser commission liabilities.
+    4. **Operations & Delays**: Sample packs in evaluation, formal quotes issued, executed orders, and overdue canvasser follow-up visits with direct call links.
+    5. **Inventory & Products**: Standard SKU catalog, category velocity, and real-time field inquiry demand distribution.
+    6. **Customers & Accounts**: Master Directory coverage, visited accounts, converted client accounts, and top revenue-contributing institutions.
+    7. **Procurement Economics**: Modeled 52% sourcing COGS, unit economics, and 48% blended wholesale margins.
+    8. **Marketing & Outreach**: Lead qualification mix (Hot, Warm, Cold), campaign tracking, and benchmark CAC model.
+    9. **People & Team Leaderboard**: Live canvasser headcount, visit productivity, revenue converted, and applied commission slabs (1%–5%).
+    10. **Management Governance & Alerts**: Pending CEO approval actions and critical overdue debt escalation alerts.
+    11. **Reporting & MIS Trends**: Monthly trend visualizer (Billed vs Collections vs Visits) and 1-click RFC 4180 CSV MIS Export.
+  - **Data Source Truthfulness & Transparency**: Added visual indicator badges across all domains explicitly distinguishing **`Verified Live Database`** telemetry from **`Modeled Operational Estimates`** (e.g. standard 52% COGS, lead conversion benchmark, CAC model).
+  - Registered `/api/ceo/mis` endpoint alias in `backend/server.js` and added `mockApi.getCEODashboardHubData()` in `frontend/src/mockApi.js`.
+
 ## [0.14.0] - Master DB School Portfolio, Live Canvasser Search Sync & Priority Follow-ups Pipeline
 
 - **Master Schools Institutional Portfolio Modal & Backend Aggregator**:

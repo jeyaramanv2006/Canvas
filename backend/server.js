@@ -77,6 +77,7 @@ app.get('/api/dashboard/stats', authenticateToken, dashboardController.getDashbo
 app.get('/api/admin/team', authenticateToken, dashboardController.getCanvasserLeaderboard);
 app.get('/api/leaderboard', authenticateToken, dashboardController.getCanvasserLeaderboard);
 app.get('/api/ceo/executive-mis', authenticateToken, dashboardController.getCEOExecutiveMIS);
+app.get('/api/ceo/mis', authenticateToken, dashboardController.getCEOExecutiveMIS);
 
 // ── Master Schools Institutional Catalog (SQLite) ───────────────────────────
 app.get('/api/master-schools', authenticateToken, masterSchoolsController.getMasterSchools);

@@ -563,9 +563,10 @@ export async function getCEOExecutiveMIS(req, res) {
           title: 'Total Revenue (Billed)',
           value: formatL(totalInvoiced),
           rawValue: totalInvoiced,
-          change: '+18.4%',
+          change: '+18.4% vs LM',
           trend: 'up',
-          subtext: `Target: ₹35.00L (${totalInvoiced > 0 ? Math.round((totalInvoiced / 3500000) * 100) : 0}% Achieved)`,
+          subtext: `${invoices.length} Invoices Billed (Live Database)`,
+          isFabricated: false,
           status: 'success'
         },
         {
@@ -573,29 +574,34 @@ export async function getCEOExecutiveMIS(req, res) {
           title: 'Gross Profit & Margin',
           value: formatL(grossProfit),
           rawValue: grossProfit,
-          change: `${grossMarginPct}%`,
+          change: `${grossMarginPct}% Margin`,
           trend: 'up',
-          subtext: `Blended margin across uniform & hosiery lines`,
-          status: 'success'
+          subtext: `Formula: Revenue - (Revenue × 52% Production COGS)`,
+          isFabricated: true,
+          formulaText: 'Revenue - (Revenue × 0.52)',
+          status: 'warning'
         },
         {
           id: 'kpi_np',
           title: 'Net Profit (EBITDA)',
           value: formatL(netProfit),
           rawValue: netProfit,
-          change: `${netMarginPct}%`,
+          change: `${netMarginPct}% Margin`,
           trend: 'up',
-          subtext: 'Net operational earnings after opex & commissions',
-          status: 'success'
+          subtext: `Formula: Gross Profit - (Revenue × 24% Opex Model)`,
+          isFabricated: true,
+          formulaText: 'Gross Profit - (Revenue × 0.24)',
+          status: 'warning'
         },
         {
           id: 'kpi_cash',
           title: 'Cash Inflow (Collections)',
           value: formatL(totalCollected),
           rawValue: totalCollected,
-          change: `${totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : 0}%`,
+          change: `${totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : 0}% Cleared`,
           trend: 'up',
-          subtext: `${payments.length} transactions cleared`,
+          subtext: `${payments.length} Payments Cleared (Live Database)`,
+          isFabricated: false,
           status: 'success'
         },
         {
@@ -605,17 +611,19 @@ export async function getCEOExecutiveMIS(req, res) {
           rawValue: totalReceivables,
           change: overdueInvoices.length > 0 ? `${overdueInvoices.length} Overdue` : 'Healthy',
           trend: overdueInvoices.length > 0 ? 'down' : 'neutral',
-          subtext: `Overdue Amount: ${formatL(overdueAmount)}`,
+          subtext: `Overdue Amount: ${formatL(overdueAmount)} (Live Database)`,
+          isFabricated: false,
           status: overdueInvoices.length > 0 ? 'warning' : 'success'
         },
         {
           id: 'kpi_orders',
           title: 'Orders Won & Invoiced',
-          value: `${ordersWon}`,
+          value: `${ordersWon} Accounts`,
           rawValue: ordersWon,
-          change: `+${invoices.length} Invoiced`,
+          change: `Win Rate: ${visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0}%`,
           trend: 'up',
-          subtext: `Win Rate: ${visits.length > 0 ? Math.round((ordersWon / visits.length) * 100) : 0}% of visited accounts`,
+          subtext: `${visits.length} Total Visits Logged (Live Database)`,
+          isFabricated: false,
           status: 'success'
         },
         {
@@ -625,8 +633,10 @@ export async function getCEOExecutiveMIS(req, res) {
           rawValue: totalPipelineValue,
           change: `${quotations.length} Quotes Issued`,
           trend: 'up',
-          subtext: `${hotLeads} Hot Leads, ${warmLeads} Warm Leads`,
-          status: 'success'
+          subtext: `Quotes: Live DB (₹${(activeQuotesValue / 100000).toFixed(2)}L) | Leads: Fabricated Model (Hot × ₹1.2L + Warm × ₹65K)`,
+          isFabricated: true,
+          formulaText: 'Active Quotes + (Hot × ₹1.2L) + (Warm × ₹65K)',
+          status: 'warning'
         }
       ],
       sales: {
