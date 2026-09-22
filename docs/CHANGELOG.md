@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.0] - Master DB School Portfolio, Live Canvasser Search Sync & Priority Follow-ups Pipeline
+
+- **Master Schools Institutional Portfolio Modal & Backend Aggregator**:
+  - Added `GET /api/master-schools/:id/portfolio` endpoint in `backend/controllers/masterSchoolsController.js` and registered in `backend/server.js`.
+  - Aggregates all visits, quotations, invoices, payments, and financial metrics (total visits, unique canvassers involved, quotes value, invoiced value, balance outstanding).
+  - Created `frontend/src/components/SchoolPortfolioModal.jsx` featuring tabbed history for field visits (with canvasser attribution, photos, specs, notes), commercial quotations, and billing invoices with receipt logs.
+  - Linked directly in `MasterSchoolsDirectoryModule.jsx`: clicking any school name or the dedicated **"Portfolio"** action button opens the institutional modal.
+  - Built-in visit record inspector enabling executives to drill into any specific visit directly from the portfolio.
+- **Live Database Integration for Canvasser School Search Picker**:
+  - Upgraded `frontend/src/components/SchoolSearchPicker.jsx` to fetch live database records from `mockApi.getMasterSchools` with 200ms debounce.
+  - Merges newly verified and newly added schools ahead of static catalog entries, ensuring canvassers can immediately select newly verified institutions.
+  - Fixed case-sensitive `'All'` / `'all'` district parameter handling in `backend/controllers/masterSchoolsController.js` and `frontend/src/mockApi.js`.
+- **Executive Priority Follow-ups Section for CEO & Admin Dashboards**:
+  - Created `frontend/src/components/FollowUpsPipelineModule.jsx` providing a high-priority chronological queue sorted by `follow_up_date ASC`.
+  - Added dedicated quick-action urgency buckets: **"Due Tomorrow / Next Day"** (highlighted primary focus), **"Due Today"**, **"Overdue"**, **"Upcoming (Next 7 Days)"**, and **"All Open"**.
+  - Displays decision maker contact info, 1-click phone dialer (`tel:`), canvasser ownership, funnel status, interest level, products discussed, and meeting notes.
+  - Integrated into top desktop navigation and mobile navigation bars across both `CEODashboard.jsx` and `ManagerDashboard.jsx`.
+
 ## [0.13.0] - Comprehensive Documentation Audit & Codebase Synchronization
 
 - **Comprehensive Documentation Alignment across All 11 Knowledge Specifications**:

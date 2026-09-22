@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LogOut, Users, Receipt, History, Trophy, Building2
+  LogOut, Users, Receipt, History, Trophy, Building2, CalendarCheck
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import InvoicingModule from '../components/InvoicingModule';
@@ -10,16 +10,18 @@ import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
 import ErrorBoundary from '../components/ErrorBoundary';
 import UserManagementModule from '../components/UserManagementModule';
 import MasterSchoolsDirectoryModule from '../components/MasterSchoolsDirectoryModule';
+import FollowUpsPipelineModule from '../components/FollowUpsPipelineModule';
 import { getRoleConfig } from '../lib/rbac';
 import { cn } from '../lib/utils';
 
 export default function ManagerDashboard() {
   const { user, setUser } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('schools'); // 'schools', 'users', 'invoicing', 'logs', 'team'
+  const [activeTab, setActiveTab] = useState('schools'); // 'schools', 'followups', 'users', 'invoicing', 'logs', 'team'
 
   const roleConfig = getRoleConfig(user);
 
   const navTabs = [
+    { id: 'followups', label: 'Priority Follow-ups', mobileLabel: 'Follow-ups', icon: CalendarCheck },
     { id: 'schools', label: 'Master Schools DB', mobileLabel: 'Schools', icon: Building2 },
     { id: 'users', label: 'User Directory & Roles', mobileLabel: 'Users', icon: Users },
     { id: 'invoicing', label: 'Invoicing & Records', mobileLabel: 'Invoices', icon: Receipt },
@@ -110,6 +112,10 @@ export default function ManagerDashboard() {
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
           >
             <ErrorBoundary>
+              {activeTab === 'followups' && (
+                <FollowUpsPipelineModule currentUser={user} />
+              )}
+
               {activeTab === 'schools' && (
                 <MasterSchoolsDirectoryModule currentUser={user} />
               )}
@@ -136,7 +142,7 @@ export default function ManagerDashboard() {
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-1.5 py-1.5 shadow-2xl">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
+        <div className="grid grid-cols-6 gap-1 max-w-md mx-auto">
           {navTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

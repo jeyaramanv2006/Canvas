@@ -16,18 +16,18 @@ export async function getMasterSchools(req, res) {
       params.push(term, term, term, term);
     }
 
-    if (district && district !== 'all' && district.trim()) {
-      whereClauses.push("district = ?");
+    if (district && district.trim().toLowerCase() !== 'all' && district.trim()) {
+      whereClauses.push("LOWER(district) = LOWER(?)");
       params.push(district.trim());
     }
 
-    if (zone && zone !== 'all' && zone.trim()) {
-      whereClauses.push("zone = ?");
+    if (zone && zone.trim().toLowerCase() !== 'all' && zone.trim()) {
+      whereClauses.push("LOWER(zone) = LOWER(?)");
       params.push(zone.trim());
     }
 
-    if (board && board !== 'all' && board.trim()) {
-      whereClauses.push("board LIKE ?");
+    if (board && board.trim().toLowerCase() !== 'all' && board.trim()) {
+      whereClauses.push("LOWER(board) LIKE LOWER(?)");
       params.push(`%${board.trim()}%`);
     }
 
@@ -145,6 +145,167 @@ export async function getMasterSchoolById(req, res) {
     }
     return res.json(school);
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// ── GET /api/master-schools/:id/portfolio ───────────────────────────────────
+export async function getSchoolPortfolio(req, res) {
+  try {
+    const schoolId = req.params.id;
+    const school = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(schoolId);
+    if (!school) {
+      return res.status(404).json({ error: 'School not found in master database' });
+    }
+
+    // 1. Fetch visits associated with this school
+    const visitsRaw = await db.prepare(`
+      SELECT * FROM visits 
+      WHERE master_school_id = ? 
+         OR (LOWER(TRIM(school_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(district)) = LOWER(TRIM(?)))
+         OR LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+      ORDER BY created_at DESC
+    `).all(school.id, school.school_name, school.district, school.school_name);
+
+    const visitIds = (visitsRaw || []).map(v => v.id);
+
+    // Fetch audit logs for these visits
+    let auditLogsByVisit = {};
+    if (visitIds.length > 0) {
+      const placeholders = visitIds.map(() => '?').join(',');
+      const logs = await db.prepare(`
+        SELECT * FROM audit_logs WHERE visit_id IN (${placeholders}) ORDER BY timestamp ASC
+      `).all(...visitIds);
+      (logs || []).forEach(log => {
+        if (!auditLogsByVisit[log.visit_id]) auditLogsByVisit[log.visit_id] = [];
+        auditLogsByVisit[log.visit_id].push(log);
+      });
+    }
+
+    const safeJsonParse = (val, fallback = []) => {
+      if (!val) return fallback;
+      if (typeof val !== 'string') return Array.isArray(val) || typeof val === 'object' ? val : fallback;
+      try { return JSON.parse(val); } catch { return fallback; }
+    };
+
+    const visits = (visitsRaw || []).map(row => ({
+      ...row,
+      is_from_master_db: Boolean(row.is_from_master_db),
+      product_interests: safeJsonParse(row.product_interests, ['Socks']),
+      attachments: safeJsonParse(row.attachments, []),
+      discovery_status: row.discovery_status || (row.is_from_master_db ? 'NOT_APPLICABLE' : 'PENDING_VERIFICATION'),
+      discovery_bonus_awarded: Boolean(row.discovery_bonus_awarded),
+      discovery_bonus_amount: Number(row.discovery_bonus_amount) || 0,
+      edit_history: (auditLogsByVisit[row.id] || []).map(log => ({
+        id: `EDT-${log.id}`,
+        editor_name: log.actor_name,
+        editor_role: log.actor_role,
+        action: log.action,
+        timestamp: log.timestamp,
+        changes: safeJsonParse(log.changed_fields, [])
+      }))
+    }));
+
+    // 2. Fetch quotations
+    let quotesRaw = [];
+    if (visitIds.length > 0) {
+      const vPlaceholders = visitIds.map(() => '?').join(',');
+      quotesRaw = await db.prepare(`
+        SELECT * FROM quotations 
+        WHERE visit_id IN (${vPlaceholders}) 
+           OR LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY created_at DESC
+      `).all(...visitIds, school.school_name);
+    } else {
+      quotesRaw = await db.prepare(`
+        SELECT * FROM quotations 
+        WHERE LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY created_at DESC
+      `).all(school.school_name);
+    }
+
+    const quotations = (quotesRaw || []).map(q => ({
+      ...q,
+      items: safeJsonParse(q.items, [])
+    }));
+
+    // 3. Fetch invoices
+    let invoicesRaw = [];
+    if (visitIds.length > 0) {
+      const vPlaceholders = visitIds.map(() => '?').join(',');
+      invoicesRaw = await db.prepare(`
+        SELECT * FROM invoices 
+        WHERE visit_id IN (${vPlaceholders}) 
+           OR LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY created_at DESC
+      `).all(...visitIds, school.school_name);
+    } else {
+      invoicesRaw = await db.prepare(`
+        SELECT * FROM invoices 
+        WHERE LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY created_at DESC
+      `).all(school.school_name);
+    }
+
+    const invoices = (invoicesRaw || []).map(inv => ({
+      ...inv,
+      items: safeJsonParse(inv.items, [])
+    }));
+
+    // 4. Fetch payments
+    const invoiceIds = invoices.map(i => i.id);
+    let payments = [];
+    if (invoiceIds.length > 0) {
+      const invPlaceholders = invoiceIds.map(() => '?').join(',');
+      payments = await db.prepare(`
+        SELECT * FROM payments 
+        WHERE invoice_id IN (${invPlaceholders}) 
+           OR LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY recorded_at DESC
+      `).all(...invoiceIds, school.school_name);
+    } else {
+      payments = await db.prepare(`
+        SELECT * FROM payments 
+        WHERE LOWER(TRIM(school_name)) = LOWER(TRIM(?))
+        ORDER BY recorded_at DESC
+      `).all(school.school_name);
+    }
+
+    // 5. Aggregate metrics
+    const canvassersSet = new Set();
+    visits.forEach(v => {
+      if (v.canvasser_name) canvassersSet.add(v.canvasser_name);
+    });
+
+    const quotationsValue = quotations.reduce((sum, q) => sum + (Number(q.grand_total) || 0), 0);
+    const invoicedValue = invoices.reduce((sum, inv) => sum + (Number(inv.grand_total) || 0), 0);
+    const paidAmount = invoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
+    const outstandingBalance = invoices.reduce((sum, inv) => sum + (Number(inv.outstanding_balance) || 0), 0);
+
+    const metrics = {
+      totalVisits: visits.length,
+      uniqueCanvassers: Array.from(canvassersSet),
+      totalQuotations: quotations.length,
+      quotationsValue,
+      totalInvoices: invoices.length,
+      invoicedValue,
+      paidAmount,
+      outstandingBalance,
+      lastVisitDate: visits.length > 0 ? visits[0].created_at : null,
+      latestInterestLevel: visits.length > 0 ? visits[0].interest_level : 'None',
+      latestOutcomeStatus: visits.length > 0 ? visits[0].outcome_status : 'Uncontacted'
+    };
+
+    return res.json({
+      school,
+      metrics,
+      visits,
+      quotations,
+      invoices,
+      payments
+    });
+  } catch (error) {
+    console.error('getSchoolPortfolio error:', error);
     return res.status(500).json({ error: error.message });
   }
 }

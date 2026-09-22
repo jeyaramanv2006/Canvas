@@ -285,9 +285,9 @@ export const mockApi = {
   async getMasterSchools(params = {}) {
     const query = new URLSearchParams();
     if (params.q) query.append('q', params.q);
-    if (params.district && params.district !== 'all') query.append('district', params.district);
-    if (params.zone && params.zone !== 'all') query.append('zone', params.zone);
-    if (params.board && params.board !== 'all') query.append('board', params.board);
+    if (params.district && params.district.toLowerCase() !== 'all') query.append('district', params.district);
+    if (params.zone && params.zone.toLowerCase() !== 'all') query.append('zone', params.zone);
+    if (params.board && params.board.toLowerCase() !== 'all') query.append('board', params.board);
     if (params.limit) query.append('limit', params.limit);
     if (params.page) query.append('page', params.page);
 
@@ -304,6 +304,10 @@ export const mockApi = {
 
   async getMasterSchoolById(id) {
     return await api.get(`/master-schools/${id}`);
+  },
+
+  async getSchoolPortfolio(id) {
+    return await api.get(`/master-schools/${encodeURIComponent(id)}/portfolio`);
   },
 
   async getSchoolDistricts() {
