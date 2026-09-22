@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.5] - Fix Case-Insensitive School Search in PostgreSQL & Purge Deleted Accounts from CEO Dashboard
+
+- **Case-Insensitive Master School Search Fix** (`masterSchoolsController.js` & `SchoolSearchPicker.jsx`):
+  - Solved PostgreSQL case-sensitivity bug where newly verified schools (such as "Muthamil public school", SCH-TIR-7307) failed to appear when canvassers searched in lowercase ("muthamil").
+  - Wrapped search fields in `LOWER(...)` SQL expressions (`LOWER(school_name) LIKE ? OR LOWER(COALESCE(area, '')) LIKE ? ...`) and transformed the search query to lowercase on backend.
+  - Enhanced `SchoolSearchPicker.jsx` memoized filter to match `liveSchools` against active search terms and district filters.
+  - Added an in-flight loading spinner (`Searching Master Schools DB...`) in `SchoolSearchPicker.jsx` to prevent premature "No schools matching" flicker while debounced queries are running.
+- **CEO Dashboard Leaderboard Cleanup & Permanent Deletion Fix** (`dashboardController.js`, `pgAdapter.js`, `db.js`):
+  - Fixed query discrepancy in `getCEOExecutiveMIS` by excluding deleted accounts (`WHERE status != 'DELETED'`) and restricting canvasser roster to active reps only (`u.status === 'ACTIVE'`), instantly removing deleted accounts ("Mukesh", "Suhas", "Murugan") from the CEO Dashboard Leaderboard.
+  - Added safe startup database cleanup in `pgAdapter.js` and `db.js` to permanently purge legacy `status = 'DELETED'` rows from the database.
+  - Updated `seedPgData` and `seedDefaultData` so demo canvasser accounts (`suhas@cvs`, `murugan@cvs`) are only seeded if the users table is completely empty, ensuring deleted accounts are never resurrected upon server restarts.
+
 ## [0.15.4] - CFO Dashboard Live Database Synchronization & Dynamic Telemetry Wiring
 
 - **Live Database Telemetry Integration** (`CFODashboard.jsx` & `mockApi.js`):

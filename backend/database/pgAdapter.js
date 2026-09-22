@@ -240,26 +240,52 @@ export async function initPgDB() {
 async function seedPgData(p) {
   const defaultPasswordHash = bcrypt.hashSync('password', 10);
 
-  // 1. Seed Official 7 Team Members
-  const seedUsers = [
-    { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
-    { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
-    { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
-    { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
-    { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' },
-    { id: 2, username: 'murugan@cvs', email: 'murugan@murugan.com', name: 'Murugan', role: 'cvs', role_title: 'Field Sales Lead' },
-    { id: 3, username: 'suhas@cvs', email: 'suhas@murugan.com', name: 'Suhas', role: 'cvs', role_title: 'Field Canvasser' }
-  ];
+  // 1. Purge legacy soft-deleted user records so they are completely erased from the database
+  try {
+    await p.query("DELETE FROM users WHERE status = 'DELETED'");
+    await p.query("DELETE FROM pending_user_actions WHERE target_user_id NOT IN (SELECT id FROM users)");
+  } catch (err) {
+    console.warn("Could not clean up legacy deleted users:", err.message);
+  }
 
-  for (const u of seedUsers) {
-    const existing = await p.query('SELECT id FROM users WHERE username = $1 OR id = $2', [u.username, u.id]);
-    if (existing.rows.length === 0) {
+  // 2. Check if users table already has data
+  const userCountRes = await p.query('SELECT COUNT(*) as count FROM users');
+  const userCount = Number(userCountRes.rows[0]?.count || 0);
+
+  if (userCount === 0) {
+    // Only seed initial users if database is brand new and completely empty
+    const seedUsers = [
+      { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
+      { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
+      { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
+      { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' }
+    ];
+
+    for (const u of seedUsers) {
       await p.query(
         `INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
-         ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, role = EXCLUDED.role, name = EXCLUDED.name`,
+         ON CONFLICT (id) DO NOTHING`,
         [u.id, u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title]
       );
+    }
+  } else {
+    // Ensure essential management accounts exist if missing
+    const essentialUsers = [
+      { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' }
+    ];
+    for (const u of essentialUsers) {
+      const existing = await p.query('SELECT id FROM users WHERE username = $1', [u.username]);
+      if (existing.rows.length === 0) {
+        await p.query(
+          `INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+           ON CONFLICT (id) DO NOTHING`,
+          [u.id, u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title]
+        );
+      }
     }
   }
 

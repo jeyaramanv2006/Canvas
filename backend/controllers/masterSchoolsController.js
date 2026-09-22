@@ -11,8 +11,8 @@ export async function getMasterSchools(req, res) {
     let params = [];
 
     if (q && q.trim()) {
-      whereClauses.push("(school_name LIKE ? OR area LIKE ? OR block_or_cluster LIKE ? OR id LIKE ?)");
-      const term = `%${q.trim()}%`;
+      whereClauses.push("(LOWER(school_name) LIKE ? OR LOWER(COALESCE(area, '')) LIKE ? OR LOWER(COALESCE(block_or_cluster, '')) LIKE ? OR LOWER(id) LIKE ?)");
+      const term = `%${q.trim().toLowerCase()}%`;
       params.push(term, term, term, term);
     }
 

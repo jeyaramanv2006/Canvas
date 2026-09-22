@@ -382,7 +382,7 @@ export async function getCEOExecutiveMIS(req, res) {
     const invoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
     const quotations = (await db.prepare('SELECT * FROM quotations').all()) || [];
     const payments = (await db.prepare('SELECT * FROM payments').all()) || [];
-    const users = (await db.prepare('SELECT id, name, role, role_title, status FROM users').all()) || [];
+    const users = (await db.prepare("SELECT id, name, role, role_title, status FROM users WHERE status != 'DELETED'").all()) || [];
     const products = (await db.prepare('SELECT * FROM products').all()) || [];
     const pendingApprovals = (await db.prepare("SELECT * FROM pending_user_actions WHERE status = 'PENDING'").all()) || [];
     const masterCountRow = await db.prepare("SELECT COUNT(*) as count FROM master_schools").get();
@@ -461,7 +461,7 @@ export async function getCEOExecutiveMIS(req, res) {
       return new Date(v.follow_up_date) < now && v.outcome_status !== 'Won' && v.outcome_status !== 'Lost';
     });
 
-    const canvassers = users.filter(u => ['canvasser', 'cvs'].includes(u.role) && u.status !== 'INACTIVE');
+    const canvassers = users.filter(u => ['canvasser', 'cvs'].includes(u.role) && u.status === 'ACTIVE');
     let totalCommissionsPayable = 0;
     const canvasserRoster = canvassers.map(c => {
       const cVisits = visits.filter(v => v.canvasser_id === c.id);
