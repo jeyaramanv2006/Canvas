@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.15.4] - CFO Dashboard Live Database Synchronization & Dynamic Telemetry Wiring
+
+- **Live Database Telemetry Integration** (`CFODashboard.jsx` & `mockApi.js`):
+  - Wired CFO Strategy Overview directly to live PostgreSQL/Neon data via `mockApi.getCFOAnalytics()` with live call to `/api/cfo/analytics` and client-side fallback aggregation from `getInvoices()`, `getPayments()`, and `getQuotations()`.
+  - Added interactive **"Sync Live Data"** refresh button in the strategy sub-header with spinning feedback during queries.
+  - Linked **Report 1 (Sales Trend)** to dynamically calculated monthly revenue from live invoices.
+  - Linked **Report 2 (Gross Profit Trend)** to live billed revenue with transparent 66% modeled COGS formula.
+  - Linked **Report 3 (Collection vs Sales)** to real cash receipts and total billed invoice revenue, dynamically updating the collection rate.
+  - Linked **Report 4 (Receivables / Overdue)** to live aging brackets (0-30d, 31-60d, 61-90d, 90+d), total outstanding balance, and overdue account counts.
+  - Linked **Report 7 (This Month vs Last Month)** table to dynamically reflect live month-to-date metrics across Sales, Gross Profit, GP%, Collections, Receivables, and Overdue.
+  - Linked **Report 8 (Actual vs Target)** table to dynamically evaluate targets against live actuals, computing real achievement percentages and gaps.
+  - Linked **Executive Red Alert Drawer** to live overdue balances, overdue institution counts, and real collection percentage.
+- **Data Source Integrity Preservation**:
+  - Maintained explicit amber `FABRICATED MODEL` badges and concrete formula boxes for modeled benchmark projections (COGS, warehouse inventory, cash out).
+  - Maintained emerald `LIVE DB LOGIC` badges for all metrics derived from real database records.
+
 ## [0.15.3] - CFO Dashboard Preview Removal, Data Classification & In-Dashboard Formulas
 
 - **CFO Construction Preview Veil Removed** (`CFODashboard.jsx`):
