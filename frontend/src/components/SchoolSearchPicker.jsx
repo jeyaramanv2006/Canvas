@@ -80,7 +80,14 @@ export default function SchoolSearchPicker({
     const seenIds = new Set();
 
     for (const ls of liveSchools) {
-      if (ls && ls.id && !seenIds.has(ls.id)) {
+      if (!ls || !ls.id || seenIds.has(ls.id)) continue;
+      const matchesDist = districtFilter === 'All' || ls.district?.toLowerCase() === districtFilter.toLowerCase();
+      const matchesQ = !cleanQ || 
+        (ls.school_name || '').toLowerCase().includes(cleanQ) || 
+        (ls.area || '').toLowerCase().includes(cleanQ) ||
+        (ls.block_or_cluster || '').toLowerCase().includes(cleanQ) ||
+        (ls.id || '').toLowerCase().includes(cleanQ);
+      if (matchesDist && matchesQ) {
         seenIds.add(ls.id);
         combined.push(ls);
       }
@@ -188,7 +195,14 @@ export default function SchoolSearchPicker({
           {/* Autocomplete Dropdown List */}
           {isOpen && (
             <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#14151c] border border-white/20 rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto divide-y divide-white/5">
-              {filteredSchools.length === 0 ? (
+              {isSearching && filteredSchools.length === 0 ? (
+                <div className="p-4 text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-xs text-amber-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Searching Master Schools DB...</span>
+                  </div>
+                </div>
+              ) : filteredSchools.length === 0 ? (
                 <div className="p-4 text-center space-y-2">
                   <p className="text-xs text-gray-400">No schools matching "{query}" in school directory.</p>
                   <button

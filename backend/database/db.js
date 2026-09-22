@@ -290,29 +290,48 @@ export async function initDB() {
 function seedDefaultData() {
   const defaultPasswordHash = bcrypt.hashSync('password', 10);
 
-  // Seed / Sync Default Users with strict <name>@<role> format
-  const seedUsers = [
-    { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
-    { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
-    { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
-    { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
-    { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' },
-    { id: 2, username: 'murugan@cvs', email: 'murugan@murugan.com', name: 'Murugan', role: 'cvs', role_title: 'Field Sales Lead' },
-    { id: 3, username: 'suhas@cvs', email: 'suhas@murugan.com', name: 'Suhas', role: 'cvs', role_title: 'Field Canvasser' }
-  ];
+  // 1. Purge legacy soft-deleted user records so they are completely erased from the database
+  try {
+    db.exec("DELETE FROM users WHERE status = 'DELETED'");
+    db.exec("DELETE FROM pending_user_actions WHERE target_user_id NOT IN (SELECT id FROM users)");
+  } catch (err) {
+    console.warn("Could not clean up legacy deleted users in SQLite:", err.message);
+  }
 
-  for (const u of seedUsers) {
-    const existing = db.prepare('SELECT id FROM users WHERE username = ? OR id = ?').get(u.username, u.id);
-    if (!existing) {
+  // 2. Check if users table already has data
+  const userCountRow = db.prepare('SELECT COUNT(*) as count FROM users').get();
+  const userCount = Number(userCountRow ? userCountRow.count : 0);
+
+  if (userCount === 0) {
+    // Only seed initial users if database is brand new and completely empty
+    const seedUsers = [
+      { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
+      { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
+      { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
+      { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' }
+    ];
+
+    for (const u of seedUsers) {
       db.prepare(`
         INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
       `).run(u.id, u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title);
-    } else {
-      // Ensure username and role match strict format
-      db.prepare(`
-        UPDATE users SET username = ?, role = ?, role_title = ?, name = ? WHERE id = ?
-      `).run(u.username, u.role, u.role_title, u.name, u.id);
+    }
+  } else {
+    // Ensure essential management accounts exist if missing
+    const essentialUsers = [
+      { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' }
+    ];
+    for (const u of essentialUsers) {
+      const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+        `).run(u.id, u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title);
+      }
     }
   }
 
