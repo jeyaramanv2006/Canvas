@@ -33,6 +33,38 @@
   }
 }
 
+/* ── Vivid Void: Dark Ambient Space with Subtle Organic Radial Bleed & Matrix ── */
+.vivid-void-canvas {
+  position: relative;
+  isolation: isolate;
+  background-color: #08090d;
+}
+
+.vivid-void-canvas::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(124, 58, 237, 0.12), transparent 45%),
+    radial-gradient(ellipse at 85% 85%, rgba(6, 182, 212, 0.08), transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(99, 102, 241, 0.05), transparent 60%);
+}
+
+.vivid-void-canvas::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -9;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1.1px, transparent 1.1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 92%);
+}
+
 /* Custom scrollbar for web view */
 ::-webkit-scrollbar {
   width: 6px;

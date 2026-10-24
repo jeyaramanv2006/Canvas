@@ -285,9 +285,9 @@ export default function CanvasserDashboard() {
 
   if (loading && visits.length === 0) {
     return (
-      <div className="min-h-screen bg-murugan-dark flex items-center justify-center text-white">
+      <div className="min-h-screen vivid-void-canvas flex items-center justify-center text-white">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-murugan-accent border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-400 text-xs">Loading...</p>
         </div>
       </div>
@@ -295,76 +295,87 @@ export default function CanvasserDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-murugan-dark text-white pb-24 selection:bg-murugan-accent selection:text-black">
-      {/* Top Header & Desktop Nav */}
-      <header className="bg-murugan-card/95 border-b border-white/10 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-20 rounded-xl overflow-hidden border border-white/10 shadow-md bg-[#14151b] flex items-center justify-center flex-shrink-0">
+    <div className="min-h-screen vivid-void-canvas text-white pb-24 selection:bg-amber-300 selection:text-black">
+      {/* Top Header & Desktop Nav with Lucid Block Glass & Apple Spring Tabs */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0c0d15]/85 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-[70px]">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="h-10 w-20 sm:h-11 sm:w-24 rounded-xl overflow-hidden border border-[#d9b763]/25 bg-[#171615] flex items-center justify-center flex-shrink-0 shadow-inner">
                 <img 
                   src="/logo.jpg" 
                   alt="MG The One" 
                   className="w-full h-full object-cover scale-[1.38]"
                 />
               </div>
-              <div>
-                <h1 className="text-base font-extrabold text-white tracking-tight uppercase">The One</h1>
-                <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{user?.name || 'Karthik'}</span>
-                  <span className="text-gray-500">•</span>
-                  <span className="text-amber-400 font-semibold">{user?.roleTitle || 'Field Canvasser'}</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
+                    The One
+                  </h1>
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30 whitespace-nowrap tracking-wide">
+                    {user?.roleTitle || 'Canvasser'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-white/50 font-medium flex items-center gap-1.5 mt-1 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="truncate">{user?.name || 'Field Canvasser'}</span>
+                  <span className="text-white/20">·</span>
+                  <span className="text-white/40 font-mono text-[10px]">Field Operations</span>
                 </p>
               </div>
-
             </div>
 
-            {/* Desktop Navigation Tabs */}
-            <div className="hidden md:flex items-center space-x-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/10">
-              {navTabs.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      "relative px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap z-10",
-                      isActive
-                        ? "text-black font-black"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                    )}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="canvasserActiveTopTab"
-                        className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-xl shadow-lg shadow-amber-400/25 -z-10"
-                        transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
-                      />
-                    )}
-                    <Icon className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">{tab.label}</span>
-                    {tab.badge && (
-                      <span className={cn(
-                        "relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-black",
-                        isActive ? "bg-black text-amber-400" : "bg-rose-500 text-white animate-pulse"
-                      )}>
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            {/* Desktop Navigation Tabs with Apple-grade Fluid Spring Layout */}
+            <div className="hidden md:flex space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div className="inline-flex p-1 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md">
+                {navTabs.map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "relative px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap z-10",
+                        isActive
+                          ? "text-black font-black"
+                          : "text-white/55 hover:text-white hover:bg-white/[0.04]"
+                      )}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="canvasserActiveTopTab"
+                          className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-300 rounded-xl shadow-[0_2px_12px_rgba(251,191,36,0.28)] -z-10"
+                          transition={{ type: "spring", stiffness: 450, damping: 35, mass: 0.5 }}
+                        />
+                      )}
+                      <Icon className={cn("w-4 h-4 relative z-10 transition-transform duration-200", isActive ? "text-black scale-105" : "text-white/50")} />
+                      <span className="relative z-10 tracking-tight">{tab.label}</span>
+                      {tab.badge && (
+                        <span className={cn(
+                          "relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-black",
+                          isActive ? "bg-black text-amber-400" : "bg-rose-500 text-white animate-pulse"
+                        )}>
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <button 
-              onClick={() => setUser(null)} 
-              title="Sign Out"
-              className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white border border-white/5"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <button 
+                onClick={() => setUser(null)} 
+                title="Sign Out"
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-xl transition-all duration-200 text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1.5 shadow-sm"
+              >
+                <LogOut className="w-3.5 h-3.5 shrink-0 text-white/60" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -1074,8 +1085,8 @@ export default function CanvasserDashboard() {
       </main>
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-2 py-1.5 shadow-2xl">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#0c0d15]/90 backdrop-blur-2xl border-t border-white/[0.08] pb-safe z-50 px-2 py-2 shadow-2xl">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto p-1 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
           {navTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1084,28 +1095,28 @@ export default function CanvasserDashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "py-2 flex flex-col items-center gap-1 rounded-2xl transition-colors relative z-10", 
+                  "relative py-2 flex flex-col items-center gap-1 rounded-xl transition-colors text-center z-10", 
                   isActive 
-                    ? "text-amber-400 font-black" 
-                    : "text-gray-400 hover:text-gray-200"
+                    ? "text-amber-300 font-black" 
+                    : "text-white/45 hover:text-white/80"
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId="canvasserActiveBottomTab"
-                    className="absolute inset-0 bg-amber-500/15 border border-amber-500/40 rounded-2xl shadow-lg shadow-amber-500/10 -z-10"
-                    transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
+                    className="absolute inset-0 bg-amber-400/15 border border-amber-400/35 rounded-xl shadow-[0_0_12px_rgba(251,191,36,0.15)] -z-10"
+                    transition={{ type: "spring", stiffness: 450, damping: 35, mass: 0.5 }}
                   />
                 )}
                 <div className="relative">
-                  <Icon className="w-4 h-4 relative z-10" />
+                  <Icon className={cn("w-4 h-4 relative z-10 transition-transform duration-200", isActive && "scale-110")} />
                   {tab.badge && (
-                    <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[9px] font-black px-1 py-0.2 rounded-full min-w-[14px] text-center">
+                    <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[9px] font-black px-1 py-0.2 rounded-full min-w-[14px] text-center shadow">
                       {tab.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[9px] font-bold tracking-tight truncate max-w-full relative z-10">{tab.mobileLabel || tab.label}</span>
+                <span className="text-[10px] font-bold tracking-tight truncate max-w-full relative z-10">{tab.mobileLabel || tab.label}</span>
               </button>
             );
           })}
