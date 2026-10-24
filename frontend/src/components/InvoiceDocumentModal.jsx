@@ -6,6 +6,7 @@ import {
   Plus,
   Trash2,
   Eye,
+  Edit2,
   Edit3,
   Sparkles,
   CheckCircle2,
@@ -17,11 +18,53 @@ import {
   ArrowRight,
   Search,
   Check,
-  AlertCircle
+  AlertCircle,
+  Receipt,
+  UserCheck,
+  Percent,
+  HelpCircle,
+  ChevronDown
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import { searchMasterSchoolsLocal } from '../data/masterSchools';
+
+// ── Indian Number to Words Helper ─────────────────────────────────────────────
+function numberToWordsIndian(num) {
+  const n = Math.round(Number(num) || 0);
+  if (n <= 0) return 'Zero Rupees Only';
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function convertTwoDigits(val) {
+    if (val < 20) return ones[val];
+    const unit = val % 10;
+    return tens[Math.floor(val / 10)] + (unit ? ' ' + ones[unit] : '');
+  }
+
+  function convertThreeDigits(val) {
+    const hundred = Math.floor(val / 100);
+    const rest = val % 100;
+    let res = '';
+    if (hundred > 0) res += ones[hundred] + ' Hundred';
+    if (rest > 0) res += (res ? ' ' : '') + convertTwoDigits(rest);
+    return res;
+  }
+
+  const crore = Math.floor(n / 10000000);
+  const lakh = Math.floor((n % 10000000) / 100000);
+  const thousand = Math.floor((n % 100000) / 1000);
+  const remainder = n % 1000;
+
+  const parts = [];
+  if (crore > 0) parts.push(convertThreeDigits(crore) + ' Crore');
+  if (lakh > 0) parts.push(convertTwoDigits(lakh) + ' Lakh');
+  if (thousand > 0) parts.push(convertTwoDigits(thousand) + ' Thousand');
+  if (remainder > 0) parts.push(convertThreeDigits(remainder));
+
+  return (parts.join(' ') + ' Rupees Only').trim();
+}
 
 export default function InvoiceDocumentModal({
   isOpen,
@@ -30,7 +73,7 @@ export default function InvoiceDocumentModal({
   initialData,
   visitData,
   type = "invoice", // "invoice" | "quote" | "quotation" | "Tax Invoice" | "Proforma Invoice" | "Quotation"
-  mode = "view", // "view" | "create"
+  mode = "view", // "view" | "create" | "edit"
   currentUser,
   onSaveSuccess
 }) {
@@ -38,9 +81,15 @@ export default function InvoiceDocumentModal({
   const schoolDropdownRef = useRef(null);
   const data = initialData || documentData || visitData;
 
-  const isQuoteType = type.toLowerCase().includes('quote');
-  const isProformaType = type.toLowerCase().includes('proforma');
-  const isInvoiceType = !isQuoteType && !isProformaType;
+  // Document Type State (Allow user to toggle or verify)
+  const initialNormalized = String(type || '').trim().toLowerCase();
+  const initialCategory = initialNormalized.includes('quote') ? 'quote' :
+    initialNormalized.includes('proforma') ? 'proforma' : 'invoice';
+
+  const [docCategory, setDocCategory] = useState(initialCategory); // 'quote' | 'proforma' | 'invoice'
+  const isQuoteType = docCategory === 'quote';
+  const isProformaType = docCategory === 'proforma';
+  const isInvoiceType = docCategory === 'invoice';
 
   // Form State
   const [formMode, setFormMode] = useState(mode);
@@ -49,12 +98,12 @@ export default function InvoiceDocumentModal({
   const [docError, setDocError] = useState(null);
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
 
-  // Document Type Header
-  const [docTypeTitle, setDocTypeTitle] = useState(
-    isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : "TAX INVOICE")
-  );
+  // Document Type Header & Subtitle
+  const [docTypeTitle, setDocTypeTitle] = useState(isQuoteType ? "Quotation" : (isProformaType ? "Proforma Invoice" : "Tax Invoice"));
+  const [docSubtitle, setDocSubtitle] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  // Form fields (No hardcoded example names)
+  // Form fields
   const [docNumber, setDocNumber] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [address, setAddress] = useState('');
@@ -63,16 +112,32 @@ export default function InvoiceDocumentModal({
   const [phone, setPhone] = useState('');
   const [docDate, setDocDate] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [countryOfSupply, setCountryOfSupply] = useState('India');
-  const [placeOfSupply, setPlaceOfSupply] = useState('Tamil Nadu (33)');
   const [extraCharges, setExtraCharges] = useState(0);
   const [deliveryCharges, setDeliveryCharges] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [canvasserName, setCanvasserName] = useState('');
+
+  // Canvasser Attribution (Credited on Leaderboard)
   const [canvasserId, setCanvasserId] = useState('');
+  const [canvasserName, setCanvasserName] = useState('');
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Dynamic Line Items
   const [items, setItems] = useState([]);
+
+  // Fetch available users/canvassers on modal open
+  useEffect(() => {
+    if (isOpen) {
+      setLoadingUsers(true);
+      mockApi.getUsers()
+        .then(res => {
+          const list = Array.isArray(res) ? res : (res?.users || []);
+          setAvailableUsers(list);
+        })
+        .catch(err => console.warn('Could not load users for canvasser attribution:', err))
+        .finally(() => setLoadingUsers(false));
+    }
+  }, [isOpen]);
 
   // Outside click listener for school autocomplete dropdown
   useEffect(() => {
@@ -108,7 +173,7 @@ export default function InvoiceDocumentModal({
     setShowSchoolDropdown(false);
   };
 
-  // Helper date formatter: converts ISO/raw date into 'Aug 24, 2026' format
+  // Helper date formatter
   const formatDisplayDate = (d) => {
     if (!d) return '';
     if (typeof d === 'string' && (d.includes('Aug') || d.includes('Jun') || d.includes('Sep') || d.includes('Jul') || d.includes('Jan') || d.includes('Feb') || d.includes('Mar') || d.includes('Apr') || d.includes('May') || d.includes('Oct') || d.includes('Nov') || d.includes('Dec'))) {
@@ -123,14 +188,21 @@ export default function InvoiceDocumentModal({
     }
   };
 
+  // Initialize Modal Values
   useEffect(() => {
     if (isOpen) {
       const isView = mode === 'view' && !!data;
-      setFormMode(isView ? 'view' : 'create');
+      setFormMode(isView ? 'view' : (mode || 'create'));
       setPreviewTab(isView);
 
+      const resolvedCategory = initialNormalized.includes('quote') ? 'quote' :
+        initialNormalized.includes('proforma') ? 'proforma' : 'invoice';
+      setDocCategory(resolvedCategory);
+
+      const titleDefault = resolvedCategory === 'quote' ? "Quotation" : (resolvedCategory === 'proforma' ? "Proforma Invoice" : "Tax Invoice");
+      setDocTypeTitle(data?.doc_type || titleDefault);
+
       if (data) {
-        setDocTypeTitle(isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : (data.doc_type || "TAX INVOICE")));
         setDocNumber(data.invoice_number || data.quotation_number || data.proforma_number || data.id || '');
         setSchoolName(data.school_name || '');
         setAddress(data.address || data.area || '');
@@ -139,23 +211,28 @@ export default function InvoiceDocumentModal({
         setPhone(data.phone || '');
         setDocDate(formatDisplayDate(data.date || data.invoice_date || data.quotation_date || data.created_at || new Date()));
         setDueDate(formatDisplayDate(data.due_date || data.valid_until || new Date(Date.now() + 86400000 * 15)));
-        setCountryOfSupply(data.country_of_supply || "India");
-        setPlaceOfSupply(data.place_of_supply || "Tamil Nadu (33)");
         setExtraCharges(Number(data.extra_charges !== undefined ? data.extra_charges : 0));
         setDeliveryCharges(Number(data.delivery_charges !== undefined ? data.delivery_charges : 0));
         setDiscountAmount(Number(data.discount_amount) || 0);
-        setCanvasserName(data.canvasser_name || currentUser?.name || 'Canvasser');
-        setCanvasserId(data.canvasser_id || currentUser?.id || '');
+
+        // Canvasser attribution
+        if (data.canvasser_name === 'Refrens Import' || Number(data.canvasser_id) === 99) {
+          setCanvasserId('99');
+          setCanvasserName('Refrens Import');
+        } else {
+          setCanvasserId(String(data.canvasser_id || currentUser?.id || '99'));
+          setCanvasserName(data.canvasser_name || currentUser?.name || 'Refrens Import');
+        }
 
         // Normalizing items
         if (data.items && Array.isArray(data.items) && data.items.length > 0) {
           setItems(data.items.map(i => ({
-            name: i.name || i.item_name || i.product || (i.description ? `${i.product ? i.product + ' ' : ''}${i.description}` : 'Custom Item'),
-            size: i.size || '-',
-            hsn: i.hsn || (i.hsn_code || ''),
-            gst_rate: Number(i.gst_rate !== undefined ? i.gst_rate : (data.gst_percent || 5)),
+            name: i.name || i.item_name || i.product || (i.description ? `${i.product ? i.product + ' ' : ''}${i.description}` : 'Custom Product'),
+            size: i.size || i['items.SIZE'] || i['items.Size'] || '-',
+            hsn: i.hsn || i.hsn_code || '611595',
+            gst_rate: Number(i.gst_rate !== undefined ? i.gst_rate : 5),
             quantity: Number(i.quantity || i.qty || 1),
-            unit: i.unit || (isQuoteType ? '' : 'prs'),
+            unit: i.unit || 'prs',
             unit_rate: Number(i.unit_rate || i.rate || 0)
           })));
         } else if (data.product_interests) {
@@ -167,24 +244,22 @@ export default function InvoiceDocumentModal({
             setItems(interests.map(item => ({
               name: item,
               size: '-',
-              hsn: item.toLowerCase().includes('sock') ? '611595' : (item.toLowerCase().includes('shoe') ? '640411' : (item.toLowerCase().includes('belt') ? '392690' : (item.toLowerCase().includes('tie') ? '621510' : ''))),
+              hsn: item.toLowerCase().includes('sock') ? '611595' : (item.toLowerCase().includes('shoe') ? '640411' : (item.toLowerCase().includes('belt') ? '392690' : '620342')),
               gst_rate: 5,
               quantity: Number(data.student_strength) || 100,
               unit: item.toLowerCase().includes('shoe') ? 'box' : 'prs',
               unit_rate: item.toLowerCase().includes('shoe') ? 345 : 48
             })));
           } else {
-            setItems([{ name: 'Custom Product Item', size: '-', hsn: '', gst_rate: 5, quantity: 100, unit: 'prs', unit_rate: 50 }]);
+            setItems([{ name: 'Custom Product Item', size: '-', hsn: '611595', gst_rate: 5, quantity: 100, unit: 'prs', unit_rate: 50 }]);
           }
         } else {
-          // Default initial empty clean item
           setItems([
-            { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQuoteType ? '' : 'prs', unit_rate: 0 }
+            { name: '', size: '-', hsn: '611595', gst_rate: 5, quantity: 1, unit: 'prs', unit_rate: 0 }
           ]);
         }
       } else {
         // Brand new document
-        setDocTypeTitle(isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : "TAX INVOICE"));
         setDocNumber('');
         setSchoolName('');
         setAddress('');
@@ -193,19 +268,17 @@ export default function InvoiceDocumentModal({
         setPhone('');
         setDocDate(formatDisplayDate(new Date()));
         setDueDate(formatDisplayDate(new Date(Date.now() + 86400000 * 15)));
-        setCountryOfSupply("India");
-        setPlaceOfSupply("Tamil Nadu (33)");
         setExtraCharges(0);
         setDeliveryCharges(0);
         setDiscountAmount(0);
-        setCanvasserName(currentUser?.name || 'Canvasser');
-        setCanvasserId(currentUser?.id || 1);
+        setCanvasserId(String(currentUser?.id || 1));
+        setCanvasserName(currentUser?.name || 'Gokul');
         setItems([
-          { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQuoteType ? '' : 'prs', unit_rate: 0 }
+          { name: '', size: '-', hsn: '611595', gst_rate: 5, quantity: 1, unit: 'prs', unit_rate: 0 }
         ]);
       }
     }
-  }, [isOpen, data, mode, type, currentUser]);
+  }, [isOpen, data, mode, type, currentUser, initialNormalized]);
 
   if (!isOpen) return null;
 
@@ -241,7 +314,7 @@ export default function InvoiceDocumentModal({
   const parsedDiscount = Number(discountAmount) || 0;
 
   const rawGrandTotal = subtotal + totalCgst + totalSgst + parsedExtra + parsedDelivery - parsedDiscount;
-  const grandTotal = Math.round(rawGrandTotal);
+  const grandTotal = Math.max(0, Math.round(rawGrandTotal));
   const roundUpVal = grandTotal - rawGrandTotal;
   const roundUpFormatted = (roundUpVal >= 0 ? roundUpVal : -roundUpVal).toFixed(2);
 
@@ -249,7 +322,7 @@ export default function InvoiceDocumentModal({
   const handleAddItem = () => {
     setItems(prev => [
       ...prev,
-      { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQuoteType ? '' : 'prs', unit_rate: 0 }
+      { name: '', size: '-', hsn: '611595', gst_rate: 5, quantity: 1, unit: 'prs', unit_rate: 0 }
     ]);
   };
 
@@ -266,12 +339,38 @@ export default function InvoiceDocumentModal({
     });
   };
 
+  // Switch Document Type
+  const handleSwitchCategory = (cat) => {
+    setDocCategory(cat);
+    if (cat === 'quote') {
+      setDocTypeTitle('Quotation');
+    } else if (cat === 'proforma') {
+      setDocTypeTitle('Proforma Invoice');
+    } else {
+      setDocTypeTitle('Tax Invoice');
+    }
+  };
+
+  // Handle Canvasser Change
+  const handleCanvasserChange = (e) => {
+    const val = e.target.value;
+    setCanvasserId(val);
+    if (val === '99') {
+      setCanvasserName('Refrens Import');
+    } else {
+      const matched = availableUsers.find(u => String(u.id) === String(val));
+      if (matched) {
+        setCanvasserName(matched.name);
+      }
+    }
+  };
+
   // Save Document
   const handleSaveDocument = async (e) => {
     if (e) e.preventDefault();
     setDocError(null);
     if (!schoolName.trim()) {
-      setDocError("Please enter the School / Institution Name");
+      setDocError("Please enter or select the Client / School Name");
       return;
     }
 
@@ -289,8 +388,8 @@ export default function InvoiceDocumentModal({
         created_at: data?.created_at || new Date().toISOString(),
         [isQuoteType ? 'valid_until' : 'due_date']: dueDate,
         due_date: dueDate,
-        country_of_supply: countryOfSupply,
-        place_of_supply: placeOfSupply,
+        country_of_supply: "India",
+        place_of_supply: "Tamil Nadu (33)",
         items: calculatedItems,
         subtotal: subtotal,
         tax_amount: totalCgst + totalSgst,
@@ -301,10 +400,10 @@ export default function InvoiceDocumentModal({
         discount_amount: parsedDiscount,
         round_up: Number(roundUpFormatted),
         grand_total: grandTotal,
-        canvasser_id: canvasserId || currentUser?.id,
-        canvasser_name: canvasserName || currentUser?.name || 'Canvasser',
+        canvasser_id: canvasserId ? Number(canvasserId) : (currentUser?.id || 99),
+        canvasser_name: canvasserName || currentUser?.name || 'Refrens Import',
         visit_id: data?.visit_id || data?.id,
-        tags: data?.tags || []
+        tags: data?.tags || (data?.id?.startsWith('A') ? ['Refrens Import'] : [])
       };
 
       const isExistingEdit = formMode === 'edit' && !!data?.id;
@@ -313,19 +412,19 @@ export default function InvoiceDocumentModal({
         if (isExistingEdit) {
           await mockApi.updateQuotation(data.id, payload);
         } else {
-          await mockApi.addQuotation(payload, currentUser?.id, currentUser?.name);
+          await mockApi.addQuotation(payload, payload.canvasser_id, payload.canvasser_name);
         }
       } else if (isProformaType) {
         if (isExistingEdit) {
           await mockApi.updateProformaInvoice(data.id, payload);
         } else {
-          await mockApi.addProformaInvoice(payload, currentUser?.id, currentUser?.name);
+          await mockApi.addProformaInvoice(payload, payload.canvasser_id, payload.canvasser_name);
         }
       } else {
         if (isExistingEdit) {
           await mockApi.updateInvoice(data.id, payload);
         } else {
-          await mockApi.addInvoice(payload, currentUser?.id, currentUser?.name);
+          await mockApi.addInvoice(payload, payload.canvasser_id, payload.canvasser_name);
         }
       }
 
@@ -334,13 +433,13 @@ export default function InvoiceDocumentModal({
       }
       onClose();
     } catch (err) {
-      setDocError(err.message || "Failed to save document");
+      setDocError(err.message || "Failed to save document. Please verify all fields.");
     } finally {
       setSaving(false);
     }
   };
 
-  // High-Fidelity Isolated Print: Injects all styles to guarantee exact identical layout without collapsing
+  // High-Fidelity Isolated Print
   const handlePrint = () => {
     const printableEl = document.getElementById('printable-invoice');
     if (!printableEl) return;
@@ -357,19 +456,16 @@ export default function InvoiceDocumentModal({
     const pri = iframe.contentWindow;
     pri.document.open();
 
-    // Grab all stylesheet and style links from head
     let styleElements = '';
     document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
       styleElements += node.outerHTML + '\n';
     });
 
-    const origin = window.location.origin;
-
     pri.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${docTypeTitle} - ${docNumber}</title>
+          <title>${docTypeTitle} - ${docNumber || 'Commercial Document'}</title>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -378,7 +474,7 @@ export default function InvoiceDocumentModal({
           <style>
             @page {
               size: A4 portrait;
-              margin: 0 !important; /* Strips standard browser URL, timestamp & headers */
+              margin: 0 !important;
             }
             *, *::before, *::after {
               box-sizing: border-box !important;
@@ -390,7 +486,6 @@ export default function InvoiceDocumentModal({
               width: 210mm !important;
               height: 297mm !important;
               min-height: 297mm !important;
-              max-height: 297mm !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
@@ -398,36 +493,21 @@ export default function InvoiceDocumentModal({
               font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
               font-size: 11px !important;
               line-height: 1.4 !important;
-              overflow: hidden !important;
             }
             #printable-invoice {
               width: 210mm !important;
-              height: 297mm !important;
               min-height: 297mm !important;
-              max-height: 297mm !important;
               padding: 16mm 18mm 14mm 18mm !important;
-              margin: 0 !important;
               box-sizing: border-box !important;
-              box-shadow: none !important;
-              border: none !important;
               background: #ffffff !important;
               position: relative !important;
               display: flex !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              page-break-inside: avoid !important;
-              page-break-after: avoid !important;
             }
             table {
               width: 100% !important;
               border-collapse: collapse !important;
-            }
-            th, td {
-              font-size: 10.5px !important;
-            }
-            .bg-\\[\\#38bdf8\\] {
-              background-color: #38bdf8 !important;
-              color: #ffffff !important;
             }
           </style>
         </head>
@@ -438,7 +518,6 @@ export default function InvoiceDocumentModal({
     `);
     pri.document.close();
 
-    // Ensure all images are fully loaded before printing
     const images = pri.document.images;
     const imagePromises = Array.from(images).map(img => {
       if (img.complete) return Promise.resolve();
@@ -464,455 +543,764 @@ export default function InvoiceDocumentModal({
   const modalContent = (
     <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 w-screen h-screen z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
 
-      {/* Outer Shell */}
-      <div className="bg-[#121319] border border-white/20 rounded-3xl max-w-5xl w-full max-h-[96vh] flex flex-col shadow-2xl overflow-hidden my-auto text-slate-900">
+      {/* Main Container Shell */}
+      <div className="bg-[#101118] border border-white/15 rounded-3xl w-full max-w-[96vw] 2xl:max-w-[1440px] xl:max-w-[1360px] lg:max-w-6xl h-[90vh] sm:h-[91.5vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto text-slate-100">
 
-        {/* Top Control Bar (Screen Only - Hidden in Print) */}
-        <div className="p-4 bg-slate-950 border-b border-white/10 flex flex-wrap items-center justify-between text-white gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xs">
-              ME
+        {/* ── Top Navigation & Refrens Progress Bar ──────────────────────────── */}
+        <div className="p-3.5 sm:p-4 bg-[#14151f] border-b border-white/10 flex items-center justify-between gap-4 flex-nowrap shrink-0 overflow-x-auto">
+          {/* Left Title & Status */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+              isQuoteType ? 'bg-amber-400 text-black shadow-md shadow-amber-400/20' :
+              isProformaType ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20' :
+              'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+            }`}>
+              {isQuoteType ? 'QT' : isProformaType ? 'PI' : 'INV'}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  {docTypeTitle} {previewTab ? "Preview & Print" : "Editor"}
-                </h2>
-                <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">
-                  {docNumber || 'NEW'}
-                </span>
+                <span className="text-xs text-gray-400 font-medium">Create New Document</span>
+                <span className="text-gray-600 font-bold">›</span>
+                <span className="text-xs font-black text-white uppercase tracking-wider">{docTypeTitle}</span>
+                {docNumber && (
+                  <span className="text-[10px] bg-white/10 text-amber-300 border border-white/10 px-2 py-0.5 rounded-full font-mono font-bold">
+                    {docNumber}
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-gray-400">Murugan Enterprises Standard Template • Matching Official Format</p>
+              <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                <span className={`inline-flex items-center gap-1 font-bold ${
+                  isQuoteType ? 'text-amber-400' : isProformaType ? 'text-purple-400' : 'text-blue-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    isQuoteType ? 'bg-amber-400' : isProformaType ? 'bg-purple-400' : 'bg-blue-400'
+                  }`} /> Step 1: Add Details
+                </span>
+                <span>•</span>
+                <span>Step 2: Review & Save</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {formMode === 'create' && (
-              <div className="flex items-center bg-white/10 p-1 rounded-xl border border-white/10 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab(false)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer",
-                    !previewTab ? "bg-amber-400 text-black shadow-md shadow-amber-400/20" : "text-gray-300 hover:text-white"
-                  )}
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit Parameters</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab(true)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer",
-                    previewTab ? "bg-amber-400 text-black shadow-md shadow-amber-400/20" : "text-gray-300 hover:text-white"
-                  )}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Exact Preview</span>
-                </button>
-              </div>
-            )}
+          {/* Document Type Selector Switcher Pills */}
+          <div className="flex items-center bg-black/40 p-1 rounded-2xl border border-white/10 text-xs shrink-0">
+            <button
+              type="button"
+              onClick={() => handleSwitchCategory('quote')}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
+                isQuoteType ? "bg-amber-400 text-black shadow-md shadow-amber-400/20 font-black" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Quotation</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchCategory('proforma')}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
+                isProformaType ? "bg-purple-500 text-white shadow-md shadow-purple-500/20 font-black" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Proforma</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchCategory('invoice')}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
+                isInvoiceType ? "bg-blue-500 text-white shadow-md shadow-blue-500/20 font-black" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Tax Invoice</span>
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPreviewTab(!previewTab)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border whitespace-nowrap",
+                previewTab
+                  ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                  : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
+              )}
+            >
+              {previewTab ? <Edit2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{previewTab ? "Back to Refrens Editor" : "Exact Print Preview"}</span>
+            </button>
 
             {previewTab && (
               <button
+                type="button"
                 onClick={handlePrint}
-                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition cursor-pointer"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition cursor-pointer whitespace-nowrap"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Print Document</span>
-              </button>
-            )}
-
-            {formMode === 'create' && (
-              <button
-                onClick={handleSaveDocument}
-                disabled={saving}
-                className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/30 transition cursor-pointer"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{saving ? 'Saving...' : `Save ${isQuoteType ? 'Quotation' : 'Invoice'}`}</span>
+                <span>Print PDF</span>
               </button>
             )}
 
             <button
+              type="button"
+              onClick={handleSaveDocument}
+              disabled={saving}
+              className={`px-4 py-1.5 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg transition cursor-pointer whitespace-nowrap ${
+                isQuoteType ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-400/20' :
+                isProformaType ? 'bg-purple-500 hover:bg-purple-400 text-white shadow-purple-500/20' :
+                'bg-blue-500 hover:bg-blue-400 text-white shadow-blue-500/20'
+              }`}
+            >
+              {saving ? (
+                <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              )}
+              <span>{saving ? 'Saving...' : `Save ${isQuoteType ? 'Quotation' : isProformaType ? 'Proforma' : 'Tax Invoice'}`}</span>
+            </button>
+
+            <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition cursor-pointer"
+              className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition cursor-pointer shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-900/90 flex justify-center">
+        {/* Scrollable Canvas Body */}
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-5 bg-[#0c0d13] flex justify-center">
 
-          {/* TAB 1: PARAMETERS FORM EDITOR */}
-          {!previewTab && formMode === 'create' && (
-            <div className="w-full max-w-4xl bg-gradient-to-b from-[#181924] to-[#12131a] border border-white/15 rounded-3xl p-5 sm:p-7 text-white space-y-6 shadow-2xl">
-              <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>{docTypeTitle} Parameters & Line Items</span>
-                  </h3>
-                  <p className="text-xs text-gray-400 mt-0.5">All details entered here map directly to the official printed commercial format</p>
-                </div>
-                <div className="text-right bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-2xl">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block">Document Total</span>
-                  <span className="text-sm font-black text-amber-400 font-mono">₹{grandTotal.toLocaleString('en-IN')}.00</span>
-                </div>
-              </div>
+          {/* ════════════════════════════════════════════════════════════════════
+              MODE 1: REFRENS-STYLED INTERACTIVE DOCUMENT CANVAS EDITOR
+             ════════════════════════════════════════════════════════════════════ */}
+          {!previewTab && (
+            <div className="w-full max-w-6xl xl:max-w-[1240px] bg-[#14151f] border border-white/10 rounded-3xl p-4 sm:p-6 md:p-7 space-y-4 sm:space-y-5 shadow-2xl relative">
 
-              {/* In-Modal Error Alert Banner */}
+              {/* Error Alert */}
               {docError && (
-                <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-                  <div className="flex-1 font-medium leading-relaxed">{docError}</div>
-                  <button
-                    type="button"
-                    onClick={() => setDocError(null)}
-                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
-                  >
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-between text-rose-300 text-xs shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{docError}</span>
+                  </div>
+                  <button onClick={() => setDocError(null)} className="text-rose-400 hover:text-white">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
-              {/* Document Meta Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Document Title</label>
-                  <input
-                    type="text"
-                    value={docTypeTitle}
-                    onChange={(e) => setDocTypeTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
+              {/* ── 1. Document Title & Company Logo Header Row ──────────────── */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-white/10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    {isEditingTitle ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={docTypeTitle}
+                        onBlur={() => setIsEditingTitle(false)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setIsEditingTitle(false); }}
+                        onChange={(e) => setDocTypeTitle(e.target.value)}
+                        className="text-2xl sm:text-3xl font-black bg-black/60 border border-amber-400/50 rounded-xl px-3 py-1 text-white focus:outline-none"
+                      />
+                    ) : (
+                      <h1
+                        onClick={() => setIsEditingTitle(true)}
+                        className="text-2xl sm:text-3xl font-black text-white hover:text-amber-300 cursor-pointer flex items-center gap-2 group transition-colors tracking-tight"
+                      >
+                        <span>{docTypeTitle}</span>
+                        <Edit2 className="w-4 h-4 text-gray-500 group-hover:text-amber-400 transition-colors" />
+                      </h1>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="+ Add Subtitle (e.g. Bulk Manufacturing Estimate)"
+                      value={docSubtitle}
+                      onChange={(e) => setDocSubtitle(e.target.value)}
+                      className="text-xs text-gray-400 hover:text-white placeholder-gray-600 bg-transparent focus:bg-black/40 border border-transparent focus:border-white/10 rounded px-2 py-0.5 focus:outline-none transition-all w-64 sm:w-80"
+                    />
+                  </div>
                 </div>
+
+                {/* Murugan Enterprises Brand Badge (Refrens style logo box) */}
+                <div className="flex items-center gap-3 bg-black/40 border border-white/10 p-2.5 rounded-2xl shadow-inner">
+                  <img
+                    src="/assets/murugan_logo.png"
+                    alt="Murugan Enterprises"
+                    className="w-12 h-12 rounded-xl object-contain bg-white/5 border border-white/10"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                  <div>
+                    <div className="text-xs font-black text-white tracking-wide">MURUGAN ENTERPRISES</div>
+                    <div className="text-[10px] text-amber-400 font-bold">Apparel & Footwear Mfr.</div>
+                    <div className="text-[9px] text-gray-400">Alwarkurichi, Tamil Nadu</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 2. Top Metadata (Number, Date, Valid Till / Due Date) ─────── */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-black/30 border border-white/5 p-4 rounded-2xl">
                 <div>
-                  <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Quotation Number' : 'Invoice Number'}</label>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1">
+                    {isQuoteType ? 'Quotation No*' : isProformaType ? 'Proforma Invoice No*' : 'Invoice No*'}
+                  </label>
                   <input
                     type="text"
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
-                    placeholder="Enter document number"
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+                    placeholder={isQuoteType ? "ME-QTN-26-27/0025 (Auto-assigned)" : isProformaType ? "ME-PR-INV-26-27/0025 (Auto-assigned)" : "ME-TX-INV-26-27/0025 (Auto-assigned)"}
+                    className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
                   />
+                  <span className="text-[9px] text-gray-500 mt-0.5 block">
+                    Leave blank to auto-generate next sequential company ID
+                  </span>
                 </div>
 
-                {/* Searchable School Dropdown with Master DB Autofill */}
-                <div className="relative" ref={schoolDropdownRef}>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-gray-300 font-bold">School / Institution (Billed To) *</label>
-                    {matchingSchools.length > 0 && showSchoolDropdown && (
-                      <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> {matchingSchools.length} in Master DB
-                      </span>
-                    )}
-                  </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1">
+                    {isQuoteType ? 'Quotation Date*' : isProformaType ? 'Proforma Date*' : 'Invoice Date*'}
+                  </label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={schoolName}
-                      onChange={(e) => {
-                        setSchoolName(e.target.value);
-                        setShowSchoolDropdown(true);
-                      }}
-                      onFocus={() => {
-                        if (schoolName && schoolName.trim().length >= 2) {
-                          setShowSchoolDropdown(true);
-                        }
-                      }}
-                      placeholder="Type school name to search Master DB..."
-                      className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-bold pr-8"
-                    />
-                    <Search className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-
-                  {/* Autocomplete Dropdown List */}
-                  {showSchoolDropdown && matchingSchools.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#14151c] border border-amber-500/30 rounded-2xl shadow-2xl z-[100] max-h-56 overflow-y-auto divide-y divide-white/5 backdrop-blur-xl">
-                      <div className="p-2 bg-amber-500/10 border-b border-white/5 flex items-center justify-between text-[10px] text-amber-300 font-bold px-3">
-                        <span>⚡ AUTOFILL FROM MASTER DB</span>
-                        <span className="text-gray-400 font-normal">Click to fill details</span>
-                      </div>
-                      {matchingSchools.map(school => (
-                        <div
-                          key={school.id}
-                          onMouseDown={() => handleSelectMasterSchool(school)}
-                          className="p-2.5 px-3 hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between text-xs"
-                        >
-                          <div className="space-y-0.5">
-                            <p className="font-bold text-white text-xs flex items-center gap-1.5">
-                              {school.school_name}
-                              {school.board && (
-                                <span className="text-[10px] text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 rounded font-mono">
-                                  {school.board}
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-[11px] text-gray-400">
-                              {school.district} {school.area ? `• ${school.area}` : ''} {school.block_or_cluster ? `(${school.block_or_cluster})` : ''}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-mono text-gray-500 shrink-0 ml-2">{school.id}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Billing Street Address</label>
-                  <textarea
-                    rows="2"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Enter street, road, or area address"
-                    className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">District, State & PIN</label>
-                  <input
-                    type="text"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="District, State, PIN Code"
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Quote Date' : 'Invoice Date'}</label>
                     <input
                       type="text"
                       value={docDate}
                       onChange={(e) => setDocDate(e.target.value)}
-                      placeholder="e.g. Aug 24, 2026"
-                      className="w-full px-2.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      placeholder="Oct 24, 2026"
+                      className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400 pr-8"
                     />
+                    <Calendar className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
-                  <div>
-                    <label className="block text-gray-300 font-bold mb-1">{isQuoteType ? 'Valid Till' : 'Due Date'}</label>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1">
+                    {isQuoteType ? 'Valid Till*' : 'Payment Due Date*'}
+                  </label>
+                  <div className="relative">
                     <input
                       type="text"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      placeholder="e.g. Sep 08, 2026"
-                      className="w-full px-2.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      placeholder="Nov 08, 2026"
+                      className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400 pr-8"
                     />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Contact Person</label>
-                  <input
-                    type="text"
-                    value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
-                    placeholder="Principal / Admin Name"
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Contact Phone</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Phone number"
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-[11px] text-amber-300 flex items-center gap-2">
-                    <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                    <span>All fields can be manually adjusted anytime.</span>
+                    <Calendar className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
               </div>
 
-              {/* Line Items Editor with Dedicated Column Headers including HSN/SAC */}
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase tracking-wider">Product Line Items ({items.length})</h4>
-                    <p className="text-[11px] text-gray-400">All fields (including HSN, Size, GST Rate, and Unit) are fully editable</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-black rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Line Item</span>
-                  </button>
-                </div>
+              {/* ── 3. Billed By & Billed To Cards (Refrens Side-by-Side) ─────── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
-                {/* Table Header Row */}
-                <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 bg-black/40 border border-white/5 rounded-xl text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  <div className="col-span-1 text-center">#</div>
-                  <div className="col-span-4">Item Description</div>
-                  <div className="col-span-2">HSN Code</div>
-                  <div className="col-span-1 text-center">Size</div>
-                  <div className="col-span-1 text-center">GST %</div>
-                  <div className="col-span-1 text-right">Qty</div>
-                  <div className="col-span-1 text-right">Rate (₹)</div>
-                  <div className="col-span-1 text-center">Action</div>
-                </div>
+                {/* CARD 1: BILLED BY (MURUGAN ENTERPRISES) */}
+                <div className="bg-black/30 border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="border-b border-white/10 pb-1.5">
+                      <h3 className="text-xs font-black text-gray-300 uppercase tracking-wider border-b-2 border-dashed border-amber-400/40 inline-block pb-0.5">
+                        Billed By (Your Details)
+                      </h3>
+                    </div>
 
-                {/* Line Item Rows */}
-                <div className="space-y-2.5">
-                  {items.map((item, idx) => {
-                    const itemAmt = (Number(item.quantity) || 0) * (Number(item.unit_rate) || 0);
-                    return (
-                      <div key={idx} className="p-3 bg-black/40 border border-white/10 hover:border-amber-500/30 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center text-xs transition-all">
-                        <div className="sm:col-span-1 text-left sm:text-center font-mono font-bold text-amber-400">
-                          #{idx + 1}
+                    <div className="space-y-1.5 text-xs text-gray-300 pt-0.5">
+                      <div className="font-black text-white text-sm">MURUGAN ENTERPRISES</div>
+                      <p className="text-gray-400 text-[11px] leading-relaxed">
+                        36/4, Ambasamudram to Tenkasi main road, ALWARKURICHI, Tamil Nadu, India - 627412
+                      </p>
+                      <div className="pt-1 space-y-1 text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-12 font-medium">GSTIN:</span>
+                          <span className="font-mono font-bold text-gray-200">33KRQPS8169P1ZE</span>
                         </div>
-
-                        {/* Item Description */}
-                        <div className="sm:col-span-4 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">Item Description:</span>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Item name / description"
-                            value={item.name}
-                            onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                            className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-medium"
-                          />
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-12 font-medium">PAN:</span>
+                          <span className="font-mono font-bold text-gray-200">KRQPS8169P</span>
                         </div>
-
-                        {/* HSN Code Input */}
-                        <div className="sm:col-span-2 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">HSN Code:</span>
-                          <input
-                            type="text"
-                            placeholder="HSN Code"
-                            value={item.hsn}
-                            onChange={(e) => handleItemChange(idx, 'hsn', e.target.value)}
-                            className="w-full px-2.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-center focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-
-                        {/* Size */}
-                        <div className="sm:col-span-1 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">Size:</span>
-                          <input
-                            type="text"
-                            placeholder="-"
-                            value={item.size}
-                            onChange={(e) => handleItemChange(idx, 'size', e.target.value)}
-                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs text-center focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-
-                        {/* GST Rate */}
-                        <div className="sm:col-span-1 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">GST %:</span>
-                          <input
-                            type="number"
-                            placeholder="5"
-                            value={item.gst_rate}
-                            onChange={(e) => handleItemChange(idx, 'gst_rate', Number(e.target.value) || 0)}
-                            className="w-full px-1.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs text-center font-mono focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-
-                        {/* Quantity */}
-                        <div className="sm:col-span-1 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">Quantity:</span>
-                          <input
-                            type="number"
-                            placeholder="1"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-right focus:outline-none focus:border-amber-400 font-bold"
-                          />
-                        </div>
-
-                        {/* Unit Rate */}
-                        <div className="sm:col-span-1 space-y-1">
-                          <span className="sm:hidden text-[10px] text-gray-400 block">Rate (₹):</span>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={item.unit_rate}
-                            onChange={(e) => handleItemChange(idx, 'unit_rate', e.target.value)}
-                            className="w-full px-2 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono text-right focus:outline-none focus:border-amber-400 font-bold text-amber-300"
-                          />
-                        </div>
-
-                        {/* Delete Action & Mobile Subtotal */}
-                        <div className="sm:col-span-1 flex items-center justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
-                          <span className="sm:hidden text-xs font-mono font-bold text-emerald-400">
-                            Subtotal: ₹{itemAmt.toLocaleString('en-IN')}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={items.length <= 1}
-                            onClick={() => handleRemoveItem(idx)}
-                            className="p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-20 transition cursor-pointer"
-                            title="Delete Line Item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-12 font-medium">Phone:</span>
+                          <span className="font-mono text-gray-200">+91 90252 68869</span>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 mt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-400">
+                    <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Verified Business Entity
+                    </span>
+                    <span className="font-mono text-gray-500">State Code: 33 (TN)</span>
+                  </div>
+                </div>
+
+                {/* CARD 2: BILLED TO (CLIENT DETAILS + CANVASSER FIELD) */}
+                <div className="bg-black/30 border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="border-b border-white/10 pb-1.5 flex items-center justify-between">
+                      <h3 className="text-xs font-black text-gray-300 uppercase tracking-wider border-b-2 border-dashed border-purple-400/40 inline-block pb-0.5">
+                        Billed To (Client's Details)
+                      </h3>
+                      <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Master DB Connected
+                      </span>
+                    </div>
+
+                    {/* Searchable School Dropdown */}
+                    <div className="relative" ref={schoolDropdownRef}>
+                      <label className="block text-[11px] font-bold text-gray-400 mb-1">Select Client / Institution *</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          value={schoolName}
+                          onChange={(e) => {
+                            setSchoolName(e.target.value);
+                            setShowSchoolDropdown(true);
+                          }}
+                          onFocus={() => {
+                            if (schoolName && schoolName.trim().length >= 2) {
+                              setShowSchoolDropdown(true);
+                            }
+                          }}
+                          placeholder="Search institution name in Master DB..."
+                          className="w-full px-3 py-1.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-amber-400 pr-8"
+                        />
+                        <Search className="w-3.5 h-3.5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+
+                      {/* Autocomplete Dropdown */}
+                      {showSchoolDropdown && matchingSchools.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#161722] border border-amber-500/40 rounded-2xl shadow-2xl z-[100] max-h-52 overflow-y-auto divide-y divide-white/5 backdrop-blur-xl">
+                          <div className="p-2 bg-amber-500/10 border-b border-white/5 flex items-center justify-between text-[10px] text-amber-300 font-bold px-3">
+                            <span>⚡ AUTOFILL CLIENT</span>
+                            <span className="text-gray-400 font-normal">Click to apply</span>
+                          </div>
+                          {matchingSchools.map(school => (
+                            <div
+                              key={school.id}
+                              onMouseDown={() => handleSelectMasterSchool(school)}
+                              className="p-2.5 px-3 hover:bg-white/10 cursor-pointer transition-colors text-xs flex justify-between items-center"
+                            >
+                              <div>
+                                <div className="font-bold text-white uppercase">{school.school_name}</div>
+                                <div className="text-[10px] text-gray-400">{school.district} • {school.area || school.block_or_cluster || ''}</div>
+                              </div>
+                              <span className="text-[10px] font-mono text-gray-500">{school.id}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Client Address & Contact Fields */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <input
+                          type="text"
+                          value={contactPerson}
+                          onChange={(e) => setContactPerson(e.target.value)}
+                          placeholder="Contact Person (Principal)"
+                          className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-white text-[11px] focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Phone Number"
+                          className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-white text-[11px] font-mono focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-xs">
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Street / Area Address"
+                        className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-white text-[11px] focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ── CANVASSER FIELD (CREDITED FOR TEAM LEADERBOARD) ────── */}
+                  <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Canvasser (Credited for Team Leaderboard)*</span>
+                      </label>
+                      <span className="text-[9px] text-gray-400">Team Commission Link</span>
+                    </div>
+
+                    <select
+                      value={canvasserId}
+                      onChange={handleCanvasserChange}
+                      className="w-full px-3 py-1.5 bg-black/80 border border-amber-400/40 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="99">Unassigned / Refrens Import (System Historical Data)</option>
+                      {availableUsers
+                        .filter(u => u.status === 'ACTIVE' || !u.status)
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.role_title || u.role || 'Sales Rep'})
+                          </option>
+                        ))}
+                    </select>
+
+                    <div className="text-[10px] text-gray-400 flex items-center gap-1.5 leading-tight pt-0.5">
+                      <span className="text-emerald-400 font-bold shrink-0">✓</span>
+                      <span>Assigned to <strong className="text-white">{canvasserName || 'Canvasser'}</strong>. Revenue & won orders will count toward their leaderboard score.</span>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* ── 4. Refrens Style Currency & Column Toolbar ────────────────── */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white/[0.02] border border-white/5 px-4 py-2 rounded-2xl text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-gray-400 font-bold text-[11px]">
+                    <Percent className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Default GST Rate: <strong className="text-white">5% (CGST 2.5% + SGST 2.5%)</strong></span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-gray-400 text-[11px]">
+                  <span>Currency:</span>
+                  <span className="px-2.5 py-1 bg-black/40 border border-white/10 rounded-lg text-white font-mono font-bold">
+                    Indian Rupee (INR, ₹)
+                  </span>
                 </div>
               </div>
 
-              {/* Adjustments */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-white/10 text-xs">
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Extra Charges (₹)</label>
-                  <input
-                    type="number"
-                    value={extraCharges}
-                    onChange={(e) => setExtraCharges(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
-                  />
+              {/* ── 5. Refrens Line Items Table ──────────────────────────────── */}
+              <div className="space-y-3">
+                <div className="overflow-x-auto rounded-2xl border border-white/10">
+                  <table className="w-full text-left text-xs border-collapse min-w-[760px]">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-purple-900/60 to-indigo-900/60 text-white font-black uppercase text-[10px] tracking-wider border-b border-white/10">
+                        <th className="py-2.5 px-2 text-center w-8">#</th>
+                        <th className="py-2.5 px-3 min-w-[180px]">Item Name / SKU Id</th>
+                        <th className="py-2.5 px-2 w-16 text-center">Size</th>
+                        <th className="py-2.5 px-2 w-20 text-center">HSN/SAC</th>
+                        <th className="py-2.5 px-2 w-16 text-center">GST %</th>
+                        <th className="py-2.5 px-2 w-16 text-center">Qty</th>
+                        <th className="py-2.5 px-2 w-16 text-center">Unit</th>
+                        <th className="py-2.5 px-2 w-20 text-right">Rate (₹)</th>
+                        <th className="py-2.5 px-2 w-20 text-right">Amount (₹)</th>
+                        <th className="py-2.5 px-2 w-16 text-right">CGST</th>
+                        <th className="py-2.5 px-2 w-16 text-right">SGST</th>
+                        <th className="py-2.5 px-2 w-24 text-right">Total (₹)</th>
+                        <th className="py-2.5 px-2 w-8 text-center"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 bg-black/20">
+                      {calculatedItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-2.5 px-2 text-center text-gray-500 font-mono text-[11px] font-bold">
+                            {idx + 1}.
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                              placeholder="e.g. Socks (Combed Cotton)"
+                              className="w-full px-2 py-1 bg-black/60 border border-white/10 rounded-lg text-white text-xs font-bold focus:outline-none focus:border-amber-400"
+                            />
+                          </td>
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.size}
+                              onChange={(e) => handleItemChange(idx, 'size', e.target.value)}
+                              placeholder="-"
+                              className="w-full px-1.5 py-1 bg-black/60 border border-white/10 rounded-lg text-white text-center text-xs font-mono focus:outline-none focus:border-amber-400"
+                            />
+                          </td>
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.hsn}
+                              onChange={(e) => handleItemChange(idx, 'hsn', e.target.value)}
+                              placeholder="611595"
+                              className="w-full px-1.5 py-1 bg-black/60 border border-white/10 rounded-lg text-white text-center text-xs font-mono focus:outline-none focus:border-amber-400"
+                            />
+                          </td>
+                          <td className="py-2 px-1">
+                            <select
+                              value={item.gst_rate}
+                              onChange={(e) => handleItemChange(idx, 'gst_rate', Number(e.target.value))}
+                              className="w-full px-1 py-1 bg-black/80 border border-white/10 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                            >
+                              <option value="0">0%</option>
+                              <option value="5">5%</option>
+                              <option value="12">12%</option>
+                              <option value="18">18%</option>
+                            </select>
+                          </td>
+                          <td className="py-2 px-1">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value))}
+                              className="w-full px-1 py-1 bg-black/60 border border-white/10 rounded-lg text-white text-center text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
+                            />
+                          </td>
+                          <td className="py-2 px-1">
+                            <select
+                              value={item.unit}
+                              onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
+                              className="w-full px-1 py-1 bg-black/80 border border-white/10 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                            >
+                              <option value="prs">prs</option>
+                              <option value="pcs">pcs</option>
+                              <option value="box">box</option>
+                              <option value="set">set</option>
+                              <option value="mtr">mtr</option>
+                              <option value="units">units</option>
+                            </select>
+                          </td>
+                          <td className="py-2 px-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.unit_rate}
+                              onChange={(e) => handleItemChange(idx, 'unit_rate', Number(e.target.value))}
+                              className="w-full px-2 py-1 bg-black/60 border border-white/10 rounded-lg text-white text-right text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
+                            />
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-gray-300 text-xs">
+                            ₹{item.amount.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-gray-400 text-[11px]">
+                            ₹{item.cgst.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-gray-400 text-[11px]">
+                            ₹{item.sgst.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono font-black text-amber-300 text-xs">
+                            ₹{item.total.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-2 text-center">
+                            <button
+                              type="button"
+                              disabled={items.length <= 1}
+                              onClick={() => handleRemoveItem(idx)}
+                              className="p-1 rounded-lg text-gray-500 hover:text-rose-400 disabled:opacity-20 transition cursor-pointer"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Delivery Charges (₹)</label>
-                  <input
-                    type="number"
-                    value={deliveryCharges}
-                    onChange={(e) => setDeliveryCharges(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-300 font-bold mb-1">Discounts (₹)</label>
-                  <input
-                    type="number"
-                    value={discountAmount}
-                    onChange={(e) => setDiscountAmount(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none text-emerald-400 focus:border-emerald-400"
-                  />
-                </div>
-              </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                {/* Refrens Add Line Button */}
                 <button
                   type="button"
-                  onClick={() => setPreviewTab(true)}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer"
+                  onClick={handleAddItem}
+                  className="w-full py-2.5 border-2 border-dashed border-purple-500/30 hover:border-purple-400/60 rounded-2xl text-purple-300 hover:text-white hover:bg-purple-500/10 transition-all font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
-                  <Eye className="w-4 h-4" />
-                  <span>Preview Exact Commercial Output</span>
+                  <Plus className="w-4 h-4 text-purple-400" />
+                  <span>+ Add New Line Item</span>
                 </button>
               </div>
+
+              {/* ── 6. Bottom Columns: Bank / UPI / Terms (Left) & Totals (Right) ─ */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
+
+                {/* LEFT COLUMN: BANK, UPI & TERMS (7 cols) */}
+                <div className="md:col-span-7 space-y-4">
+
+                  {/* Bank Account Details Card */}
+                  <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                      <span className="text-[11px] font-black text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Show Bank Account Details (NEFT / IMPS)</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-bold">Active Primary</span>
+                    </div>
+                    <div className="text-xs space-y-1 text-gray-300">
+                      <div className="font-bold text-white">MURUGAN ENTERPRISES</div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>Bank: <strong className="text-white">State Bank of India</strong></div>
+                        <div>Acc No: <strong className="text-white font-mono">44909857955</strong></div>
+                        <div>IFSC: <strong className="text-white font-mono">SBIN0002189</strong></div>
+                        <div>Branch: <strong className="text-white">Alwarkurichi</strong></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* UPI Details Card */}
+                  <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                      <span className="text-[11px] font-black text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <DollarSign className="w-3.5 h-3.5 text-purple-400" />
+                        <span>UPI Payment Address</span>
+                      </span>
+                      <span className="text-[10px] text-purple-300">GPay, PhonePe, Paytm</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">Merchant VPA:</span>
+                      <span className="font-mono font-bold text-amber-300 px-2 py-0.5 bg-black/60 rounded-md border border-white/10">
+                        9025268869@sbi
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Terms and Conditions Card (Matching Refrens Screenshot) */}
+                  <div className="bg-black/30 border border-white/10 rounded-2xl p-4 space-y-2.5">
+                    <div className="border-b border-white/10 pb-1.5">
+                      <span className="text-[11px] font-black text-gray-300 uppercase tracking-wider border-b-2 border-dashed border-amber-400/40 inline-block pb-0.5">
+                        Terms and Conditions
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 text-[10.5px] text-gray-300 leading-relaxed">
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-amber-400 font-mono">01</span>
+                        <span>Delivery charges are additional and will be charged as per distance and logistics.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-amber-400 font-mono">02</span>
+                        <span>50% of the document value must be paid in advance before dispatch of goods.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-amber-400 font-mono">03</span>
+                        <span>The remaining 50% balance is payable at the time of delivery / before unloading.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-amber-400 font-mono">04</span>
+                        <span>Goods will be dispatched only after receipt of advance payment.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-amber-400 font-mono">05</span>
+                        <span>Any delay in payment may attract delivery hold or extra logistics charges.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* RIGHT COLUMN: FINANCIAL TOTALS BREAKDOWN (5 cols) */}
+                <div className="md:col-span-5 bg-black/40 border border-white/10 rounded-2xl p-5 space-y-3.5 flex flex-col justify-between">
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex justify-between items-center text-gray-400">
+                      <span>Amount (Subtotal)</span>
+                      <span className="font-mono font-bold text-white text-sm">{formatINR(subtotal)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-gray-400 text-[11px]">
+                      <span>GST Breakdown</span>
+                      <span className="font-mono text-gray-300">CGST {formatINR(totalCgst)} + SGST {formatINR(totalSgst)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-gray-400 pt-1 border-t border-white/5">
+                      <span>Discounts (₹)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={discountAmount}
+                        onChange={(e) => setDiscountAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-28 px-2 py-1 bg-black/80 border border-white/10 rounded-lg text-right font-mono text-emerald-400 font-bold focus:outline-none focus:border-emerald-400 text-xs"
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-gray-400">
+                      <span>Extra Charges (₹)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={extraCharges}
+                        onChange={(e) => setExtraCharges(e.target.value)}
+                        placeholder="0"
+                        className="w-28 px-2 py-1 bg-black/80 border border-white/10 rounded-lg text-right font-mono text-white focus:outline-none focus:border-amber-400 text-xs"
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-gray-400">
+                      <span>Delivery Charges (₹)</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={deliveryCharges}
+                        onChange={(e) => setDeliveryCharges(e.target.value)}
+                        placeholder="0"
+                        className="w-28 px-2 py-1 bg-black/80 border border-white/10 rounded-lg text-right font-mono text-white focus:outline-none focus:border-amber-400 text-xs"
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-gray-400 text-[10px]">
+                      <span>Round Up / Adjustment</span>
+                      <span className="font-mono text-gray-400">{roundUpVal < 0 ? `-₹${roundUpFormatted}` : `₹${roundUpFormatted}`}</span>
+                    </div>
+
+                    {/* BIG TOTAL BOX */}
+                    <div className="pt-3 border-t border-white/15">
+                      <div className="flex justify-between items-center bg-gradient-to-r from-amber-400/10 to-yellow-500/10 border-2 border-amber-400/40 p-3.5 rounded-2xl shadow-inner">
+                        <span className="font-black text-xs text-amber-300 uppercase tracking-wider">Total (INR)</span>
+                        <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono tracking-tight">
+                          {formatINR(grandTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Total in words box */}
+                    <div className="p-2.5 bg-black/50 border border-white/5 rounded-xl space-y-0.5">
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total in Words</div>
+                      <div className="text-[11px] font-bold text-gray-300 italic leading-snug">
+                        {numberToWordsIndian(grandTotal)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Bottom Action Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveDocument}
+                      disabled={saving}
+                      className={`w-full py-3 font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer ${
+                        isQuoteType ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-400/20' :
+                        isProformaType ? 'bg-purple-500 hover:bg-purple-400 text-white shadow-purple-500/20' :
+                        'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-400/20'
+                      }`}
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
+                      <span>{saving ? 'Saving...' : `Save & Confirm ${isQuoteType ? 'Quotation' : isProformaType ? 'Proforma' : 'Tax Invoice'}`}</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
           )}
 
-          {/* TAB 2: EXACT MATCHING PRINTABLE COMMERCIAL DOCUMENT */}
+          {/* ════════════════════════════════════════════════════════════════════
+              MODE 2: EXACT PRINTABLE A4 COMMERCIAL OUTPUT
+             ════════════════════════════════════════════════════════════════════ */}
           {previewTab && (
             <div
               ref={printRef}
@@ -920,9 +1308,9 @@ export default function InvoiceDocumentModal({
               className="w-full max-w-[850px] bg-white text-[#1e293b] shadow-2xl p-8 sm:p-12 relative text-[11px] leading-relaxed font-sans border border-slate-200 min-h-[1100px] flex flex-col justify-between"
               style={{ color: '#1e293b', backgroundColor: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
             >
-              {/* Center Background Watermark Logo */}
+              {/* Background Watermark */}
               <div
-                className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.11] overflow-hidden z-0 select-none"
+                className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.09] overflow-hidden z-0 select-none"
                 style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
               >
                 <img
@@ -945,281 +1333,128 @@ export default function InvoiceDocumentModal({
                     />
                   </div>
                   <div className="text-right">
-                    <h1 className="text-3xl font-light tracking-tight text-[#1e293b]">
+                    <h1 className="text-3xl font-light tracking-tight text-[#1e293b] uppercase">
                       {docTypeTitle}
                     </h1>
                   </div>
                 </div>
 
-                {/* 2. Three Column Details: Billed By / Billed To / Invoice Details */}
+                {/* 2. Details Grid */}
                 <div className="grid grid-cols-12 gap-6 text-[11px] leading-snug">
-
-                  {/* Column 1: Billed By / Quotation From */}
                   <div className="col-span-4 space-y-0.5">
-                    <p className="text-[10px] text-slate-500 mb-1">
-                      {isQuoteType ? "Quotation From" : "Billed By"}
-                    </p>
+                    <p className="text-[10px] text-slate-500 mb-1">{isQuoteType ? "Quotation From" : "Billed By"}</p>
                     <p className="font-bold text-[#0f172a] text-xs">MURUGAN ENTERPRISES</p>
-                    <p className="text-slate-600">36/4, Ambasamudram to Tenkasi main</p>
-                    <p className="text-slate-600">road, ALWARKURICHI,</p>
+                    <p className="text-slate-600">36/4, Ambasamudram to Tenkasi main road, ALWARKURICHI,</p>
                     <p className="text-slate-600">Tamil Nadu, India - 627412</p>
-                    <p className="text-slate-600 pt-1">GSTIN: <span className="text-[#0f172a]">33KRQPS6169P1ZE</span></p>
-                    <p className="text-slate-600">PAN: <span className="text-[#0f172a]">KRQPS6169P</span></p>
+                    <p className="text-slate-600 pt-1">GSTIN: <span className="text-[#0f172a]">33KRQPS8169P1ZE</span></p>
+                    <p className="text-slate-600">PAN: <span className="text-[#0f172a]">KRQPS8169P</span></p>
                     <p className="text-slate-600 pt-1">Phone: +91 90252 68869</p>
                   </div>
 
-                  {/* Column 2: Billed To / Quotation For */}
                   <div className="col-span-4 space-y-0.5">
-                    <p className="text-[10px] text-slate-500 mb-1">
-                      {isQuoteType ? "Quotation For" : "Billed To"}
-                    </p>
-                    <p className="font-bold text-[#0f172a] text-xs uppercase leading-tight">
-                      {schoolName || '—'}
-                    </p>
-                    <div className="text-slate-600 uppercase whitespace-pre-line text-[10.5px]">
-                      {address || '—'}
-                    </div>
-                    <p className="text-slate-600 text-[10.5px]">
-                      {district || 'Tamil Nadu, India'}
-                    </p>
+                    <p className="text-[10px] text-slate-500 mb-1">{isQuoteType ? "Quotation For" : "Billed To"}</p>
+                    <p className="font-bold text-[#0f172a] text-xs uppercase leading-tight">{schoolName || '—'}</p>
+                    <div className="text-slate-600 uppercase whitespace-pre-line text-[10.5px]">{address || '—'}</div>
+                    <p className="text-slate-600 text-[10.5px]">{district || 'Tamil Nadu, India'}</p>
+                    <p className="text-slate-600 pt-1">Contact: {contactPerson || '—'} {phone ? `(${phone})` : ''}</p>
                   </div>
 
-                  {/* Column 3: Invoice Details / Quotation Details */}
                   <div className="col-span-4 space-y-1 text-right">
-                    {!isQuoteType && (
-                      <p className="text-[10px] text-slate-500 mb-1 text-left">
-                        Invoice Details
-                      </p>
-                    )}
                     <div className="flex justify-between">
-                      <span className="text-slate-500">{isQuoteType ? "Quotation No" : "Invoice No"}</span>
-                      <span className="text-[#0f172a] font-medium">{docNumber}</span>
+                      <span className="text-slate-500">{isQuoteType ? "Quotation No:" : "Invoice No:"}</span>
+                      <span className="text-[#0f172a] font-medium">{docNumber || 'NEW'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">{isQuoteType ? "Quotation Date" : "Invoice Date"}</span>
-                      <span className="text-[#0f172a]">{docDate}</span>
+                      <span className="text-slate-500">Date:</span>
+                      <span className="text-[#0f172a] font-medium">{docDate}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">{isQuoteType ? "Valid Till Date" : "Due Date"}</span>
-                      <span className="text-[#0f172a]">{dueDate}</span>
+                      <span className="text-slate-500">{isQuoteType ? "Valid Till:" : "Due Date:"}</span>
+                      <span className="text-[#0f172a] font-medium">{dueDate}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Country of Supply:</span>
-                      <span className="text-[#0f172a]">{countryOfSupply}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Place of Supply:</span>
-                      <span className="text-[#0f172a]">{placeOfSupply}</span>
+                    <div className="flex justify-between pt-1 border-t border-slate-200">
+                      <span className="text-slate-500">Canvasser:</span>
+                      <span className="text-[#0f172a] font-bold">{canvasserName || 'Canvasser'}</span>
                     </div>
                   </div>
-
                 </div>
 
                 {/* 3. Items Table */}
-                <div className="pt-2">
-                  {!isQuoteType ? (
-                    /* Invoice Style Table */
-                    <table className="w-full text-left text-[10.5px] border-collapse">
-                      <thead>
-                        <tr className="bg-[#f1f5f9] text-slate-700 font-normal">
-                          <th className="py-2.5 px-2.5 font-medium text-left" style={{ width: '30%' }}>Item</th>
-                          <th className="py-2.5 px-2 font-medium text-center" style={{ width: '9%' }}>HSN</th>
-                          <th className="py-2.5 px-2 font-medium text-center" style={{ width: '6%' }}>Size</th>
-                          <th className="py-2.5 px-2 font-medium text-center leading-tight" style={{ width: '7%' }}>GST<br />Rate</th>
-                          <th className="py-2.5 px-2 font-medium text-right" style={{ width: '8%' }}>Quantity</th>
-                          <th className="py-2.5 px-2 font-medium text-center" style={{ width: '6%' }}>Unit</th>
-                          <th className="py-2.5 px-2 font-medium text-right" style={{ width: '8%' }}>Rate</th>
-                          <th className="py-2.5 px-2 font-medium text-right" style={{ width: '11%' }}>Amount</th>
-                          <th className="py-2.5 px-2 font-medium text-right" style={{ width: '9%' }}>CGST</th>
-                          <th className="py-2.5 px-2 font-medium text-right" style={{ width: '9%' }}>SGST</th>
-                          <th className="py-2.5 px-2.5 font-medium text-right" style={{ width: '12%' }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {calculatedItems.map((item, idx) => (
-                          <tr key={idx} className="text-slate-800">
-                            <td className="py-2.5 px-2.5">
-                              <span>{idx + 1}. {item.name || 'Item'}</span>
-                            </td>
-                            <td className="py-2.5 px-2 text-center text-slate-600 font-mono">{item.hsn || "—"}</td>
-                            <td className="py-2.5 px-2 text-center text-slate-700">{item.size || "-"}</td>
-                            <td className="py-2.5 px-2 text-center">{item.gst_rate || 5}%</td>
-                            <td className="py-2.5 px-2 text-right">{item.quantity}</td>
-                            <td className="py-2.5 px-2 text-center text-slate-600">{item.unit || "prs"}</td>
-                            <td className="py-2.5 px-2 text-right whitespace-nowrap">{formatINR(item.unit_rate)}</td>
-                            <td className="py-2.5 px-2 text-right whitespace-nowrap">{formatINR(item.amount)}</td>
-                            <td className="py-2.5 px-2 text-right whitespace-nowrap">{formatINR(item.cgst)}</td>
-                            <td className="py-2.5 px-2 text-right whitespace-nowrap">{formatINR(item.sgst)}</td>
-                            <td className="py-2.5 px-2.5 text-right font-medium whitespace-nowrap">{formatINR(item.total)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    /* Quotation Style Table */
-                    <table className="w-full text-left text-[10px] border-collapse border border-slate-700">
-                      <thead>
-                        <tr className="border-b border-slate-700 text-slate-800 font-medium">
-                          <th className="p-2 border-r border-slate-700 text-left" style={{ width: '32%' }}>Item</th>
-                          <th className="p-2 border-r border-slate-700 text-center" style={{ width: '8%' }}>SIZE</th>
-                          <th className="p-2 border-r border-slate-700 text-center" style={{ width: '9%' }}>HSN</th>
-                          <th className="p-2 border-r border-slate-700 text-center leading-tight" style={{ width: '7%' }}>GST<br />Rate</th>
-                          <th className="p-2 border-r border-slate-700 text-right" style={{ width: '8%' }}>Quantity</th>
-                          <th className="p-2 border-r border-slate-700 text-right" style={{ width: '8%' }}>Rate</th>
-                          <th className="p-2 border-r border-slate-700 text-right" style={{ width: '11%' }}>Amount</th>
-                          <th className="p-2 border-r border-slate-700 text-right" style={{ width: '9%' }}>CGST</th>
-                          <th className="p-2 border-r border-slate-700 text-right" style={{ width: '9%' }}>SGST</th>
-                          <th className="p-2 text-right" style={{ width: '12%' }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {calculatedItems.map((item, idx) => (
-                          <tr key={idx} className="border-b border-slate-700 text-slate-800">
-                            <td className="p-1.5 px-2 border-r border-slate-700">
-                              <span>{idx + 1}.  {item.name || 'Item'}</span>
-                            </td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-center">{item.size || "-"}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-center text-slate-600 font-mono">{item.hsn || "—"}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-center">{item.gst_rate || 5}%</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-right">{item.quantity}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-right whitespace-nowrap">{formatINR(item.unit_rate)}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-right whitespace-nowrap">{formatINR(item.amount)}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-right whitespace-nowrap">{formatINR(item.cgst)}</td>
-                            <td className="p-1.5 px-2 border-r border-slate-700 text-right whitespace-nowrap">{formatINR(item.sgst)}</td>
-                            <td className="p-1.5 px-2 text-right font-medium whitespace-nowrap">{formatINR(item.total)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+                <table className="w-full text-left border-collapse border border-slate-300 text-[10.5px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-[#0f172a] font-semibold border-b border-slate-300">
+                      <th className="py-2 px-2 text-center w-8 border-r border-slate-300">#</th>
+                      <th className="py-2 px-3 border-r border-slate-300">Item Name</th>
+                      <th className="py-2 px-2 text-center w-16 border-r border-slate-300">Size</th>
+                      <th className="py-2 px-2 text-center w-16 border-r border-slate-300">HSN</th>
+                      <th className="py-2 px-2 text-center w-14 border-r border-slate-300">GST %</th>
+                      <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Qty</th>
+                      <th className="py-2 px-2 text-right w-18 border-r border-slate-300">Rate</th>
+                      <th className="py-2 px-2 text-right w-20 border-r border-slate-300">Amount</th>
+                      <th className="py-2 px-3 text-right w-24">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {calculatedItems.map((item, idx) => (
+                      <tr key={idx}>
+                        <td className="py-2 px-2 text-center border-r border-slate-300 text-slate-500 font-mono">{idx + 1}</td>
+                        <td className="py-2 px-3 border-r border-slate-300 font-medium text-[#0f172a]">{item.name || 'Custom Item'}</td>
+                        <td className="py-2 px-2 text-center border-r border-slate-300 font-mono">{item.size || '-'}</td>
+                        <td className="py-2 px-2 text-center border-r border-slate-300 font-mono">{item.hsn || '-'}</td>
+                        <td className="py-2 px-2 text-center border-r border-slate-300 font-mono">{item.gst_rate}%</td>
+                        <td className="py-2 px-2 text-center border-r border-slate-300 font-mono font-medium">{item.quantity} {item.unit}</td>
+                        <td className="py-2 px-2 text-right border-r border-slate-300 font-mono">{formatINR(item.unit_rate)}</td>
+                        <td className="py-2 px-2 text-right border-r border-slate-300 font-mono">{formatINR(item.amount)}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-[#0f172a]">{formatINR(item.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-                {/* 4. Bottom Section: Left (Bank Details / Terms) & Right (Calculation Breakdown Table) */}
-                <div className="grid grid-cols-12 gap-8 pt-4 items-start">
-
-                  {/* Left Column: Bank Details (Invoice) or Terms (Quotation) */}
-                  <div className="col-span-7 space-y-1.5 text-[10.5px]">
-                    {!isQuoteType ? (
-                      <div className="space-y-1 text-slate-700 leading-normal">
-                        <p className="font-semibold text-slate-800 mb-1.5">Bank Details</p>
-                        <div className="grid grid-cols-12 gap-1">
-                          <span className="col-span-4 text-slate-500">Account Name</span>
-                          <span className="col-span-8 text-[#0f172a] font-medium">MURUGAN ENTERPRISES</span>
-                          <span className="col-span-4 text-slate-500">Account Number</span>
-                          <span className="col-span-8 text-[#0f172a] font-mono">44909857955</span>
-                          <span className="col-span-4 text-slate-500">IFSC</span>
-                          <span className="col-span-8 text-[#0f172a] font-mono">SBIN0002189</span>
-                          <span className="col-span-4 text-slate-500">Account Type</span>
-                          <span className="col-span-8 text-[#0f172a]">Current</span>
-                          <span className="col-span-4 text-slate-500">Bank</span>
-                          <span className="col-span-8 text-[#0f172a]">State Bank of India</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1 text-slate-700 leading-normal text-[10px]">
-                        <p className="font-semibold text-slate-800 mb-1">Terms and Conditions</p>
-                        <p>1. Delivery charges are additional and will be charged as per distance and logistics.</p>
-                        <p>2. 70% of the invoice value must be paid in advance before dispatch of goods.</p>
-                        <p>3. Goods will be dispatched only after receipt of advance payment.</p>
-                        <p>4. The remaining 30% balance is payable at the time of delivery / before unloading.</p>
-                        <p>5. Any delay in payment may attract delivery hold or extra charges.</p>
-                      </div>
-                    )}
+                {/* 4. Bottom Calculations Grid */}
+                <div className="grid grid-cols-12 gap-6 pt-2">
+                  <div className="col-span-7 space-y-2 text-[10px] text-slate-600">
+                    <p className="font-bold text-[#0f172a]">Bank Details:</p>
+                    <p>State Bank of India • Acc: 44909857955 • IFSC: SBIN0002189 • Alwarkurichi Branch</p>
+                    <p className="pt-2 font-bold text-[#0f172a]">Terms & Conditions:</p>
+                    <p>01 Delivery charges additional • 02 50% advance before dispatch • 03 50% balance before delivery.</p>
                   </div>
 
-                  {/* Right Column: Calculations Breakdown & Blue Total Bar */}
-                  <div className="col-span-5 text-[11px]">
-                    {!isQuoteType ? (
-                      /* Invoice Calculation Block */
-                      <div className="space-y-1.5 text-right">
-                        <div className="flex justify-between py-0.5 text-slate-600">
-                          <span>Amount</span>
-                          <span className="text-[#0f172a] font-normal">{formatINR(subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between py-0.5 text-slate-600">
-                          <span>CGST</span>
-                          <span className="text-[#0f172a] font-normal">{formatINR(totalCgst)}</span>
-                        </div>
-                        <div className="flex justify-between py-0.5 text-slate-600">
-                          <span>SGST</span>
-                          <span className="text-[#0f172a] font-normal">{formatINR(totalSgst)}</span>
-                        </div>
-                        {parsedExtra > 0 && (
-                          <div className="flex justify-between py-0.5 text-slate-600">
-                            <span>EXTRA CHARGES</span>
-                            <span className="text-[#0f172a] font-normal">{formatINR(parsedExtra)}</span>
-                          </div>
-                        )}
-                        {parsedDelivery > 0 && (
-                          <div className="flex justify-between py-0.5 text-slate-600">
-                            <span>DELIVERY CHARGES</span>
-                            <span className="text-[#0f172a] font-normal">{formatINR(parsedDelivery)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between py-0.5 text-slate-600">
-                          <span>Round Up</span>
-                          <span className="text-[#0f172a] font-normal">{roundUpVal < 0 ? `-₹${roundUpFormatted}` : `₹${roundUpFormatted}`}</span>
-                        </div>
-
-                        {/* Blue Highlight Total Bar */}
-                        <div
-                          className="flex justify-between items-center px-4 py-2.5 bg-[#38bdf8] text-white font-medium text-xs mt-2"
-                          style={{ backgroundColor: '#38bdf8', color: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
-                        >
-                          <span className="font-normal">Total (INR)</span>
-                          <span className="font-bold text-sm">{formatINR(grandTotal)}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Quotation Calculation Block */
-                      <div className="border border-slate-700 text-[10.5px]">
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>Amount</span>
-                          <span className="text-[#0f172a]">{formatINR(subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>CGST</span>
-                          <span className="text-[#0f172a]">{formatINR(totalCgst)}</span>
-                        </div>
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>SGST</span>
-                          <span className="text-[#0f172a]">{formatINR(totalSgst)}</span>
-                        </div>
-                        {parsedDiscount > 0 && (
-                          <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                            <span>Discounts</span>
-                            <span className="text-[#0f172a]">{formatINR(parsedDiscount)}</span>
-                          </div>
-                        )}
-                        {parsedExtra > 0 && (
-                          <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                            <span>Extra Charges</span>
-                            <span className="text-[#0f172a]">{formatINR(parsedExtra)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between py-1 px-3 border-b border-slate-700 text-slate-700">
-                          <span>Round Up</span>
-                          <span className="text-[#0f172a]">{roundUpVal < 0 ? `-₹${roundUpFormatted}` : `₹${roundUpFormatted}`}</span>
-                        </div>
-                        {/* Solid Blue Total Cell */}
-                        <div
-                          className="flex justify-between items-center py-2 px-3 bg-[#38bdf8] text-white text-xs font-semibold"
-                          style={{ backgroundColor: '#38bdf8', color: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
-                        >
-                          <span className="font-normal">Total (INR)</span>
-                          <span className="font-bold">{formatINR(grandTotal)}</span>
-                        </div>
+                  <div className="col-span-5 space-y-1.5 text-right font-mono text-[10.5px]">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Subtotal:</span>
+                      <span>{formatINR(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>CGST:</span>
+                      <span>{formatINR(totalCgst)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>SGST:</span>
+                      <span>{formatINR(totalSgst)}</span>
+                    </div>
+                    {parsedDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>Discount:</span>
+                        <span>-{formatINR(parsedDiscount)}</span>
                       </div>
                     )}
+                    <div className="flex justify-between text-slate-600">
+                      <span>Round Up:</span>
+                      <span>{roundUpVal < 0 ? `-₹${roundUpFormatted}` : `₹${roundUpFormatted}`}</span>
+                    </div>
+                    <div className="flex justify-between items-center px-3 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg mt-2">
+                      <span>Grand Total:</span>
+                      <span>{formatINR(grandTotal)}</span>
+                    </div>
                   </div>
-
                 </div>
 
               </div>
 
-              {/* 5. Document Bottom Footer */}
-              <div className="pt-10 text-center text-[10px] text-slate-500 relative z-10">
-                <p>This is an electronically generated document, no signature is required.</p>
+              {/* Bottom Footer */}
+              <div className="pt-8 text-center text-[9px] text-slate-400 relative z-10 border-t border-slate-200">
+                <p>This is an electronically generated document issued by Murugan Enterprises.</p>
               </div>
 
             </div>

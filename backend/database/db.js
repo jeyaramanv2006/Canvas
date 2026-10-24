@@ -366,6 +366,26 @@ export async function initDB() {
         }
       }
     }
+
+    // ── Unlink Gokul from Historical Refrens Imported Records ──────────────
+    // Ensure system user 99 exists for unassigned historical import records
+    const sysUser = db.prepare('SELECT id FROM users WHERE id = 99').get();
+    if (!sysUser) {
+      db.prepare(`
+        INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+        VALUES (99, 'refrens@system', 'refrens@murugan.com', 'SYSTEM_ACCOUNT', 'Refrens Import', 'system', 'Historical Refrens Data', 'ACTIVE')
+      `).run();
+    }
+
+    // Update all historical records where Gokul was accidentally set as default canvasser
+    for (const tbl of ['quotations', 'proforma_invoices', 'invoices']) {
+      db.prepare(`
+        UPDATE ${tbl} 
+        SET canvasser_id = 99, canvasser_name = 'Refrens Import' 
+        WHERE (id LIKE 'A%' OR tags LIKE '%Refrens Import%') 
+          AND (canvasser_id = 1 OR canvasser_name = 'Gokul')
+      `).run();
+    }
   } catch (tagSyncErr) {
     console.warn('Note: Refrens Import tag synchronization:', tagSyncErr.message);
   }

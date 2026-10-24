@@ -88,14 +88,16 @@ export async function seedRefrensData(db) {
   const invoicesFile = path.join(dataDir, 'refrens_invoices.csv');
   const paymentsFile = path.join(dataDir, 'refrens_payments.csv');
 
-  // Fallback Canvasser
-  let defaultCanvasserId = 1;
-  let defaultCanvasserName = 'Gokul';
+  // Fallback Canvasser: Refrens Historical System User (unassigned from individual canvassers)
+  let defaultCanvasserId = 99;
+  let defaultCanvasserName = 'Refrens Import';
   try {
-    const user = await db.prepare('SELECT id, name FROM users WHERE role IN (\'cvs\', \'canvasser\', \'admin\') ORDER BY id ASC LIMIT 1').get();
-    if (user) {
-      defaultCanvasserId = user.id;
-      defaultCanvasserName = user.name;
+    const sysUser = await db.prepare('SELECT id, name FROM users WHERE id = 99').get();
+    if (!sysUser) {
+      await db.prepare(`
+        INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+        VALUES (99, 'refrens@system', 'refrens@murugan.com', 'SYSTEM_ACCOUNT', 'Refrens Import', 'system', 'Historical Refrens Data', 'ACTIVE')
+      `).run();
     }
   } catch (e) {}
 

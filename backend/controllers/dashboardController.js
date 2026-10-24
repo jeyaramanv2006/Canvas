@@ -262,10 +262,14 @@ export async function getCanvasserLeaderboard(req, res) {
       );
       const cWon = cVisits.filter(v => v.outcome_status === 'Won' || v.outcome_status === 'Order Won').length;
       const cHot = cVisits.filter(v => v.interest_level === 'Hot').length;
-      const cInvoices = invoices.filter(i => 
-        (i.canvasser_id !== null && i.canvasser_id !== undefined && String(i.canvasser_id) === String(c.id)) ||
-        (i.canvasser_name && c.name && i.canvasser_name.trim().toLowerCase() === c.name.trim().toLowerCase())
-      );
+      const cInvoices = invoices.filter(i => {
+        // Exclude Refrens historical imports from individual canvasser leaderboard unless explicitly assigned to this canvasser
+        if (i.canvasser_name === 'Refrens Import' || Number(i.canvasser_id) === 99) {
+          return false;
+        }
+        return (i.canvasser_id !== null && i.canvasser_id !== undefined && String(i.canvasser_id) === String(c.id)) ||
+          (i.canvasser_name && c.name && i.canvasser_name.trim().toLowerCase() === c.name.trim().toLowerCase());
+      });
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
 

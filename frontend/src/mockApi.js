@@ -405,8 +405,8 @@ export const mockApi = {
   async addQuotation(quoteData, canvasserId, canvasserName) {
     const payload = {
       ...quoteData,
-      canvasser_id: canvasserId || quoteData.canvasser_id,
-      canvasser_name: canvasserName || quoteData.canvasser_name
+      canvasser_id: quoteData.canvasser_id !== undefined && quoteData.canvasser_id !== null ? quoteData.canvasser_id : canvasserId,
+      canvasser_name: quoteData.canvasser_name || canvasserName
     };
     return await this.createQuotation(payload);
   },
@@ -445,8 +445,8 @@ export const mockApi = {
   async addProformaInvoice(proformaData, canvasserId, canvasserName) {
     const payload = {
       ...proformaData,
-      canvasser_id: canvasserId || proformaData.canvasser_id,
-      canvasser_name: canvasserName || proformaData.canvasser_name
+      canvasser_id: proformaData.canvasser_id !== undefined && proformaData.canvasser_id !== null ? proformaData.canvasser_id : canvasserId,
+      canvasser_name: proformaData.canvasser_name || canvasserName
     };
     return await this.createProformaInvoice(payload);
   },
@@ -494,8 +494,8 @@ export const mockApi = {
   async addInvoice(invoiceData, canvasserId, canvasserName) {
     const payload = {
       ...invoiceData,
-      canvasser_id: canvasserId || invoiceData.canvasser_id,
-      canvasser_name: canvasserName || invoiceData.canvasser_name
+      canvasser_id: invoiceData.canvasser_id !== undefined && invoiceData.canvasser_id !== null ? invoiceData.canvasser_id : canvasserId,
+      canvasser_name: invoiceData.canvasser_name || canvasserName
     };
     return await this.createInvoice(payload);
   },

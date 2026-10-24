@@ -381,7 +381,7 @@ export default function FieldVisitRegistry({ currentUser }) {
                       <Receipt className="w-3.5 h-3.5" /> + Issue Quote
                     </button>
                     <button
-                      onClick={() => { setDocModalType('invoice'); setDocModalVisit(visit); }}
+                      onClick={() => { setDocModalType('proforma'); setDocModalVisit(visit); }}
                       className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                     >
                       <Receipt className="w-3.5 h-3.5 text-emerald-400" /> + Proforma Invoice
@@ -424,14 +424,15 @@ export default function FieldVisitRegistry({ currentUser }) {
         visit={inspectHistoryVisit} 
       />
       <InvoiceDocumentModal
+        key={`visit-doc-${docModalType}-${docModalVisit?.id || 'none'}-${docModalVisit ? '1' : '0'}`}
         isOpen={!!docModalVisit}
         onClose={() => setDocModalVisit(null)}
-        type={docModalType}
+        type={docModalType === 'quote' ? 'Quotation' : docModalType === 'proforma' ? 'Proforma Invoice' : 'Tax Invoice'}
         mode="create"
         visitData={docModalVisit}
         currentUser={currentUser}
         onSaveSuccess={() => {
-          showToast(docModalType === 'quote' ? "Quotation generated!" : "Invoice generated!");
+          showToast(docModalType === 'quote' ? "Quotation generated!" : docModalType === 'proforma' ? "Proforma Invoice generated!" : "Tax Invoice generated!");
           loadData();
         }}
       />

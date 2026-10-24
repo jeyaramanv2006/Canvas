@@ -45,6 +45,9 @@ import {
   Calendar,
   Layers,
   ArrowUpRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Check,
   AlertCircle
 } from 'lucide-react';
@@ -314,9 +317,11 @@ export default function InvoicingModule({ currentUser }) {
   const [showInvoiceGraph, setShowInvoiceGraph] = useState(true);
   const [showPaymentGraph, setShowPaymentGraph] = useState(true);
 
-  // Filters & Search
+  // Filters & Search & Sort
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [sortField, setSortField] = useState('date'); // 'date' | 'id' | 'subtotal' | 'grand_total' | 'balance'
+  const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
   // Modal controls
   const [docModalOpen, setDocModalOpen] = useState(false);
@@ -437,7 +442,9 @@ export default function InvoicingModule({ currentUser }) {
   // Document Modal Triggers
   const handleCreateDocument = (type) => {
     setSelectedDoc(null);
-    setDocModalType(type);
+    const normalized = (type === 'quote' || type === 'quotes' || type === 'quotation') ? 'quote' :
+      (type === 'proforma' || type === 'proforma_invoice') ? 'proforma' : 'invoice';
+    setDocModalType(normalized);
     setDocModalMode('create');
     setDocModalOpen(true);
   };
@@ -582,7 +589,44 @@ export default function InvoicingModule({ currentUser }) {
     }
   };
 
-  // Filtered lists
+  // Sorting comparator
+  const sortComparator = (a, b) => {
+    let result = 0;
+    if (sortField === 'date') {
+      const dateA = new Date(a.created_at || a.recorded_at || a.date || 0).getTime();
+      const dateB = new Date(b.created_at || b.recorded_at || b.date || 0).getTime();
+      result = dateA - dateB;
+    } else if (sortField === 'id') {
+      const idA = (a.id || '').toString();
+      const idB = (b.id || '').toString();
+      result = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+    } else if (sortField === 'subtotal') {
+      const subA = Number(a.subtotal != null ? a.subtotal : (a.grand_total ? a.grand_total * 0.95 : (a.amount || 0))) || 0;
+      const subB = Number(b.subtotal != null ? b.subtotal : (b.grand_total ? b.grand_total * 0.95 : (b.amount || 0))) || 0;
+      result = subA - subB;
+    } else if (sortField === 'grand_total') {
+      const totalA = Number(a.grand_total != null ? a.grand_total : a.amount) || 0;
+      const totalB = Number(b.grand_total != null ? b.grand_total : b.amount) || 0;
+      result = totalA - totalB;
+    } else if (sortField === 'balance') {
+      const balA = Number(a.outstanding_balance) || 0;
+      const balB = Number(b.outstanding_balance) || 0;
+      result = balA - balB;
+    }
+    return sortDirection === 'desc' ? -result : result;
+  };
+
+  // Toggle sort helper
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  // Filtered & Sorted lists
   const filteredQuotes = quotations.filter(q => {
     const matchesSearch = !searchTerm ||
       q.school_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -591,7 +635,7 @@ export default function InvoicingModule({ currentUser }) {
     if (!matchesSearch) return false;
     if (statusFilter === 'All') return true;
     return q.status?.toLowerCase() === statusFilter.toLowerCase();
-  });
+  }).sort(sortComparator);
 
   const filteredProforma = proformaInvoices.filter(p => {
     const matchesSearch = !searchTerm ||
@@ -601,7 +645,7 @@ export default function InvoicingModule({ currentUser }) {
     if (!matchesSearch) return false;
     if (statusFilter === 'All') return true;
     return p.status?.toLowerCase() === statusFilter.toLowerCase();
-  });
+  }).sort(sortComparator);
 
   const filteredInvoices = invoices.filter(inv => {
     const matchesSearch = !searchTerm ||
@@ -614,14 +658,14 @@ export default function InvoicingModule({ currentUser }) {
       return inv.payment_status !== 'Fully Paid' && inv.status !== 'Paid' && inv.due_date && new Date(inv.due_date) < new Date();
     }
     return (inv.payment_status || inv.status)?.toLowerCase() === statusFilter.toLowerCase();
-  });
+  }).sort(sortComparator);
 
   const filteredPayments = payments.filter(p => {
     return !searchTerm ||
       p.school_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  }).sort(sortComparator);
 
   // Calculate Proforma Summary metrics
   const proformaTotal = proformaInvoices.reduce((s, p) => s + (Number(p.grand_total) || 0), 0);
@@ -811,7 +855,7 @@ export default function InvoicingModule({ currentUser }) {
             </span>
           </div>
 
-          {/* Search bar & Filter */}
+          {/* Search bar & Filter & Sort Controls */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -820,8 +864,49 @@ export default function InvoicingModule({ currentUser }) {
                 placeholder="Search institution or number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 w-52 sm:w-64"
+                className="bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 w-44 sm:w-56"
               />
+            </div>
+
+            {/* Sort Field & Direction Controls */}
+            <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider pl-1">Sort:</span>
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value)}
+                className="bg-transparent text-xs text-amber-300 font-semibold focus:outline-none cursor-pointer py-0.5"
+              >
+                <option value="date" className="bg-[#181922] text-white">Date</option>
+                <option value="id" className="bg-[#181922] text-white">
+                  {activeTab === 'quotes' ? 'Quotation #' :
+                   activeTab === 'proforma' ? 'Proforma #' :
+                   activeTab === 'invoices' ? 'Invoice #' : 'Receipt #'}
+                </option>
+                <option value="subtotal" className="bg-[#181922] text-white">Sub Total</option>
+                <option value="grand_total" className="bg-[#181922] text-white">Amount in INR</option>
+                {activeTab === 'invoices' && (
+                  <option value="balance" className="bg-[#181922] text-white">Balance Due</option>
+                )}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                title={`Current: ${sortDirection === 'asc' ? 'Ascending (A-Z, Low to High)' : 'Descending (Z-A, High to Low)'}. Click to switch.`}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-400/20 text-gray-300 hover:text-amber-300 border border-white/10 transition-colors text-[11px] font-bold cursor-pointer"
+              >
+                {sortDirection === 'asc' ? (
+                  <>
+                    <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                    <span>ASC</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>DESC</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <button
@@ -844,20 +929,107 @@ export default function InvoicingModule({ currentUser }) {
             <thead>
               <tr className="bg-white/[0.03] border-b border-white/10 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-3 w-10 text-center">#</th>
-                <th className="py-3 px-3 w-28">Date</th>
-                <th className="py-3 px-3 w-40 min-w-[140px] whitespace-nowrap">
-                  {activeTab === 'quotes' ? 'Quotation #' :
-                   activeTab === 'proforma' ? 'Proforma #' :
-                   activeTab === 'invoices' ? 'Invoice #' : 'Receipt #'}
+                <th
+                  onClick={() => handleSort('date')}
+                  className="py-3 px-3 w-28 cursor-pointer hover:text-amber-300 transition-colors select-none"
+                  title="Click to sort by Date"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Date</span>
+                    {sortField === 'date' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('id')}
+                  className="py-3 px-3 w-40 min-w-[140px] whitespace-nowrap cursor-pointer hover:text-amber-300 transition-colors select-none"
+                  title="Click to sort by Document Number"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>
+                      {activeTab === 'quotes' ? 'Quotation #' :
+                       activeTab === 'proforma' ? 'Proforma #' :
+                       activeTab === 'invoices' ? 'Invoice #' : 'Receipt #'}
+                    </span>
+                    {sortField === 'id' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+                    )}
+                  </div>
                 </th>
                 <th className="py-3 px-4 min-w-[200px]">
                   {activeTab === 'payments' ? 'Billed To / School' : 'Quoted / Billed To'}
                 </th>
-                <th className="py-3 px-3 text-right">Sub Total</th>
-                <th className="py-3 px-3 text-right">
-                  {activeTab === 'payments' ? 'Amount Paid' : 'Amount in INR'}
+                <th
+                  onClick={() => handleSort('subtotal')}
+                  className="py-3 px-3 text-right cursor-pointer hover:text-amber-300 transition-colors select-none"
+                  title="Click to sort by Sub Total"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Sub Total</span>
+                    {sortField === 'subtotal' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+                    )}
+                  </div>
                 </th>
-                {activeTab === 'invoices' && <th className="py-3 px-3 text-right">Balance Due</th>}
+                <th
+                  onClick={() => handleSort('grand_total')}
+                  className="py-3 px-3 text-right cursor-pointer hover:text-amber-300 transition-colors select-none"
+                  title="Click to sort by Amount in INR"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>
+                      {activeTab === 'payments' ? 'Amount Paid' : 'Amount in INR'}
+                    </span>
+                    {sortField === 'grand_total' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                {activeTab === 'invoices' && (
+                  <th
+                    onClick={() => handleSort('balance')}
+                    className="py-3 px-3 text-right cursor-pointer hover:text-amber-300 transition-colors select-none"
+                    title="Click to sort by Balance Due"
+                  >
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span>Balance Due</span>
+                      {sortField === 'balance' ? (
+                        sortDirection === 'asc' ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                        ) : (
+                          <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+                      )}
+                    </div>
+                  </th>
+                )}
                 <th className="py-3 px-3 text-center">Status</th>
                 <th className="py-3 px-3 min-w-[120px]">Tags</th>
                 <th className="py-3 px-4 text-center w-36">Actions</th>
@@ -891,9 +1063,17 @@ export default function InvoicingModule({ currentUser }) {
                             <div className="font-bold text-white group-hover:text-amber-300 transition-colors uppercase tracking-tight">
                               {q.school_name}
                             </div>
-                            <div className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                            <div className="text-[10px] text-gray-500 flex flex-wrap items-center gap-1.5 mt-0.5">
                               <span>{q.district || 'Tamil Nadu'}</span>
                               {q.contact_person && <span>· {q.contact_person}</span>}
+                              <span className="text-gray-600">·</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                q.canvasser_name === 'Refrens Import' || Number(q.canvasser_id) === 99
+                                  ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                                  : 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                              }`}>
+                                Canvasser: {q.canvasser_name || 'Refrens Import'}
+                              </span>
                             </div>
                           </td>
                           <td className="py-3 px-3 text-right font-mono text-gray-400">{formatINR(q.subtotal || q.grand_total * 0.95)}</td>
@@ -1047,9 +1227,17 @@ export default function InvoicingModule({ currentUser }) {
                             <div className="font-bold text-white group-hover:text-purple-300 transition-colors uppercase tracking-tight">
                               {p.school_name}
                             </div>
-                            <div className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                            <div className="text-[10px] text-gray-500 flex flex-wrap items-center gap-1.5 mt-0.5">
                               <span>{p.district || 'Tamil Nadu'}</span>
                               {p.contact_person && <span>· {p.contact_person}</span>}
+                              <span className="text-gray-600">·</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                p.canvasser_name === 'Refrens Import' || Number(p.canvasser_id) === 99
+                                  ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                                  : 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                              }`}>
+                                Canvasser: {p.canvasser_name || 'Refrens Import'}
+                              </span>
                             </div>
                           </td>
                           <td className="py-3 px-3 text-right font-mono text-gray-400">{formatINR(p.subtotal || p.grand_total * 0.95)}</td>
@@ -1210,9 +1398,17 @@ export default function InvoicingModule({ currentUser }) {
                             <div className="font-bold text-white group-hover:text-amber-300 transition-colors uppercase tracking-tight">
                               {inv.school_name}
                             </div>
-                            <div className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                            <div className="text-[10px] text-gray-500 flex flex-wrap items-center gap-1.5 mt-0.5">
                               <span>{inv.district || 'Tamil Nadu'}</span>
                               {inv.contact_person && <span>· {inv.contact_person}</span>}
+                              <span className="text-gray-600">·</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                inv.canvasser_name === 'Refrens Import' || Number(inv.canvasser_id) === 99
+                                  ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                                  : 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                              }`}>
+                                Canvasser: {inv.canvasser_name || 'Refrens Import'}
+                              </span>
                             </div>
                           </td>
                           <td className="py-3 px-3 text-right font-mono text-gray-400">{formatINR(inv.subtotal || inv.grand_total * 0.95)}</td>
@@ -1607,12 +1803,16 @@ export default function InvoicingModule({ currentUser }) {
 
       {/* ── 7. Document Creation/Viewer Modal ─────────────────────────────────── */}
       <InvoiceDocumentModal
+        key={`doc-modal-${docModalType}-${docModalMode}-${selectedDoc?.id || 'new'}-${docModalOpen ? '1' : '0'}`}
         isOpen={docModalOpen}
-        onClose={() => setDocModalOpen(false)}
+        onClose={() => {
+          setDocModalOpen(false);
+          setSelectedDoc(null);
+        }}
         documentData={selectedDoc}
         type={
-          docModalType === 'quote' ? 'Quotation' :
-          docModalType === 'proforma' ? 'Proforma Invoice' : 'Tax Invoice'
+          (docModalType === 'quote' || docModalType === 'quotes' || docModalType === 'quotation') ? 'Quotation' :
+          (docModalType === 'proforma' || docModalType === 'proforma_invoice') ? 'Proforma Invoice' : 'Tax Invoice'
         }
         mode={docModalMode}
         currentUser={currentUser}

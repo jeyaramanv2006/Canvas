@@ -277,6 +277,28 @@ export async function initPgDB() {
   try {
     const { seedRefrensData } = await import('./seedRefrens.js');
     await seedRefrensData(pgDb);
+
+    // Unlink Gokul from historical Refrens records in Postgres
+    try {
+      const sysUserRes = await p.query('SELECT id FROM users WHERE id = 99');
+      if (sysUserRes.rows.length === 0) {
+        await p.query(`
+          INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+          VALUES (99, 'refrens@system', 'refrens@murugan.com', 'SYSTEM_ACCOUNT', 'Refrens Import', 'system', 'Historical Refrens Data', 'ACTIVE')
+          ON CONFLICT (id) DO NOTHING
+        `);
+      }
+      for (const tbl of ['quotations', 'proforma_invoices', 'invoices']) {
+        await p.query(`
+          UPDATE ${tbl} 
+          SET canvasser_id = 99, canvasser_name = 'Refrens Import' 
+          WHERE (id LIKE 'A%' OR tags LIKE '%Refrens Import%') 
+            AND (canvasser_id = 1 OR canvasser_name = 'Gokul')
+        `);
+      }
+    } catch (ulErr) {
+      console.warn('Postgres Refrens Gokul unlink notice:', ulErr.message);
+    }
   } catch (err) {
     console.warn('Refrens seed on Postgres skipped/errored:', err.message);
   }

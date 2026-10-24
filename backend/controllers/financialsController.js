@@ -225,7 +225,7 @@ export async function createQuotation(req, res) {
     `);
 
     const now = body.created_at || new Date().toISOString();
-    const canvasserId = body.canvasser_id ? Number(body.canvasser_id) : user.id;
+    const canvasserId = (body.canvasser_id !== undefined && body.canvasser_id !== null && body.canvasser_id !== '') ? Number(body.canvasser_id) : user.id;
     const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
 
     await stmt.run(
@@ -283,6 +283,8 @@ export async function updateQuotation(req, res) {
     const updates = [];
     const params = [];
 
+    if (body.canvasser_id !== undefined) { updates.push('canvasser_id = ?'); params.push(body.canvasser_id ? Number(body.canvasser_id) : 99); }
+    if (body.canvasser_name !== undefined) { updates.push('canvasser_name = ?'); params.push(body.canvasser_name); }
     if (body.school_name !== undefined) { updates.push('school_name = ?'); params.push(body.school_name); }
     if (body.district !== undefined) { updates.push('district = ?'); params.push(body.district); }
     if (body.contact_person !== undefined) { updates.push('contact_person = ?'); params.push(body.contact_person); }
@@ -356,7 +358,7 @@ export async function createProformaInvoice(req, res) {
     const id = body.id || (await generateNextSequentialId('proforma_invoices'));
     const now = body.created_at || new Date().toISOString();
 
-    const canvasserId = body.canvasser_id ? Number(body.canvasser_id) : user.id;
+    const canvasserId = (body.canvasser_id !== undefined && body.canvasser_id !== null && body.canvasser_id !== '') ? Number(body.canvasser_id) : user.id;
     const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
 
     await db.prepare(`
@@ -407,6 +409,8 @@ export async function updateProformaInvoice(req, res) {
     const updates = [];
     const params = [];
 
+    if (body.canvasser_id !== undefined) { updates.push('canvasser_id = ?'); params.push(body.canvasser_id ? Number(body.canvasser_id) : 99); }
+    if (body.canvasser_name !== undefined) { updates.push('canvasser_name = ?'); params.push(body.canvasser_name); }
     if (body.quotation_id !== undefined) { updates.push('quotation_id = ?'); params.push(body.quotation_id); }
     if (body.school_name !== undefined) { updates.push('school_name = ?'); params.push(body.school_name); }
     if (body.district !== undefined) { updates.push('district = ?'); params.push(body.district); }
@@ -488,7 +492,7 @@ export async function createInvoice(req, res) {
     const outstanding = Math.max(0, grandTotal - paidAmount);
     const paymentStatus = outstanding === 0 ? 'Fully Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid';
 
-    const canvasserId = body.canvasser_id ? Number(body.canvasser_id) : user.id;
+    const canvasserId = (body.canvasser_id !== undefined && body.canvasser_id !== null && body.canvasser_id !== '') ? Number(body.canvasser_id) : user.id;
     const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
 
     await db.prepare(`
@@ -558,6 +562,8 @@ export async function updateInvoice(req, res) {
     const updates = [];
     const params = [];
 
+    if (body.canvasser_id !== undefined) { updates.push('canvasser_id = ?'); params.push(body.canvasser_id ? Number(body.canvasser_id) : 99); }
+    if (body.canvasser_name !== undefined) { updates.push('canvasser_name = ?'); params.push(body.canvasser_name); }
     if (body.quotation_id !== undefined) { updates.push('quotation_id = ?'); params.push(body.quotation_id); }
     if (body.proforma_id !== undefined) { updates.push('proforma_id = ?'); params.push(body.proforma_id); }
     if (body.school_name !== undefined) { updates.push('school_name = ?'); params.push(body.school_name); }
