@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Fingerprint, LogIn, Loader2, ShieldCheck } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { AuthContext } from '../App';
 
@@ -12,7 +12,7 @@ export default function Login() {
   const { setUser } = useContext(AuthContext);
 
   const handleLogin = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     setLoading(true);
     setError('');
     try {
@@ -26,106 +26,160 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 overflow-hidden relative selection:bg-yellow-400 selection:text-black">
-      {/* Dynamic Glow Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[55%] h-[55%] bg-yellow-400/20 blur-[140px] rounded-full" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[55%] h-[55%] bg-amber-500/15 blur-[140px] rounded-full" />
-        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-blue-500/10 blur-[120px] rounded-full" />
+    <main className="relative isolate min-h-[100dvh] overflow-x-hidden bg-[#090a0e] text-white selection:bg-lime-300 selection:text-black">
+      {/* Login-only ambient field; the global app shell is intentionally untouched. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_16%_18%,rgba(98,72,255,0.16),transparent_42%),radial-gradient(ellipse_at_88%_82%,rgba(0,180,155,0.10),transparent_38%),linear-gradient(145deg,#0b0c12_0%,#090a0e_55%,#0b0c11_100%)]" />
+        <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle,rgba(147,119,255,0.72)_1px,transparent_1.45px),radial-gradient(circle,rgba(70,218,199,0.58)_0.8px,transparent_1.35px)] [background-position:0_0,11px_13px] [background-size:24px_24px,31px_31px] [mask-image:radial-gradient(ellipse_at_center,black_12%,transparent_82%)] sm:opacity-45 sm:[background-size:26px_26px,34px_34px]" />
+        <div className="absolute -left-40 top-24 h-80 w-80 rounded-full bg-violet-500/10 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
+        <div className="absolute -right-40 bottom-0 h-80 w-80 rounded-full bg-emerald-400/[0.07] blur-[110px] sm:h-[34rem] sm:w-[34rem]" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md bg-[#16171d]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl relative z-10 my-auto"
-      >
-        {/* Header with Zoomed Logo */}
-        <div className="text-center mb-6">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
-            className="flex justify-center mb-3"
-          >
-            <div className="w-56 h-28 sm:w-64 sm:h-32 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#14151b] flex items-center justify-center relative">
-              <img
-                src="/logo.jpg"
-                alt="Murugan Groups - MG The One"
-                className="w-full h-full object-cover scale-[1.70] -translate-y-3 -translate-x-2 transition-transform duration-300"
-              />
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1440px] items-center px-4 py-5 sm:px-8 sm:py-10 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/[0.12] bg-[#101117]/75 shadow-[0_30px_120px_rgba(0,0,0,0.48)] backdrop-blur-[18px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]"
+        >
+          {/* Brand panel: compact on mobile, architectural hero on desktop. */}
+          <section className="relative flex min-h-[168px] flex-col justify-between overflow-hidden border-b border-white/10 p-5 sm:min-h-[210px] sm:p-8 lg:min-h-full lg:border-b-0 lg:border-r lg:border-white/10 lg:p-11">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -right-16 -top-28 h-64 w-64 rounded-full border border-white/10 lg:h-[28rem] lg:w-[28rem]" />
+              <div className="absolute -right-7 -top-20 h-48 w-48 rounded-full border border-white/[0.07] lg:right-0 lg:top-[-7rem] lg:h-[22rem] lg:w-[22rem]" />
+              <div className="absolute bottom-[-4rem] left-[-4rem] h-40 w-40 rotate-45 border border-lime-300/20 bg-gradient-to-br from-lime-300/[0.08] to-transparent lg:bottom-12 lg:left-12 lg:h-56 lg:w-56" />
+              <div className="absolute right-10 top-10 hidden h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,255,0,0.8)] lg:block" />
             </div>
-          </motion.div>
-          <p className="text-gray-400 text-xs sm:text-sm font-medium tracking-wide">Canvassing and Financials</p>
-        </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">
-                Username
-              </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm font-mono min-h-[46px]"
-                placeholder=""
-                autoComplete="username"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all placeholder:text-gray-600 text-sm min-h-[46px]"
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <motion.p
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="text-red-400 text-xs font-semibold text-center bg-red-500/10 border border-red-500/20 py-2.5 px-3 rounded-xl"
+            <motion.div
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.985 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+              className="group relative z-10 mt-4 flex w-fit cursor-default items-center gap-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] px-2 py-2 transition-colors duration-300 hover:border-[#d9b763]/35 hover:bg-white/[0.045] sm:mt-12 sm:gap-4 sm:px-12 sm:py-8"
+              aria-label="Murugan Groups — The One"
             >
-              {error}
-            </motion.p>
-          )}
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#e8cc83]/[0.14] to-transparent opacity-0 transition-all duration-700 group-hover:left-[130%] group-hover:opacity-100" />
+              <div className="relative h-[70px] w-[84px] shrink-0 overflow-hidden rounded-xl border border-[#d9b763]/25 bg-[#242321] transition-colors duration-300 group-hover:border-[#d9b763]/50 sm:h-[98px] sm:w-[142px]">
+                <img src="/logo.jpg" alt="Murugan Groups logo" className="h-full w-full scale-[1.6] object-cover transition-transform duration-500 group-hover:scale-[1.24] -translate-x-1 -translate-y-1" />
+              </div>
+              <div className="relative min-w-0 pr-1">
+                <p style={{ fontFamily: '"Google Sans Flex", "Google Sans", sans-serif' }} className="whitespace-nowrap text-[clamp(0.78rem,4.5vw,1.35rem)] font-bold leading-tight tracking-[0.035em] text-[#f4f0e7] sm:text-2xl sm:tracking-[0.055em]">
+                  MURUGAN GROUPS
+                </p>
+                <p className="mt-1.5 text-[11px] font-semibold uppercase leading-none tracking-[0.34em] text-[#d9b763] sm:mt-2 sm:text-sm sm:tracking-[0.42em]">
+                  THE ONE
+                </p>
+                <span aria-hidden="true" className="mt-2 block h-px w-0 bg-gradient-to-r from-[#e6c875]/80 to-transparent transition-all duration-500 group-hover:w-full" />
+              </div>
+            </motion.div>
 
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            disabled={loading}
-            type="submit"
-            style={{ backgroundColor: '#FFD700', color: '#000000' }}
-            className="w-full font-black rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 hover:brightness-105 active:brightness-95 transition-all disabled:opacity-70 shadow-lg shadow-yellow-500/30 text-sm cursor-pointer mt-2 min-h-[48px]"
-          >
-            {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <LogIn className="w-4 h-4" />}
-            {loading ? 'Authenticating...' : 'Sign In'}
-          </motion.button>
-        </form>
+            <div className="relative z-10 mt-7 lg:mb-8 lg:mt-auto lg:max-w-lg">
+              <div className="mb-4 hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-lime-200/75 lg:flex">
+                <span className="h-px w-8 bg-lime-300/70" />
+                Canvassing &amp; Financials
+              </div>
+              <h1 className="max-w-[12ch] text-[clamp(2rem,5vw,4.7rem)] font-black uppercase leading-[0.92] tracking-[-0.065em] text-white">
+                One team.<br />One view.
+              </h1>
+              <div className="mt-5 hidden max-w-sm items-center justify-between border-t border-white/15 pt-4 text-xs text-white/45 lg:flex">
+                <span>Field activity</span><span className="text-white/20">/</span><span>Operations</span><span className="text-white/20">/</span><span>Financials</span>
+              </div>
+              <p className="mt-3 text-xs font-medium tracking-wide text-white/55 lg:hidden">Canvassing and Financials</p>
+            </div>
 
-        {/* Security & Access Info */}
-        <div className="mt-8 pt-5 border-t border-white/10 text-center space-y-2">
-          <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            <span>Authorized Personnel Only</span>
-          </div>
-          <p className="text-[11px] text-gray-500">
-            Contact your Operations Admin or CEO if you need an account or password reset.
-          </p>
-        </div>
-      </motion.div>
-    </div>
+            <div className="relative z-10 mt-6 hidden items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/30 lg:flex">
+              <span className="font-mono">MG</span><span className="h-px w-8 bg-white/20" /><span>Authorized workspace</span>
+            </div>
+          </section>
+
+          {/* Sign-in panel */}
+          <section className="flex items-center justify-center p-5 sm:p-9 lg:p-12">
+            <div className="w-full max-w-[420px]">
+              <div className="mb-7 sm:mb-9">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-lime-200/20 bg-lime-300/[0.08] text-lime-200">
+                  <Fingerprint className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-lime-200/75">Secure access</p>
+                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Sign in to continue</h2>
+                <p className="mt-2 text-sm leading-6 text-white/50">Use your assigned account to access your workspace.</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4" aria-busy={loading}>
+                <div className="space-y-1.5">
+                  <label htmlFor="login-username" className="block text-xs font-semibold text-white/75">Username</label>
+                  <input
+                    id="login-username"
+                    name="username"
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck="false"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-lime-200/70 focus:ring-2 focus:ring-lime-300/20"
+                    placeholder="Enter your username"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="login-password" className="block text-xs font-semibold text-white/75">Password</label>
+                  <input
+                    id="login-password"
+                    name="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-lime-200/70 focus:ring-2 focus:ring-lime-300/20"
+                    placeholder="Enter your password"
+                  />
+                </div>
+
+                {error && (
+                  <motion.p
+                    id="login-error"
+                    role="alert"
+                    aria-live="polite"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border border-rose-300/20 bg-rose-400/[0.08] px-3.5 py-3 text-sm leading-5 text-rose-200"
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <motion.button
+                  whileHover={loading ? undefined : { y: -1 }}
+                  whileTap={loading ? undefined : { scale: 0.99 }}
+                  disabled={loading}
+                  type="submit"
+                  className="mt-2 flex min-h-[54px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-lime-300 px-4 text-sm font-extrabold text-[#11130a] shadow-[0_8px_28px_rgba(190,255,0,0.16)] transition hover:bg-lime-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-100 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101117] disabled:cursor-wait disabled:opacity-65"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <LogIn className="h-4 w-4" aria-hidden="true" />}
+                  <span>{loading ? 'Authenticating…' : 'Sign In'}</span>
+                  {!loading && <ArrowUpRight className="ml-auto h-4 w-4 opacity-60" aria-hidden="true" />}
+                </motion.button>
+              </form>
+
+              <div className="mt-7 border-t border-white/10 pt-5 sm:mt-8">
+                <div className="flex items-center gap-2 text-xs font-semibold text-white/65">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-lime-200/80" aria-hidden="true" />
+                  <span>Authorized Personnel Only</span>
+                </div>
+                <p className="mt-2 max-w-sm text-xs leading-5 text-white/40">
+                  Contact your Operations Admin or CEO if you need an account or password reset.
+                </p>
+              </div>
+            </div>
+          </section>
+        </motion.div>
+      </div>
+    </main>
   );
 }

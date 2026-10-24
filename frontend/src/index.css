@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,7 +14,8 @@
   }
 
   /* Prevent broken multi-line inline border-radius and badge clipping */
-  .rounded-full, [class*="rounded-full"] {
+  .rounded-full,
+  [class*="rounded-full"] {
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -36,15 +38,18 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #111217; 
+  background: #111217;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #27272e; 
+  background: #27272e;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; 
+  background: #3f3f46;
 }
 
 /* Print Optimization for Invoices and Quotations (No Black Page / Clean White Print with Watermark) */
@@ -54,7 +59,8 @@
     margin: 0 !important;
   }
 
-  html, body {
+  html,
+  body {
     background: #ffffff !important;
     background-color: #ffffff !important;
     color: #1e293b !important;
@@ -64,7 +70,11 @@
     padding: 0 !important;
   }
 
-  header, nav, aside, button, .no-print {
+  header,
+  nav,
+  aside,
+  button,
+  .no-print {
     display: none !important;
   }
 
