@@ -82,7 +82,10 @@ export const api = {
   post: (endpoint, body, options) => apiRequest(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
   put: (endpoint, body, options) => apiRequest(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
   patch: (endpoint, body, options) => apiRequest(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
-  delete: (endpoint, options) => apiRequest(endpoint, { ...options, method: 'DELETE' })
+  delete: (endpoint, options) => {
+    const body = options?.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined;
+    return apiRequest(endpoint, { ...options, method: 'DELETE', body });
+  }
 };
 
 export default api;

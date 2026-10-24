@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, Medal, Award, TrendingUp, Users, Target, 
@@ -16,15 +16,15 @@ export default function CanvasserLeaderboard({ currentUser }) {
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('pay'); // 'pay', 'visits', 'invoices', 'invoiced', 'conversion', 'avg_deal'
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
-  const [selectedMonth, setSelectedMonth] = useState('2026-09'); // Default to live current month
+  const currentMonthKey = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [selectedMonth, setSelectedMonth] = useState(() => currentMonthKey);
   const [expandedCanvasserId, setExpandedCanvasserId] = useState(null);
+  const [dynamicMonths, setDynamicMonths] = useState([]);
 
   // Check if current user is executive or management
   const userRole = (currentUser?.role || '').toLowerCase();
   const isExecutive = ['ceo', 'cfo', 'cco', 'manager', 'admin'].includes(userRole);
   const currentUserId = currentUser?.id ?? currentUser?.userId ?? currentUser?._id;
-
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
 
   // Helper to format YYYY-MM to readable label
   const formatMonthLabel = (mKey) => {
@@ -35,13 +35,16 @@ export default function CanvasserLeaderboard({ currentUser }) {
     return mKey === currentMonthKey ? `${monthName} (Current Month)` : monthName;
   };
 
-  const monthOptions = [
-    { id: '2026-09', label: formatMonthLabel('2026-09') },
-    { id: '2026-08', label: formatMonthLabel('2026-08') },
-    { id: '2026-07', label: formatMonthLabel('2026-07') },
-    { id: '2026-06', label: formatMonthLabel('2026-06') },
-    { id: 'all', label: 'All-Time Cumulative' }
-  ];
+  const monthOptions = useMemo(() => {
+    const list = dynamicMonths.length > 0 ? [...dynamicMonths] : [currentMonthKey, '2026-09', '2026-08', '2026-07'];
+    if (!list.includes(currentMonthKey)) {
+      list.unshift(currentMonthKey);
+    }
+    const unique = Array.from(new Set(list));
+    const opts = unique.map(m => ({ id: m, label: formatMonthLabel(m) }));
+    opts.push({ id: 'all', label: 'All-Time Cumulative' });
+    return opts;
+  }, [dynamicMonths, currentMonthKey]);
 
   useEffect(() => {
     loadLeaderboard();
@@ -56,6 +59,10 @@ export default function CanvasserLeaderboard({ currentUser }) {
         order: sortOrder,
         month: selectedMonth 
       });
+
+      if (res && res.availableMonths && Array.isArray(res.availableMonths)) {
+        setDynamicMonths(res.availableMonths);
+      }
 
       if (res && Array.isArray(res.rankings)) {
         setData(res);

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
   MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, History,
   ChevronRight, Sparkles, Target, Award, ArrowUpRight, Trophy, Image, Camera,
-  FileText, X, AlertCircle
+  FileText, X, AlertCircle, CalendarClock, Clock
 } from 'lucide-react';
 import { mockApi, calculateCommissionSlab } from '../mockApi';
 import { AuthContext } from '../App';
@@ -13,6 +13,7 @@ import EditVisitModal from '../components/EditVisitModal';
 import EditHistoryModal from '../components/EditHistoryModal';
 import DynamicKPISection from '../components/DynamicKPISection';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
+import FollowUpsPipelineModule from '../components/FollowUpsPipelineModule';
 import ErrorBoundary from '../components/ErrorBoundary';
 import SchoolSearchPicker from '../components/SchoolSearchPicker';
 import CompanyProductSelector from '../components/CompanyProductSelector';
@@ -75,11 +76,50 @@ export default function CanvasserDashboard() {
 
   const roleConfig = getRoleConfig(user);
 
+  // Follow-up dates calculation for badge & overview
+  const followUpStats = React.useMemo(() => {
+    const formatYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const now = new Date();
+    const today = formatYMD(now);
+    const tmrw = new Date(now);
+    tmrw.setDate(tmrw.getDate() + 1);
+    const tomorrow = formatYMD(tmrw);
+
+    let dueToday = 0;
+    let dueTomorrow = 0;
+    let overdue = 0;
+    let totalScheduled = 0;
+
+    visits.forEach(v => {
+      if (v.follow_up_date && typeof v.follow_up_date === 'string' && v.follow_up_date.trim() !== '') {
+        const fDate = v.follow_up_date.slice(0, 10);
+        totalScheduled++;
+        if (fDate === today) dueToday++;
+        else if (fDate === tomorrow) dueTomorrow++;
+        else if (fDate < today) overdue++;
+      }
+    });
+
+    return { dueToday, dueTomorrow, overdue, totalScheduled, attentionCount: dueToday + overdue };
+  }, [visits]);
+
   const navTabs = [
-    { id: 'dashboard', label: 'Dashboard Overview', mobileLabel: 'Overview', icon: LayoutDashboard },
-    { id: 'new', label: 'Log School Visit', mobileLabel: 'Log Visit', icon: Plus },
-    { id: 'list', label: 'My Visits', mobileLabel: 'My Visits', icon: List },
-    { id: 'leaderboard', label: 'Team Leaderboard', mobileLabel: 'Leaderboard', icon: Trophy }
+    { id: 'dashboard', label: 'Overview', mobileLabel: 'Overview', icon: LayoutDashboard },
+    { id: 'new', label: 'Log Visit', mobileLabel: 'Log Visit', icon: Plus },
+    { 
+      id: 'followups', 
+      label: 'Follow-ups', 
+      mobileLabel: 'Follow-ups', 
+      icon: CalendarClock,
+      badge: followUpStats.attentionCount > 0 ? followUpStats.attentionCount : null
+    },
+    { id: 'list', label: 'My Visits', mobileLabel: 'Visits', icon: List },
+    { id: 'leaderboard', label: 'Leaderboard', mobileLabel: 'Ranks', icon: Trophy }
   ];
 
   useEffect(() => {
@@ -305,6 +345,14 @@ export default function CanvasserDashboard() {
                     )}
                     <Icon className="w-4 h-4 relative z-10" />
                     <span className="relative z-10">{tab.label}</span>
+                    {tab.badge && (
+                      <span className={cn(
+                        "relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-black",
+                        isActive ? "bg-black text-amber-400" : "bg-rose-500 text-white animate-pulse"
+                      )}>
+                        {tab.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -345,17 +393,29 @@ export default function CanvasserDashboard() {
                   <p className="text-xs text-gray-300 mt-1 max-w-xs">
                     Capture school details, tag apparel interests, and issue instant formal quotations.
                   </p>
-                  <div className="flex gap-2.5 mt-4">
+                  <div className="flex gap-2.5 mt-4 flex-wrap">
                     <button
                       onClick={() => setActiveTab('new')}
-                      className="px-4 py-2.5 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-murugan-accent/20 flex items-center gap-1.5 transition-all"
+                      className="px-4 py-2.5 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-murugan-accent/20 flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       Log New Visit
                     </button>
                     <button
+                      onClick={() => setActiveTab('followups')}
+                      className="px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-bold text-xs rounded-xl border border-blue-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <CalendarClock className="w-4 h-4 text-blue-400" />
+                      Follow-ups
+                      {followUpStats.attentionCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                          {followUpStats.attentionCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
                       onClick={() => setActiveTab('leaderboard')}
-                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 transition-all"
+                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Trophy className="w-4 h-4 text-murugan-accent" />
                       Leaderboard
@@ -367,6 +427,64 @@ export default function CanvasserDashboard() {
               {/* Dynamic Field Performance KPI Cards */}
               <DynamicKPISection currentUser={user} refreshTrigger={visits.length} />
 
+              {/* Priority Follow-ups Quick Tracker Widget */}
+              <div className="bg-[#171822] p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4 text-amber-400" />
+                    Priority Follow-ups Queue
+                  </h3>
+                  <button 
+                    onClick={() => setActiveTab('followups')}
+                    className="text-xs text-amber-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Open Queue ({followUpStats.totalScheduled})
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('followups')}
+                    className="p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 rounded-2xl text-left transition cursor-pointer"
+                  >
+                    <span className="text-[11px] font-bold text-rose-300 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-rose-400" />
+                      Due Today
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-rose-400 mt-1 block">{followUpStats.dueToday}</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">Urgent client calls</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('followups')}
+                    className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 rounded-2xl text-left transition cursor-pointer"
+                  >
+                    <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-amber-400" />
+                      Tomorrow
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-amber-400 mt-1 block">{followUpStats.dueTomorrow}</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">Upcoming next day</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('followups')}
+                    className="p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 rounded-2xl text-left transition cursor-pointer"
+                  >
+                    <span className="text-[11px] font-bold text-red-300 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-red-400" />
+                      Overdue
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-red-400 mt-1 block">{followUpStats.overdue}</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">Needs reschedule</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Pipeline Quick Summary */}
               <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
                 <div className="flex justify-between items-center">
@@ -376,7 +494,7 @@ export default function CanvasserDashboard() {
                   </h3>
                   <button 
                     onClick={() => setActiveTab('list')}
-                    className="text-xs text-murugan-accent font-semibold hover:underline flex items-center gap-1"
+                    className="text-xs text-murugan-accent font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     View All ({visits.length})
                     <ChevronRight className="w-3 h-3" />
@@ -938,6 +1056,13 @@ export default function CanvasserDashboard() {
             </div>
           )}
 
+          {/* ================= TAB: PRIORITY FOLLOW-UPS ================= */}
+          {activeTab === 'followups' && (
+            <ErrorBoundary>
+              <FollowUpsPipelineModule currentUser={user} canvasserScoped={true} />
+            </ErrorBoundary>
+          )}
+
           {/* ================= TAB 4: CANVASSER PERFORMANCE LEADERBOARD ================= */}
           {activeTab === 'leaderboard' && (
             <ErrorBoundary>
@@ -950,7 +1075,7 @@ export default function CanvasserDashboard() {
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-[#14151b]/95 backdrop-blur-2xl border-t border-white/10 pb-safe z-50 px-2 py-1.5 shadow-2xl">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
           {navTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -972,8 +1097,15 @@ export default function CanvasserDashboard() {
                     transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
                   />
                 )}
-                <Icon className="w-4 h-4 relative z-10" />
-                <span className="text-[10px] font-bold tracking-tight truncate max-w-full relative z-10">{tab.mobileLabel || tab.label}</span>
+                <div className="relative">
+                  <Icon className="w-4 h-4 relative z-10" />
+                  {tab.badge && (
+                    <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[9px] font-black px-1 py-0.2 rounded-full min-w-[14px] text-center">
+                      {tab.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold tracking-tight truncate max-w-full relative z-10">{tab.mobileLabel || tab.label}</span>
               </button>
             );
           })}

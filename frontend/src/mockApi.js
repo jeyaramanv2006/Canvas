@@ -390,6 +390,10 @@ export const mockApi = {
       ...q,
       date: q.date || (q.created_at ? q.created_at.split('T')[0] : ''),
       grand_total: Number(q.grand_total || 0),
+      subtotal: Number(q.subtotal || 0),
+      tax_amount: Number(q.tax_amount || 0),
+      discount_amount: Number(q.discount_amount || 0),
+      tags: typeof q.tags === 'string' ? JSON.parse(q.tags || '[]') : (q.tags || []),
       items: typeof q.items === 'string' ? JSON.parse(q.items || '[]') : (q.items || [])
     }));
   },
@@ -407,6 +411,56 @@ export const mockApi = {
     return await this.createQuotation(payload);
   },
 
+  async updateQuotation(id, quoteData) {
+    const encId = encodeURIComponent(id);
+    return await api.put(`/quotations/${encId}`, { ...quoteData, id });
+  },
+
+  async deleteQuotation(id) {
+    const encId = encodeURIComponent(id);
+    return await api.delete(`/quotations/${encId}`, { body: { id } });
+  },
+
+  // ── Proforma Invoices ──────────────────────────────────────────────────────
+  async getProformaInvoices() {
+    const res = await api.get('/proforma-invoices');
+    const list = Array.isArray(res) ? res : (res?.proforma_invoices || []);
+    return list.map(p => ({
+      ...p,
+      date: p.date || (p.created_at ? p.created_at.split('T')[0] : ''),
+      grand_total: Number(p.grand_total || 0),
+      subtotal: Number(p.subtotal || 0),
+      tax_amount: Number(p.tax_amount || 0),
+      discount_amount: Number(p.discount_amount || 0),
+      due_date: p.due_date || '',
+      tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || []),
+      items: typeof p.items === 'string' ? JSON.parse(p.items || '[]') : (p.items || [])
+    }));
+  },
+
+  async createProformaInvoice(proformaData) {
+    return await api.post('/proforma-invoices', proformaData);
+  },
+
+  async addProformaInvoice(proformaData, canvasserId, canvasserName) {
+    const payload = {
+      ...proformaData,
+      canvasser_id: canvasserId || proformaData.canvasser_id,
+      canvasser_name: canvasserName || proformaData.canvasser_name
+    };
+    return await this.createProformaInvoice(payload);
+  },
+
+  async updateProformaInvoice(id, proformaData) {
+    const encId = encodeURIComponent(id);
+    return await api.put(`/proforma-invoices/${encId}`, { ...proformaData, id });
+  },
+
+  async deleteProformaInvoice(id) {
+    const encId = encodeURIComponent(id);
+    return await api.delete(`/proforma-invoices/${encId}`, { body: { id } });
+  },
+
   // ── Invoices & Payments ────────────────────────────────────────────────────
   async getInvoices() {
     const res = await api.get('/invoices');
@@ -421,10 +475,13 @@ export const mockApi = {
         status: status === 'Fully Paid' ? 'Paid' : status,
         payment_status: inv.payment_status || status,
         grand_total: grandTotal,
+        subtotal: Number(inv.subtotal || 0),
+        tax_amount: Number(inv.tax_amount || 0),
         paid_amount: paidAmount,
         outstanding_balance: outstanding,
         pending_balance: outstanding,
         due_date: inv.due_date || '',
+        tags: typeof inv.tags === 'string' ? JSON.parse(inv.tags || '[]') : (inv.tags || []),
         items: typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || [])
       };
     });
@@ -443,14 +500,37 @@ export const mockApi = {
     return await this.createInvoice(payload);
   },
 
+  async updateInvoice(id, invoiceData) {
+    const encId = encodeURIComponent(id);
+    return await api.put(`/invoices/${encId}`, { ...invoiceData, id });
+  },
+
+  async deleteInvoice(id) {
+    const encId = encodeURIComponent(id);
+    return await api.delete(`/invoices/${encId}`, { body: { id } });
+  },
+
   async recordPayment(invoiceId, paymentData) {
+    const encId = encodeURIComponent(invoiceId);
     const payload = {
       amount: Number(paymentData.amount || 0),
       payment_method: paymentData.payment_method || paymentData.mode || 'Bank Transfer / NEFT',
       reference_number: paymentData.reference_number || paymentData.reference_id || '',
-      notes: paymentData.notes || ''
+      notes: paymentData.notes || '',
+      date: paymentData.date || paymentData.recorded_at,
+      invoice_id: invoiceId
     };
-    return await api.post(`/invoices/${invoiceId}/payment`, payload);
+    return await api.post(`/invoices/${encId}/payment`, payload);
+  },
+
+  async deletePayment(id) {
+    const encId = encodeURIComponent(id);
+    return await api.delete(`/payments/${encId}`, { body: { id } });
+  },
+
+  async updatePayment(id, paymentData) {
+    const encId = encodeURIComponent(id);
+    return await api.put(`/payments/${encId}`, { ...paymentData, id });
   },
 
   async getPayments() {
@@ -463,7 +543,9 @@ export const mockApi = {
       payment_method: p.payment_method || p.mode || 'Bank Transfer',
       reference_id: p.reference_number || p.reference_id || '-',
       reference_number: p.reference_number || p.reference_id || '-',
-      date: p.date || (p.recorded_at ? p.recorded_at.split('T')[0] : '')
+      notes: p.notes || '',
+      date: p.date || (p.recorded_at ? p.recorded_at.split('T')[0] : ''),
+      tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || [])
     }));
   },
 

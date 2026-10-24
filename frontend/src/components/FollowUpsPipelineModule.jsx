@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar, Clock, AlertTriangle, CheckCircle2, Search, Filter,
@@ -11,7 +12,8 @@ import { cn } from '../lib/utils';
 import ProductBadge from './ProductBadge';
 import SchoolPortfolioModal from './SchoolPortfolioModal';
 
-export default function FollowUpsPipelineModule({ currentUser }) {
+export default function FollowUpsPipelineModule({ currentUser, canvasserScoped = false }) {
+  const isCanvasser = canvasserScoped || ['canvasser', 'cvs'].includes((currentUser?.role || '').toLowerCase());
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,20 +25,65 @@ export default function FollowUpsPipelineModule({ currentUser }) {
   const [portfolioSchool, setPortfolioSchool] = useState(null);
   const [inspectVisit, setInspectVisit] = useState(null);
 
+  // Reschedule / Clear Follow-up Modal State
+  const [rescheduleVisit, setRescheduleVisit] = useState(null);
+  const [newFollowUpDate, setNewFollowUpDate] = useState('');
+  const [isUpdatingFollowUp, setIsUpdatingFollowUp] = useState(false);
+
+  // Lock body scroll and handle Escape key for reschedule modal
+  useEffect(() => {
+    if (rescheduleVisit) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') setRescheduleVisit(null);
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = orig;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [rescheduleVisit]);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState(null);
+
   useEffect(() => {
     loadVisits();
-  }, []);
+  }, [currentUser, isCanvasser]);
 
   const loadVisits = async () => {
     setLoading(true);
     try {
-      const data = await mockApi.getVisits();
-      setVisits(Array.isArray(data) ? data : []);
+      const params = isCanvasser && currentUser?.id ? { canvasser_id: currentUser.id } : {};
+      const data = await mockApi.getVisits(params);
+      let list = Array.isArray(data) ? data : [];
+      if (isCanvasser && currentUser) {
+        list = list.filter(v => 
+          (v.canvasser_id !== null && v.canvasser_id !== undefined && String(v.canvasser_id) === String(currentUser.id)) ||
+          (v.canvasser_name && currentUser.name && v.canvasser_name.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
+        );
+      }
+      setVisits(list);
     } catch (e) {
       console.error('Failed to load visits for followups pipeline', e);
       setVisits([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateFollowUp = async (visitId, nextDateOrNull) => {
+    setIsUpdatingFollowUp(true);
+    try {
+      await mockApi.updateVisit(visitId, { follow_up_date: nextDateOrNull }, currentUser);
+      setActionSuccessMsg(nextDateOrNull ? `Follow-up rescheduled to ${nextDateOrNull}` : 'Follow-up marked as Done / Cleared');
+      setTimeout(() => setActionSuccessMsg(null), 3000);
+      setRescheduleVisit(null);
+      await loadVisits();
+    } catch (err) {
+      alert(err.message || 'Failed to update follow-up date');
+    } finally {
+      setIsUpdatingFollowUp(false);
     }
   };
 
@@ -321,31 +368,33 @@ export default function FollowUpsPipelineModule({ currentUser }) {
 
       {/* Filter and Search Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-[#161721] p-3 rounded-2xl border border-white/10">
-        <div className="sm:col-span-6 relative">
+        <div className={cn("relative", isCanvasser ? "sm:col-span-8" : "sm:col-span-6")}>
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search school name, canvasser, phone, or notes..."
+            placeholder={isCanvasser ? "Search school name, contact person, phone..." : "Search school name, canvasser, phone, or notes..."}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full bg-[#121319] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400"
           />
         </div>
 
-        <div className="sm:col-span-3">
-          <select
-            value={selectedCanvasser}
-            onChange={e => setSelectedCanvasser(e.target.value)}
-            className="w-full bg-[#121319] border border-white/10 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
-          >
-            <option value="all">All Canvassers ({availableCanvassers.length})</option>
-            {availableCanvassers.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
+        {!isCanvasser && (
+          <div className="sm:col-span-3">
+            <select
+              value={selectedCanvasser}
+              onChange={e => setSelectedCanvasser(e.target.value)}
+              className="w-full bg-[#121319] border border-white/10 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
+            >
+              <option value="all">All Canvassers ({availableCanvassers.length})</option>
+              {availableCanvassers.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <div className="sm:col-span-3">
+        <div className={cn(isCanvasser ? "sm:col-span-4" : "sm:col-span-3")}>
           <select
             value={selectedDistrict}
             onChange={e => setSelectedDistrict(e.target.value)}
@@ -358,6 +407,13 @@ export default function FollowUpsPipelineModule({ currentUser }) {
           </select>
         </div>
       </div>
+
+      {actionSuccessMsg && (
+        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{actionSuccessMsg}</span>
+        </div>
+      )}
 
       {/* Follow-up Queue Cards */}
       <div className="space-y-3">
@@ -490,7 +546,7 @@ export default function FollowUpsPipelineModule({ currentUser }) {
                     Visit Ref #{visit.id}
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {visit.phone && (
                       <a
                         href={`tel:${visit.phone}`}
@@ -500,6 +556,19 @@ export default function FollowUpsPipelineModule({ currentUser }) {
                         <span>Call</span>
                       </a>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRescheduleVisit(visit);
+                        setNewFollowUpDate(visit.follow_up_date || '');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                      title="Reschedule follow-up or mark as done"
+                    >
+                      <Calendar className="w-3 h-3 text-blue-400" />
+                      <span>Reschedule / Done</span>
+                    </button>
 
                     <button
                       type="button"
@@ -516,6 +585,132 @@ export default function FollowUpsPipelineModule({ currentUser }) {
           })
         )}
       </div>
+
+      {/* Viewport-Centered Reschedule / Done Popup Modal via Portal */}
+      {rescheduleVisit && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setRescheduleVisit(null)}
+        >
+          <div
+            className="bg-[#141520] border border-white/15 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95 my-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  <Calendar className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-white">Reschedule Follow-up</h3>
+                  <p className="text-xs text-gray-400 font-medium">{rescheduleVisit.school_name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleVisit(null)}
+                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-black/30 border border-white/5 rounded-2xl p-3.5 text-xs text-gray-300 flex items-center justify-between">
+              <span className="text-gray-400">Current Scheduled Date:</span>
+              <span className="font-mono font-bold text-amber-400">{rescheduleVisit.follow_up_date || 'No Date Assigned'}</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-gray-200 block mb-1.5">
+                  Pick New Target Follow-up Date
+                </label>
+                <input
+                  type="date"
+                  value={newFollowUpDate}
+                  onChange={e => setNewFollowUpDate(e.target.value)}
+                  className="w-full bg-[#0d0e14] border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1.5">
+                  Quick One-Click Presets
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 1);
+                      setNewFollowUpDate(d.toISOString().slice(0, 10));
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
+                  >
+                    Tomorrow (+1d)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 3);
+                      setNewFollowUpDate(d.toISOString().slice(0, 10));
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
+                  >
+                    In 3 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 7);
+                      setNewFollowUpDate(d.toISOString().slice(0, 10));
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
+                  >
+                    In 1 Week (+7d)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                disabled={isUpdatingFollowUp}
+                onClick={() => handleUpdateFollowUp(rescheduleVisit.id, null)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Mark follow-up as complete and remove from priority section"
+              >
+                <CheckCircle2 className="w-4 h-4 text-rose-400" />
+                <span>Mark Done / Clear (None)</span>
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleVisit(null)}
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isUpdatingFollowUp || !newFollowUpDate}
+                  onClick={() => handleUpdateFollowUp(rescheduleVisit.id, newFollowUpDate)}
+                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black shadow-lg shadow-amber-400/20 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>{isUpdatingFollowUp ? 'Saving...' : 'Save New Date'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* School Portfolio Modal */}
       {portfolioSchool && (

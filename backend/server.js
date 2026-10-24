@@ -89,18 +89,35 @@ app.post('/api/master-schools', authenticateToken, requireAdmin, masterSchoolsCo
 app.put('/api/master-schools/:id', authenticateToken, requireAdmin, masterSchoolsController.updateMasterSchool);
 app.delete('/api/master-schools/:id', authenticateToken, requireAdmin, masterSchoolsController.deleteMasterSchool);
 
-// ── Financials: Products, Quotations, Invoices, Payments ─────────────────────
+// ── Financials: Products, Quotations, Proforma Invoices, Invoices, Payments ─
 app.get('/api/products', authenticateToken, financialsController.getProducts);
 app.post('/api/products', authenticateToken, requireAdmin, financialsController.createProduct);
 app.put('/api/products/:id', authenticateToken, requireAdmin, financialsController.updateProduct);
 app.delete('/api/products/:id', authenticateToken, requireAdmin, financialsController.deleteProduct);
 
+// Quotations
 app.get('/api/quotations', authenticateToken, financialsController.getQuotations);
 app.post('/api/quotations', authenticateToken, financialsController.createQuotation);
+app.put(['/api/quotations/:id', '/api/quotations/*'], authenticateToken, financialsController.updateQuotation);
+app.delete(['/api/quotations/:id', '/api/quotations/*'], authenticateToken, financialsController.deleteQuotation);
 
+// Proforma Invoices
+app.get('/api/proforma-invoices', authenticateToken, financialsController.getProformaInvoices);
+app.post('/api/proforma-invoices', authenticateToken, financialsController.createProformaInvoice);
+app.put(['/api/proforma-invoices/:id', '/api/proforma-invoices/*'], authenticateToken, financialsController.updateProformaInvoice);
+app.delete(['/api/proforma-invoices/:id', '/api/proforma-invoices/*'], authenticateToken, financialsController.deleteProformaInvoice);
+
+// Invoices
 app.get('/api/invoices', authenticateToken, financialsController.getInvoices);
 app.post('/api/invoices', authenticateToken, financialsController.createInvoice);
-app.post('/api/invoices/:id/payment', authenticateToken, financialsController.recordPayment);
+app.put(['/api/invoices/:id', '/api/invoices/*'], authenticateToken, financialsController.updateInvoice);
+app.delete(['/api/invoices/:id', '/api/invoices/*'], authenticateToken, financialsController.deleteInvoice);
+
+// Payments & CFO Analytics
+app.post(['/api/invoices/:id/payment', '/api/invoices/*/payment'], authenticateToken, financialsController.recordPayment);
+app.post('/api/payments', authenticateToken, financialsController.recordPayment);
+app.put(['/api/payments/:id', '/api/payments/*'], authenticateToken, financialsController.updatePayment);
+app.delete(['/api/payments/:id', '/api/payments/*'], authenticateToken, financialsController.deletePayment);
 app.get('/api/payments', authenticateToken, financialsController.getPayments);
 app.get('/api/cfo/analytics', authenticateToken, financialsController.getCFOAnalytics);
 

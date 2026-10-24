@@ -39,6 +39,8 @@ export default function InvoiceDocumentModal({
   const data = initialData || documentData || visitData;
 
   const isQuoteType = type.toLowerCase().includes('quote');
+  const isProformaType = type.toLowerCase().includes('proforma');
+  const isInvoiceType = !isQuoteType && !isProformaType;
 
   // Form State
   const [formMode, setFormMode] = useState(mode);
@@ -49,7 +51,7 @@ export default function InvoiceDocumentModal({
 
   // Document Type Header
   const [docTypeTitle, setDocTypeTitle] = useState(
-    isQuoteType ? "QUOTATION" : (data?.doc_type || "Proforma Invoice")
+    isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : "TAX INVOICE")
   );
 
   // Form fields (No hardcoded example names)
@@ -128,14 +130,14 @@ export default function InvoiceDocumentModal({
       setPreviewTab(isView);
 
       if (data) {
-        setDocTypeTitle(isQuoteType ? "QUOTATION" : (data.doc_type || (type.toLowerCase().includes('tax') ? "Tax Invoice" : "Proforma Invoice")));
-        setDocNumber(data.invoice_number || data.quotation_number || data.id || (isQuoteType ? `QTN-${Math.floor(1000 + Math.random() * 9000)}` : `INV-${Math.floor(1000 + Math.random() * 9000)}`));
+        setDocTypeTitle(isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : (data.doc_type || "TAX INVOICE")));
+        setDocNumber(data.invoice_number || data.quotation_number || data.proforma_number || data.id || '');
         setSchoolName(data.school_name || '');
         setAddress(data.address || data.area || '');
         setDistrict(data.district || 'Tamil Nadu, India');
         setContactPerson(data.contact_person || '');
         setPhone(data.phone || '');
-        setDocDate(formatDisplayDate(data.date || data.invoice_date || data.quotation_date || new Date()));
+        setDocDate(formatDisplayDate(data.date || data.invoice_date || data.quotation_date || data.created_at || new Date()));
         setDueDate(formatDisplayDate(data.due_date || data.valid_until || new Date(Date.now() + 86400000 * 15)));
         setCountryOfSupply(data.country_of_supply || "India");
         setPlaceOfSupply(data.place_of_supply || "Tamil Nadu (33)");
@@ -182,9 +184,8 @@ export default function InvoiceDocumentModal({
         }
       } else {
         // Brand new document
-        const isQ = isQuoteType;
-        setDocTypeTitle(isQ ? "QUOTATION" : "Proforma Invoice");
-        setDocNumber(isQ ? `QTN-${Math.floor(1000 + Math.random() * 9000)}` : `INV-${Math.floor(1000 + Math.random() * 9000)}`);
+        setDocTypeTitle(isQuoteType ? "QUOTATION" : (isProformaType ? "PROFORMA INVOICE" : "TAX INVOICE"));
+        setDocNumber('');
         setSchoolName('');
         setAddress('');
         setDistrict('Tamil Nadu, India');
@@ -200,7 +201,7 @@ export default function InvoiceDocumentModal({
         setCanvasserName(currentUser?.name || 'Canvasser');
         setCanvasserId(currentUser?.id || 1);
         setItems([
-          { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQ ? '' : 'prs', unit_rate: 0 }
+          { name: '', size: '-', hsn: '', gst_rate: 5, quantity: 1, unit: isQuoteType ? '' : 'prs', unit_rate: 0 }
         ]);
       }
     }
@@ -278,20 +279,21 @@ export default function InvoiceDocumentModal({
     try {
       const payload = {
         doc_type: docTypeTitle,
-        id: docNumber,
-        invoice_number: !isQuoteType ? docNumber : undefined,
-        quotation_number: isQuoteType ? docNumber : undefined,
+        id: docNumber || undefined,
         school_name: schoolName,
         address: address,
         district: district,
         contact_person: contactPerson,
         phone: phone,
         date: docDate,
+        created_at: data?.created_at || new Date().toISOString(),
         [isQuoteType ? 'valid_until' : 'due_date']: dueDate,
+        due_date: dueDate,
         country_of_supply: countryOfSupply,
         place_of_supply: placeOfSupply,
         items: calculatedItems,
         subtotal: subtotal,
+        tax_amount: totalCgst + totalSgst,
         total_cgst: totalCgst,
         total_sgst: totalSgst,
         extra_charges: parsedExtra,
@@ -301,13 +303,30 @@ export default function InvoiceDocumentModal({
         grand_total: grandTotal,
         canvasser_id: canvasserId || currentUser?.id,
         canvasser_name: canvasserName || currentUser?.name || 'Canvasser',
-        visit_id: data?.visit_id || data?.id
+        visit_id: data?.visit_id || data?.id,
+        tags: data?.tags || []
       };
 
+      const isExistingEdit = formMode === 'edit' && !!data?.id;
+
       if (isQuoteType) {
-        await mockApi.addQuotation(payload, currentUser?.id, currentUser?.name);
+        if (isExistingEdit) {
+          await mockApi.updateQuotation(data.id, payload);
+        } else {
+          await mockApi.addQuotation(payload, currentUser?.id, currentUser?.name);
+        }
+      } else if (isProformaType) {
+        if (isExistingEdit) {
+          await mockApi.updateProformaInvoice(data.id, payload);
+        } else {
+          await mockApi.addProformaInvoice(payload, currentUser?.id, currentUser?.name);
+        }
       } else {
-        await mockApi.addInvoice(payload, currentUser?.id, currentUser?.name);
+        if (isExistingEdit) {
+          await mockApi.updateInvoice(data.id, payload);
+        } else {
+          await mockApi.addInvoice(payload, currentUser?.id, currentUser?.name);
+        }
       }
 
       if (onSaveSuccess) {
@@ -550,9 +569,9 @@ export default function InvoiceDocumentModal({
                 <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
                   <div className="flex-1 font-medium leading-relaxed">{docError}</div>
-                  <button 
-                    type="button" 
-                    onClick={() => setDocError(null)} 
+                  <button
+                    type="button"
+                    onClick={() => setDocError(null)}
                     className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -754,7 +773,7 @@ export default function InvoiceDocumentModal({
                         <div className="sm:col-span-1 text-left sm:text-center font-mono font-bold text-amber-400">
                           #{idx + 1}
                         </div>
-                        
+
                         {/* Item Description */}
                         <div className="sm:col-span-4 space-y-1">
                           <span className="sm:hidden text-[10px] text-gray-400 block">Item Description:</span>

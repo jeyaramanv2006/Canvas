@@ -136,6 +136,37 @@
 - **Decision**: Implement this engine in both backend (`calculateCommissionSlab` in `dashboardController.js`) and frontend (`mockApi.js`, `CanvasserLeaderboard.jsx`, and `DynamicKPISection.jsx`).
 - **Rationale**: Provides clear commercial incentives, aligns with management's official commission table, and enhances field team motivation with transparent settlement schedules.
 
+### DEC-013: Refrens Sales & Invoices Financials Suite with Permanent Document Numbering & Live DB Persistence
+- **Status**: CONFIRMED
+- **Context**: Management specified that the Financials / Sales & Invoices module must match the Refrens structure across 4 core areas: **Quotation & Estimates**, **Proforma Invoices**, **Invoices**, and **Payment Receipts**. Client directed that document deletion must NOT reassign or shift document numbers ("Whatever is deleted is deleted, no reassignings") to ensure permanent audit trail integrity.
+- **Decision**:
+  1. Add `proforma_invoices` relational table to SQLite (`canvas.db`) and PostgreSQL (`pgAdapter.js`).
+  2. Implement sequential document ID generation (`A00001`, `A00002`, ...) with 5-digit zero-padding based on maximum existing sequence.
+  3. Deleting any document permanently removes that document while preserving all existing and subsequent document numbers unchanged.
+  4. Build a Refrens-style table interface featuring expandable line items, tags, GST details, status indicators, and collapsible analytics summary cards.
+  5. Connect all 4 areas to live backend REST API endpoints.
+- **Rationale**: Delivers the exact workflow and document structure required by leadership while maintaining relational data integrity and preserving permanent document identifiers for audit/tax compliance.
+
+### DEC-014: Refrens Historical Data Seeding & Interactive Section Graphs (Line, Bar, Scatter)
+- **Status**: CONFIRMED
+- **Context**: Client provided export CSV dumps from Refrens (Quotations, Proforma Invoices, Tax Invoices, and Payment Receipts) and requested importing this data directly into the application with interactive visual graphs in each respective section matching the Refrens design (Line, Bar, and Scatter toggles with Monthly, Weekly, Quarterly, and Daily intervals).
+- **Decision**:
+  1. Build `seedRefrens.js` parser to import historical Refrens records into SQLite (`canvas.db`) and PostgreSQL/Neon automatically upon server initialization.
+  2. Implement `RefrensFinancialGraph` component in `InvoicingModule.jsx` using Recharts, computing live metrics directly from backend records (no mock numbers).
+  3. Support dynamic toggling between Line Chart, Bar Chart, and Scatter Plot across Monthly, Weekly, Quarterly, and Daily aggregation periods.
+- **Rationale**: Completely populates real business transaction history and provides management with immediate visual trend analysis matching their prior Refrens experience.
+
+### DEC-015: Slash-Safe Document Routing, Dynamic Updates & Safe Neon DB Seeding
+- **Status**: CONFIRMED
+- **Context**: Financial document IDs generated in the system contain forward slashes (e.g. `ME-QTN-26-27/0001`, `ME-TX-INV-26-27/0001`), whereas imported historical records had alphanumeric IDs (`A00001`). In Express, routes defined with `:id` treated `/0001` as an extra path segment, returning 404 for non-imported records. Furthermore, static 11-column `COALESCE(?, ...)` queries failed in PostgreSQL/Neon DB due to untyped NULL parameter ambiguity. Existing data in the production Neon DB must never be overwritten, modified, or wiped when new code or seed routines run.
+- **Decision**:
+  1. Register array routes with wildcard matching (`['/api/quotations/:id', '/api/quotations/*']`) across all quotation, proforma, invoice, and payment update/delete endpoints.
+  2. Implement `extractDocumentId` helper with `decodeURIComponent` and request body fallback.
+  3. Encode all IDs in `mockApi.js` and include `{ id, ...data }` in payloads for multi-layer redundancy.
+  4. Build dynamic SQL update statements that only set fields explicitly passed in the request body, eliminating `COALESCE` NULL parameter inference errors in PostgreSQL.
+  5. Use `if (!existing)` insertion checks in `seedRefrens.js` and non-destructive column migrations (`ADD COLUMN IF NOT EXISTS`) in `pgAdapter.js` and `db.js`, guaranteeing zero modifications to existing production data.
+- **Rationale**: Ensures tags and edits work identically for all documents across SQLite and PostgreSQL, with zero risk to existing production records upon deployment.
+
 ---
 
 ## Decisions Required / Unresolved Questions

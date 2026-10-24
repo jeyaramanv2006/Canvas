@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { loadAndParseSchoolsFromCSVs } from './seedSchools.js';
 
 import { pgDb, initPgDB } from './pgAdapter.js';
+import { seedRefrensData } from './seedRefrens.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +38,19 @@ export const db = {
     if (process.env.DATABASE_URL) {
       return pgDb.prepare(sql);
     }
-    return sqliteDb.prepare(sql);
+    const stmt = sqliteDb.prepare(sql);
+    const sanitize = (params) => params.map(p => p === undefined ? null : p);
+    return {
+      run(...params) {
+        return stmt.run(...sanitize(params));
+      },
+      get(...params) {
+        return stmt.get(...sanitize(params));
+      },
+      all(...params) {
+        return stmt.all(...sanitize(params));
+      }
+    };
   }
 };
 
@@ -88,7 +101,7 @@ export async function initDB() {
   try {
     const tableInfo = db.prepare("PRAGMA table_info(users)").all();
     const colNames = tableInfo.map(col => col.name);
-    
+
     if (!colNames.includes('username')) {
       db.exec(`ALTER TABLE users ADD COLUMN username TEXT;`);
     }
@@ -218,6 +231,33 @@ export async function initDB() {
       discount_amount REAL DEFAULT 0,
       grand_total REAL NOT NULL,
       status TEXT DEFAULT 'Sent',
+      tags TEXT DEFAULT '[]',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (canvasser_id) REFERENCES users(id)
+    );
+  `);
+
+  // 6b. Proforma Invoices Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS proforma_invoices (
+      id TEXT PRIMARY KEY,
+      quotation_id TEXT,
+      visit_id INTEGER,
+      canvasser_id INTEGER NOT NULL,
+      canvasser_name TEXT NOT NULL,
+      school_name TEXT NOT NULL,
+      district TEXT NOT NULL,
+      contact_person TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      items TEXT NOT NULL,             -- JSON array
+      subtotal REAL NOT NULL,
+      tax_amount REAL NOT NULL,
+      discount_amount REAL DEFAULT 0,
+      grand_total REAL NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      payment_status TEXT DEFAULT 'Unpaid',
+      due_date TEXT,
+      tags TEXT DEFAULT '[]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (canvasser_id) REFERENCES users(id)
     );
@@ -228,6 +268,7 @@ export async function initDB() {
     CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY,
       quotation_id TEXT,
+      proforma_id TEXT,
       visit_id INTEGER,
       canvasser_id INTEGER NOT NULL,
       canvasser_name TEXT NOT NULL,
@@ -244,6 +285,7 @@ export async function initDB() {
       outstanding_balance REAL NOT NULL,
       payment_status TEXT DEFAULT 'Unpaid',
       due_date TEXT,
+      tags TEXT DEFAULT '[]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (canvasser_id) REFERENCES users(id)
     );
@@ -260,10 +302,30 @@ export async function initDB() {
       reference_number TEXT,
       recorded_by_name TEXT NOT NULL,
       recorded_by_role TEXT NOT NULL,
+      notes TEXT,
       recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (invoice_id) REFERENCES invoices(id)
     );
   `);
+
+  // Auto-migration for existing SQLite tables
+  try {
+    const qInfo = db.prepare("PRAGMA table_info(quotations)").all().map(c => c.name);
+    if (!qInfo.includes('tags')) db.exec("ALTER TABLE quotations ADD COLUMN tags TEXT DEFAULT '[]';");
+
+    const profInfo = db.prepare("PRAGMA table_info(proforma_invoices)").all().map(c => c.name);
+    if (!profInfo.includes('tags')) db.exec("ALTER TABLE proforma_invoices ADD COLUMN tags TEXT DEFAULT '[]';");
+
+    const invInfo = db.prepare("PRAGMA table_info(invoices)").all().map(c => c.name);
+    if (!invInfo.includes('tags')) db.exec("ALTER TABLE invoices ADD COLUMN tags TEXT DEFAULT '[]';");
+    if (!invInfo.includes('proforma_id')) db.exec("ALTER TABLE invoices ADD COLUMN proforma_id TEXT;");
+
+    const payInfo = db.prepare("PRAGMA table_info(payments)").all().map(c => c.name);
+    if (!payInfo.includes('notes')) db.exec("ALTER TABLE payments ADD COLUMN notes TEXT;");
+    if (!payInfo.includes('tags')) db.exec("ALTER TABLE payments ADD COLUMN tags TEXT DEFAULT '[]';");
+  } catch (e) {
+    // Migration check silent fallback
+  }
 
   // Auto-migration for existing SQLite visits table
   const visitCols = [
@@ -285,6 +347,28 @@ export async function initDB() {
   }
 
   seedDefaultData();
+  try {
+    await seedRefrensData(db);
+  } catch (refrensErr) {
+    console.error('Error seeding Refrens records:', refrensErr);
+  }
+
+  // Ensure Refrens Import tag is present on all imported records (id LIKE 'A%')
+  try {
+    for (const tbl of ['quotations', 'proforma_invoices', 'invoices', 'payments']) {
+      const rows = db.prepare(`SELECT id, tags FROM ${tbl} WHERE id LIKE 'A%'`).all();
+      for (const r of (rows || [])) {
+        let tags = [];
+        try { tags = typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []); } catch (_) { tags = []; }
+        if (!tags.includes('Refrens Import')) {
+          tags.push('Refrens Import');
+          db.prepare(`UPDATE ${tbl} SET tags = ? WHERE id = ?`).run(JSON.stringify(tags), r.id);
+        }
+      }
+    }
+  } catch (tagSyncErr) {
+    console.warn('Note: Refrens Import tag synchronization:', tagSyncErr.message);
+  }
 }
 
 function seedDefaultData() {
@@ -496,51 +580,211 @@ function seedDefaultData() {
       INSERT INTO quotations (
         id, visit_id, canvasser_id, canvasser_name, school_name,
         district, contact_person, phone, items, subtotal,
-        tax_amount, discount_amount, grand_total, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        tax_amount, discount_amount, grand_total, status, tags, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const now = Date.now();
     const quotes = [
       {
-        id: 'QTN-2026-089',
+        id: 'A00001',
         visit_id: 1,
         canvasser_id: 1,
         canvasser_name: 'Gokul',
-        school_name: "St. John's Higher Secondary School",
-        district: 'Coimbatore',
-        contact_person: 'Mr. Ramesh (Principal)',
+        school_name: 'MARUTHAM MATRIC HIGHER SECONDARY SCHOOL',
+        district: 'Madurai',
+        contact_person: 'Mr. Marutham (Principal)',
         phone: '9876543210',
         items: JSON.stringify([
-          { id: 1, name: 'Socks (Cotton Combed)', category: 'Hosiery', quantity: 1200, unit_price: 38, unit: 'pair', discount_pct: 5, gst_rate: 18, total: 51086.4 },
-          { id: 3, name: 'School Belts with Metal Crest', category: 'Accessories', quantity: 1200, unit_price: 55, unit: 'pcs', discount_pct: 0, gst_rate: 18, total: 77880 }
+          { name: 'Socks (Combed Cotton)', quantity: 1, unit_rate: 60, gst_rate: 5, amount: 60, total: 63 }
         ]),
-        subtotal: 109320,
-        tax_amount: 19646.4,
-        discount_amount: 2280,
-        grand_total: 128966.4,
-        status: 'Sent',
-        created_at: new Date(now - 86400000 * 2).toISOString()
+        subtotal: 60.00,
+        tax_amount: 3.00,
+        discount_amount: 0,
+        grand_total: 63.00,
+        status: 'Draft',
+        tags: JSON.stringify(['Retail Sample']),
+        created_at: '2026-05-11T10:00:00.000Z'
       },
       {
-        id: 'QTN-2026-092',
+        id: 'A00002',
         visit_id: 2,
         canvasser_id: 1,
         canvasser_name: 'Gokul',
-        school_name: 'Vivekananda Arts & Science College',
+        school_name: 'MARUTHAM MATRIC HIGHER SECONDARY SCHOOL',
         district: 'Madurai',
-        contact_person: 'Mrs. Priya (Admin Officer)',
-        phone: '9876543211',
+        contact_person: 'Mr. Marutham',
+        phone: '9876543210',
         items: JSON.stringify([
-          { id: 6, name: 'School Backpack / College Bags', category: 'Bags', quantity: 800, unit_price: 310, unit: 'pcs', discount_pct: 8, gst_rate: 18, total: 269222.4 },
-          { id: 4, name: 'School Tie (Sublimation Crest)', category: 'Accessories', quantity: 800, unit_price: 42, unit: 'pcs', discount_pct: 5, gst_rate: 18, total: 37665.6 }
+          { name: 'School Uniform Sets (Navy Blue)', quantity: 450, unit_rate: 400, gst_rate: 5, amount: 180000, total: 177300 }
         ]),
-        subtotal: 260080,
-        tax_amount: 46808,
-        discount_amount: 21520,
-        grand_total: 306888,
-        status: 'Under Review',
-        created_at: new Date(now - 86400000 * 4).toISOString()
+        subtotal: 197000.00,
+        tax_amount: 8850.00,
+        discount_amount: 28550.00,
+        grand_total: 177300.00,
+        status: 'Quotation Sent',
+        tags: JSON.stringify(['Annual Uniform']),
+        created_at: '2026-05-18T11:30:00.000Z'
+      },
+      {
+        id: 'A00003',
+        visit_id: null,
+        canvasser_id: 2,
+        canvasser_name: 'Murugan',
+        school_name: 'Sri Soolai Vinayagar Vidyalaya',
+        district: 'Coimbatore',
+        contact_person: 'Correspondent Office',
+        phone: '9876543212',
+        items: JSON.stringify([
+          { name: 'Custom School Ties', quantity: 550, unit_rate: 42.27, gst_rate: 5, amount: 23250, total: 24413 }
+        ]),
+        subtotal: 23250.00,
+        tax_amount: 1163.00,
+        discount_amount: 0,
+        grand_total: 24413.00,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Accessories']),
+        created_at: '2026-05-20T09:15:00.000Z'
+      },
+      {
+        id: 'A00004',
+        visit_id: null,
+        canvasser_id: 2,
+        canvasser_name: 'Murugan',
+        school_name: 'Sri Soolai Vinayagar Vidyalaya',
+        district: 'Coimbatore',
+        contact_person: 'Correspondent Office',
+        phone: '9876543212',
+        items: JSON.stringify([
+          { name: 'Sample Belts with Metal Crest', quantity: 20, unit_rate: 49.4, gst_rate: 5, amount: 988, total: 1037.48 }
+        ]),
+        subtotal: 988.00,
+        tax_amount: 49.48,
+        discount_amount: 0,
+        grand_total: 1037.48,
+        status: 'Quotation Sent',
+        tags: JSON.stringify(['Samples']),
+        created_at: '2026-05-26T14:20:00.000Z'
+      },
+      {
+        id: 'A00005',
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'SHALOM MATRIC HR SEC SCHOOL',
+        district: 'Tirupur',
+        contact_person: 'Principal Fr. David',
+        phone: '9876543213',
+        items: JSON.stringify([
+          { name: 'Sports Shoes (Non-marking Rubber Sole)', quantity: 35, unit_rate: 343.14, gst_rate: 5, amount: 12010, total: 12610.5 }
+        ]),
+        subtotal: 12010.00,
+        tax_amount: 600.50,
+        discount_amount: 0,
+        grand_total: 12610.50,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Footwear']),
+        created_at: '2026-05-27T16:45:00.000Z'
+      },
+      {
+        id: 'A00006',
+        visit_id: null,
+        canvasser_id: 2,
+        canvasser_name: 'Murugan',
+        school_name: 'Sri Soolai Vinayagar Vidyalaya',
+        district: 'Coimbatore',
+        contact_person: 'Correspondent Office',
+        phone: '9876543212',
+        items: JSON.stringify([
+          { name: 'Track Pants with Side Stripes', quantity: 95, unit_rate: 206.31, gst_rate: 5, amount: 19600, total: 19980 }
+        ]),
+        subtotal: 19600.00,
+        tax_amount: 380.00,
+        discount_amount: 0,
+        grand_total: 19980.00,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Sportswear']),
+        created_at: '2026-05-30T11:00:00.000Z'
+      },
+      {
+        id: 'A00007',
+        visit_id: null,
+        canvasser_id: 3,
+        canvasser_name: 'Suhas',
+        school_name: 'KAMP MEERANIA HSS KALAKAD',
+        district: 'Tirunelveli',
+        contact_person: 'Mr. Meeran (Admin)',
+        phone: '9876543214',
+        items: JSON.stringify([
+          { name: 'School Backpack / College Bags', quantity: 80, unit_rate: 307.2, gst_rate: 5, amount: 24576, total: 24605.34 }
+        ]),
+        subtotal: 24576.00,
+        tax_amount: 29.34,
+        discount_amount: 0,
+        grand_total: 24605.34,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Bags']),
+        created_at: '2026-06-08T15:30:00.000Z'
+      },
+      {
+        id: 'A00008',
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'SHALOM MATRIC HR SEC SCHOOL',
+        district: 'Tirupur',
+        contact_person: 'Principal Fr. David',
+        phone: '9876543213',
+        items: JSON.stringify([
+          { name: 'Combed Cotton Twin Stripe Socks', quantity: 450, unit_rate: 39.05, gst_rate: 5, amount: 17572, total: 18750.62 }
+        ]),
+        subtotal: 17572.00,
+        tax_amount: 1178.62,
+        discount_amount: 0,
+        grand_total: 18750.62,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Hosiery']),
+        created_at: '2026-06-18T10:20:00.000Z'
+      },
+      {
+        id: 'A00009',
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'SRI NALLAMANI YADAVA GROUP OF INSTITUTIONS',
+        district: 'Tenkasi',
+        contact_person: 'Dr. Nallamani (Chairman)',
+        phone: '9876543215',
+        items: JSON.stringify([
+          { name: 'Institutional Uniform Sets + Ties', quantity: 260, unit_rate: 390.13, gst_rate: 5, amount: 101435, total: 109806.98 }
+        ]),
+        subtotal: 101435.00,
+        tax_amount: 8371.98,
+        discount_amount: 0,
+        grand_total: 109806.98,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Institution Group']),
+        created_at: '2026-07-17T09:40:00.000Z'
+      },
+      {
+        id: 'A00010',
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'SRI NALLAMANI YADAVA GROUP OF INSTITUTIONS',
+        district: 'Tenkasi',
+        contact_person: 'Dr. Nallamani (Chairman)',
+        phone: '9876543215',
+        items: JSON.stringify([
+          { name: 'Sports Track Pants & Belts Bundle', quantity: 120, unit_rate: 246.0, gst_rate: 5, amount: 29520, total: 31996 }
+        ]),
+        subtotal: 29520.00,
+        tax_amount: 2476.00,
+        discount_amount: 0,
+        grand_total: 31996.00,
+        status: 'Quotation Seen',
+        tags: JSON.stringify(['Institution Group']),
+        created_at: '2026-07-17T12:00:00.000Z'
       }
     ];
 
@@ -548,7 +792,101 @@ function seedDefaultData() {
       insertQuote.run(
         q.id, q.visit_id, q.canvasser_id, q.canvasser_name, q.school_name,
         q.district, q.contact_person, q.phone, q.items, q.subtotal,
-        q.tax_amount, q.discount_amount, q.grand_total, q.status, q.created_at
+        q.tax_amount, q.discount_amount, q.grand_total, q.status, q.tags, q.created_at
+      );
+    }
+  }
+
+  // Seed Initial Proforma Invoices
+  const proformaCount = db.prepare('SELECT COUNT(*) as count FROM proforma_invoices').get().count;
+  if (proformaCount === 0) {
+    const insertProforma = db.prepare(`
+      INSERT INTO proforma_invoices (
+        id, quotation_id, visit_id, canvasser_id, canvasser_name,
+        school_name, district, contact_person, phone, items,
+        subtotal, tax_amount, discount_amount, grand_total,
+        status, payment_status, due_date, tags, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const proformas = [
+      {
+        id: 'A00001',
+        quotation_id: null,
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'VELS VISION AT ACADEMY',
+        district: 'Chennai',
+        contact_person: 'Mr. Sundar (Director)',
+        phone: '9876543216',
+        items: JSON.stringify([
+          { name: 'Institutional School Uniform Full Sets', quantity: 500, unit_rate: 476.1, gst_rate: 5, amount: 238050, total: 245000 }
+        ]),
+        subtotal: 238050.00,
+        tax_amount: 6950.00,
+        discount_amount: 0,
+        grand_total: 245000.00,
+        status: 'Paid',
+        payment_status: 'Paid',
+        due_date: '2026-06-07',
+        tags: JSON.stringify(['Advance Invoicing']),
+        created_at: '2026-05-31T10:00:00.000Z'
+      },
+      {
+        id: 'A00002',
+        quotation_id: null,
+        visit_id: null,
+        canvasser_id: 2,
+        canvasser_name: 'Murugan',
+        school_name: 'PIONEER CBSE SCHOOL',
+        district: 'Coimbatore',
+        contact_person: 'Administrative Officer',
+        phone: '9876543217',
+        items: JSON.stringify([
+          { name: 'Customized Crest Ties & Belts', quantity: 100, unit_rate: 48.6, gst_rate: 5, amount: 4860, total: 5303 }
+        ]),
+        subtotal: 4860.00,
+        tax_amount: 443.00,
+        discount_amount: 0,
+        grand_total: 5303.00,
+        status: 'Overdue',
+        payment_status: 'Unpaid',
+        due_date: '2026-06-24',
+        tags: JSON.stringify(['CBSE']),
+        created_at: '2026-06-09T14:15:00.000Z'
+      },
+      {
+        id: 'A00003',
+        quotation_id: 'A00010',
+        visit_id: null,
+        canvasser_id: 1,
+        canvasser_name: 'Gokul',
+        school_name: 'SRI NALLAMANI YADAVA GROUP OF INSTITUTIONS',
+        district: 'Tenkasi',
+        contact_person: 'Dr. Nallamani (Chairman)',
+        phone: '9876543215',
+        items: JSON.stringify([
+          { name: 'Institutional Sports Apparel & Sock Kits', quantity: 380, unit_rate: 391.85, gst_rate: 5, amount: 148905, total: 160351 }
+        ]),
+        subtotal: 148905.00,
+        tax_amount: 11446.00,
+        discount_amount: 0,
+        grand_total: 160351.00,
+        status: 'Overdue',
+        payment_status: 'Unpaid',
+        due_date: '2026-09-08',
+        tags: JSON.stringify(['High Priority']),
+        created_at: '2026-08-24T11:30:00.000Z'
+      }
+    ];
+
+    for (const p of proformas) {
+      insertProforma.run(
+        p.id, p.quotation_id, p.visit_id, p.canvasser_id, p.canvasser_name,
+        p.school_name, p.district, p.contact_person, p.phone, p.items,
+        p.subtotal, p.tax_amount, p.discount_amount, p.grand_total,
+        p.status, p.payment_status, p.due_date, p.tags, p.created_at
       );
     }
   }
@@ -558,25 +896,26 @@ function seedDefaultData() {
   if (invoiceCount === 0) {
     const insertInvoice = db.prepare(`
       INSERT INTO invoices (
-        id, quotation_id, visit_id, canvasser_id, canvasser_name,
+        id, quotation_id, proforma_id, visit_id, canvasser_id, canvasser_name,
         school_name, district, contact_person, phone, items,
         subtotal, tax_amount, discount_amount, grand_total,
-        paid_amount, outstanding_balance, payment_status, due_date, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        paid_amount, outstanding_balance, payment_status, due_date, tags, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertPayment = db.prepare(`
       INSERT INTO payments (
         id, invoice_id, school_name, amount, payment_method,
-        reference_number, recorded_by_name, recorded_by_role, recorded_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reference_number, recorded_by_name, recorded_by_role, notes, recorded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const now = Date.now();
     const invoices = [
       {
-        id: 'INV-2026-001',
+        id: 'A00001',
         quotation_id: null,
+        proforma_id: null,
         visit_id: 3,
         canvasser_id: 2,
         canvasser_name: 'Murugan',
@@ -596,9 +935,10 @@ function seedDefaultData() {
         outstanding_balance: 777940,
         payment_status: 'Partially Paid',
         due_date: new Date(now + 86400000 * 15).toISOString().split('T')[0],
+        tags: JSON.stringify(['Direct Order']),
         created_at: new Date(now - 86400000 * 5).toISOString(),
         payment: {
-          id: 'PAY-1001',
+          id: 'A00001',
           amount: 500000,
           payment_method: 'Bank Transfer (NEFT)',
           reference_number: 'UTIBR5202608149872',
@@ -606,8 +946,9 @@ function seedDefaultData() {
         }
       },
       {
-        id: 'INV-2026-002',
+        id: 'A00002',
         quotation_id: null,
+        proforma_id: null,
         visit_id: null,
         canvasser_id: 1,
         canvasser_name: 'Gokul',
@@ -627,9 +968,10 @@ function seedDefaultData() {
         outstanding_balance: 0,
         payment_status: 'Fully Paid',
         due_date: new Date(now - 86400000 * 2).toISOString().split('T')[0],
+        tags: JSON.stringify(['Repeat Client']),
         created_at: new Date(now - 86400000 * 8).toISOString(),
         payment: {
-          id: 'PAY-1002',
+          id: 'A00002',
           amount: 208860,
           payment_method: 'UPI (GPay)',
           reference_number: 'UPI/62391098234',
@@ -637,8 +979,9 @@ function seedDefaultData() {
         }
       },
       {
-        id: 'INV-2026-003',
+        id: 'A00003',
         quotation_id: null,
+        proforma_id: null,
         visit_id: null,
         canvasser_id: 3,
         canvasser_name: 'Suhas',
@@ -657,9 +1000,10 @@ function seedDefaultData() {
         outstanding_balance: 222848,
         payment_status: 'Partially Paid',
         due_date: new Date(now + 86400000 * 7).toISOString().split('T')[0],
+        tags: JSON.stringify(['Institutional']),
         created_at: new Date(now - 86400000 * 1).toISOString(),
         payment: {
-          id: 'PAY-1003',
+          id: 'A00003',
           amount: 100000,
           payment_method: 'Cheque',
           reference_number: 'CHQ-882910',
@@ -670,10 +1014,10 @@ function seedDefaultData() {
 
     for (const inv of invoices) {
       insertInvoice.run(
-        inv.id, inv.quotation_id, inv.visit_id, inv.canvasser_id, inv.canvasser_name,
+        inv.id, inv.quotation_id, inv.proforma_id, inv.visit_id, inv.canvasser_id, inv.canvasser_name,
         inv.school_name, inv.district, inv.contact_person, inv.phone, inv.items,
         inv.subtotal, inv.tax_amount, inv.discount_amount, inv.grand_total,
-        inv.paid_amount, inv.outstanding_balance, inv.payment_status, inv.due_date, inv.created_at
+        inv.paid_amount, inv.outstanding_balance, inv.payment_status, inv.due_date, inv.tags, inv.created_at
       );
 
       if (inv.payment) {
@@ -686,6 +1030,7 @@ function seedDefaultData() {
           inv.payment.reference_number,
           'Sudhan (CEO)',
           'Management',
+          'Initial advance payment recorded',
           inv.payment.recorded_at
         );
       }
@@ -726,3 +1071,106 @@ function seedDefaultData() {
   }
 }
 
+function getFYCode(dateStr) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const validDate = isNaN(d.getTime()) ? new Date() : d;
+  const year = validDate.getFullYear();
+  const month = validDate.getMonth(); // 0 = Jan ... 3 = Apr
+  const startYear = month >= 3 ? year : year - 1;
+  const endYear = startYear + 1;
+  return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
+}
+
+export function normalizeFinancialRecords() {
+  try {
+    // 1. Resequence quotations to ME-QTN-YY-YY/0001
+    const quotes = db.prepare('SELECT id, created_at FROM quotations ORDER BY created_at ASC, id ASC').all();
+    if (quotes && quotes.some(q => !q.id.startsWith('ME-QTN-'))) {
+      const qCounters = {};
+      const qMap = [];
+      quotes.forEach(q => {
+        const fy = getFYCode(q.created_at);
+        qCounters[fy] = (qCounters[fy] || 0) + 1;
+        const targetId = `ME-QTN-${fy}/${String(qCounters[fy]).padStart(4, '0')}`;
+        if (q.id !== targetId) qMap.push({ oldId: q.id, newId: targetId });
+      });
+      for (const m of qMap) {
+        const tmp = `__TMP_${m.newId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random()}`;
+        db.prepare('UPDATE quotations SET id = ? WHERE id = ?').run(tmp, m.oldId);
+        m.tmp = tmp;
+      }
+      for (const m of qMap) {
+        db.prepare('UPDATE quotations SET id = ? WHERE id = ?').run(m.newId, m.tmp);
+        try { db.prepare('UPDATE proforma_invoices SET quotation_id = ? WHERE quotation_id = ?').run(m.newId, m.oldId); } catch (_) { }
+        try { db.prepare('UPDATE invoices SET quotation_id = ? WHERE quotation_id = ?').run(m.newId, m.oldId); } catch (_) { }
+      }
+    }
+
+    // 2. Resequence proforma invoices to ME-PR-INV-YY-YY/0001
+    const proformas = db.prepare('SELECT id, created_at FROM proforma_invoices ORDER BY created_at ASC, id ASC').all();
+    if (proformas && proformas.some(p => !p.id.startsWith('ME-PR-INV-'))) {
+      const pCounters = {};
+      const pMap = [];
+      proformas.forEach(p => {
+        const fy = getFYCode(p.created_at);
+        pCounters[fy] = (pCounters[fy] || 0) + 1;
+        const targetId = `ME-PR-INV-${fy}/${String(pCounters[fy]).padStart(4, '0')}`;
+        if (p.id !== targetId) pMap.push({ oldId: p.id, newId: targetId });
+      });
+      for (const m of pMap) {
+        const tmp = `__TMP_${m.newId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random()}`;
+        db.prepare('UPDATE proforma_invoices SET id = ? WHERE id = ?').run(tmp, m.oldId);
+        m.tmp = tmp;
+      }
+      for (const m of pMap) {
+        db.prepare('UPDATE proforma_invoices SET id = ? WHERE id = ?').run(m.newId, m.tmp);
+        try { db.prepare('UPDATE invoices SET proforma_id = ? WHERE proforma_id = ?').run(m.newId, m.oldId); } catch (_) { }
+      }
+    }
+
+    // 3. Resequence invoices to ME-TX-INV-YY-YY/0001
+    const invoices = db.prepare('SELECT id, created_at FROM invoices ORDER BY created_at ASC, id ASC').all();
+    if (invoices && invoices.some(i => !i.id.startsWith('ME-TX-INV-'))) {
+      const iCounters = {};
+      const iMap = [];
+      invoices.forEach(i => {
+        const fy = getFYCode(i.created_at);
+        iCounters[fy] = (iCounters[fy] || 0) + 1;
+        const targetId = `ME-TX-INV-${fy}/${String(iCounters[fy]).padStart(4, '0')}`;
+        if (i.id !== targetId) iMap.push({ oldId: i.id, newId: targetId });
+      });
+      for (const m of iMap) {
+        const tmp = `__TMP_${m.newId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random()}`;
+        db.prepare('UPDATE invoices SET id = ? WHERE id = ?').run(tmp, m.oldId);
+        m.tmp = tmp;
+      }
+      for (const m of iMap) {
+        db.prepare('UPDATE invoices SET id = ? WHERE id = ?').run(m.newId, m.tmp);
+        try { db.prepare('UPDATE payments SET invoice_id = ? WHERE invoice_id = ?').run(m.newId, m.oldId); } catch (_) { }
+      }
+    }
+
+    // 4. Resequence payments to ME-RCPT-YY-YY/0001
+    const payments = db.prepare('SELECT id, recorded_at FROM payments ORDER BY recorded_at ASC, id ASC').all();
+    if (payments && payments.some(pay => !pay.id.startsWith('ME-RCPT-'))) {
+      const payCounters = {};
+      const payMap = [];
+      payments.forEach(pay => {
+        const fy = getFYCode(pay.recorded_at);
+        payCounters[fy] = (payCounters[fy] || 0) + 1;
+        const targetId = `ME-RCPT-${fy}/${String(payCounters[fy]).padStart(4, '0')}`;
+        if (pay.id !== targetId) payMap.push({ oldId: pay.id, newId: targetId });
+      });
+      for (const m of payMap) {
+        const tmp = `__TMP_${m.newId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.random()}`;
+        db.prepare('UPDATE payments SET id = ? WHERE id = ?').run(tmp, m.oldId);
+        m.tmp = tmp;
+      }
+      for (const m of payMap) {
+        db.prepare('UPDATE payments SET id = ? WHERE id = ?').run(m.newId, m.tmp);
+      }
+    }
+  } catch (err) {
+    console.error('Error normalizing financial records:', err);
+  }
+}

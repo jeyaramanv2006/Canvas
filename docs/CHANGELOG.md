@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.15.8] - Slash-Safe Document ID Routing, Dynamic SQL Persistence & Safe Neon DB Seeding
+
+- **Slash-Safe Routing for Financial Documents** (`server.js`, `mockApi.js`, `financialsController.js`):
+  - Solved 404 routing failure on documents containing slashes (e.g. `ME-QTN-26-27/0001`, `ME-PR-INV-26-27/0001`, `ME-TX-INV-26-27/0001`).
+  - Added wildcard path patterns (`['/api/quotations/:id', '/api/quotations/*']`, etc.) to Express router.
+  - Implemented `extractDocumentId` helper with `decodeURIComponent` and request body fallback.
+  - Wrapped IDs with `encodeURIComponent(id)` across all `mockApi.js` financial update/delete methods and passed `{ id, ...data }` in payloads for multi-layer redundancy.
+- **Dynamic SQL Updates & PostgreSQL NULL Parameter Safety** (`financialsController.js`):
+  - Replaced static 11-column `COALESCE(?, ...)` queries with dynamic SQL builder that only updates fields explicitly provided in the request body.
+  - Eliminates PostgreSQL/Neon error `could not determine data type of parameter $x` when updating individual fields (such as tags).
+- **Safe Neon PostgreSQL Seeding & Referential Integrity** (`pgAdapter.js`, `seedRefrens.js`, `db.js`):
+  - Added parameter sanitization (`undefined -> null`) to `pgDb.prepare`.
+  - Added non-destructive safe column migrations (`ALTER TABLE proforma_invoices ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'` and `ALTER TABLE payments ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'`).
+  - Guaranteed that existing data in Neon DB is never altered or deleted (`if (!existing)` insertion check).
+  - Added safe foreign key resolution for payment receipt seeding.
+
+## [0.15.7] - Refrens Historical Data Import, Section Financial Graphs (Line/Bar/Scatter) & Document Numbering Preservation
+
+- **Refrens CSV Data Import & Seeder** (`seedRefrens.js`, `db.js`, `pgAdapter.js`):
+  - Built robust CSV parsing engine handling quoted strings, line item breakdowns, and date formats.
+  - Imported client's Refrens historical records (Quotations A00001–A00015, Proforma Invoices A00005–A00007, Tax Invoices A00001–A00024, and 26 Payment Receipts A00001–A00026).
+  - Wired seeder automatically into SQLite (`canvas.db`) and PostgreSQL/Neon startup routines.
+- **Refrens-Style Interactive Graphs in Invoicing & Records** (`InvoicingModule.jsx`):
+  - Added collapsible graph component in all four sections: **Quotation Graph**, **Proforma Invoice Graph**, **Invoice Graph**, and **Payment Receipts Graph**.
+  - All graphs dynamically aggregate live backend records (no mock numbers) by timeframe: **Monthly**, **Weekly**, **Quarterly**, or **Daily**.
+  - Supported chart types: **Line Chart** (smooth monotone curves), **Bar Chart** (rounded vertical bars), and **Scatter Plot** (coordinate point plots) with interactive tooltips and timeline brush bar.
+- **Document Numbering Preservation on Deletion** (`financialsController.js`, `InvoicingModule.jsx`):
+  - Removed document re-sequencing upon deleting quotations, proforma invoices, tax invoices, or payments.
+  - When any document is deleted, existing and future document IDs retain their permanent numbering with no reassignment.
+  - Updated delete confirmation modal with clear permanent deletion text.
+- **Document Number Outline & Badge Display** (`InvoicingModule.jsx`):
+  - Redesigned document number badges across all financial tables with generous width (`min-w-[100px]`), ample padding (`px-3.5 py-1.5`), and solid 2px outline so IDs render comfortably centered inside without breaking.
+- **Priority Follow-ups Reschedule/Done Viewport Centering** (`FollowUpsPipelineModule.jsx`):
+  - Migrated Reschedule/Done modal from inline container to a viewport-centered modal rendered via `createPortal(..., document.body)`.
+  - Ensures the popup appears immediately in the visible screen without requiring scrolling across long pages.
+
+- **Priority Follow-up Reschedule & "Mark Done / Clear" Action** (`FollowUpsPipelineModule.jsx`):
+  - Added interactive **"Reschedule / Done"** modal directly to each priority follow-up card.
+  - Users can select a new date with a calendar picker or quick shortcuts (`+1 Day (Tomorrow)`, `+3 Days`, `+1 Week`).
+  - Added **"Mark Done / Clear (None)"** button that sets `follow_up_date = null` via `mockApi.updateVisit`, updating the visit with audit trail diffs and removing it from the follow-up pipeline.
+- **Canvasser Priority Follow-ups Pipeline & Due Reminders** (`CanvasserDashboard.jsx` & `FollowUpsPipelineModule.jsx`):
+  - Added a dedicated **"Priority Follow-ups"** tab for canvassers with real-time badge count highlighting Due Today + Overdue follow-ups.
+  - Added `canvasserScoped` property to `FollowUpsPipelineModule.jsx` filtering visits strictly for the current canvasser and adapting search controls.
+  - Added a quick **Priority Follow-ups Queue** widget on the Canvasser Dashboard Overview tab showing live counts for Due Today, Tomorrow, and Overdue with 1-click access.
+- **Leaderboard Real-Time Visit & Invoiced Sales Sync** (`dashboardController.js` & `CanvasserLeaderboard.jsx`):
+  - Fixed canvasser visit matching in `getCanvasserLeaderboard` to support robust type-flexible ID matching (`String(v.canvasser_id) === String(c.id)`) and case-insensitive name matching fallback (`v.canvasser_name.toLowerCase() === c.name.toLowerCase()`), ensuring all field visit logs count towards canvassers.
+  - Updated backend endpoint to extract and return all `availableMonths` found in the database.
+  - Removed hardcoded default month (`'2026-09'`) in `CanvasserLeaderboard.jsx`, making it dynamically initialize to the current active calendar month and populate selectable months from the backend.
+
 ## [0.15.5] - Fix Case-Insensitive School Search in PostgreSQL & Purge Deleted Accounts from CEO Dashboard
 
 - **Case-Insensitive Master School Search Fix** (`masterSchoolsController.js` & `SchoolSearchPicker.jsx`):

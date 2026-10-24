@@ -252,11 +252,20 @@ export async function getCanvasserLeaderboard(req, res) {
           return vDate === selectedMonth;
         });
 
+    const sortedMonths = Array.from(allMonthsSet).sort().reverse();
+
     const leaderboard = canvassers.map(c => {
-      const cVisits = visits.filter(v => v.canvasser_id === c.id);
+      // Robust matching: match by canvasser_id (numeric or string) or by canvasser_name case-insensitively
+      const cVisits = visits.filter(v => 
+        (v.canvasser_id !== null && v.canvasser_id !== undefined && String(v.canvasser_id) === String(c.id)) ||
+        (v.canvasser_name && c.name && v.canvasser_name.trim().toLowerCase() === c.name.trim().toLowerCase())
+      );
       const cWon = cVisits.filter(v => v.outcome_status === 'Won' || v.outcome_status === 'Order Won').length;
       const cHot = cVisits.filter(v => v.interest_level === 'Hot').length;
-      const cInvoices = invoices.filter(i => i.canvasser_id === c.id);
+      const cInvoices = invoices.filter(i => 
+        (i.canvasser_id !== null && i.canvasser_id !== undefined && String(i.canvasser_id) === String(c.id)) ||
+        (i.canvasser_name && c.name && i.canvasser_name.trim().toLowerCase() === c.name.trim().toLowerCase())
+      );
       const totalInvoiced = cInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
       const totalCollected = cInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
 
@@ -269,7 +278,7 @@ export async function getCanvasserLeaderboard(req, res) {
 
       // Detect converted new non-master schools
       const newSchoolsConverted = cInvoices.filter(inv => {
-        const matchingVisit = visits.find(v => v.id === inv.visit_id || (v.school_name === inv.school_name && v.canvasser_id === c.id));
+        const matchingVisit = visits.find(v => v.id === inv.visit_id || (v.school_name === inv.school_name && (String(v.canvasser_id) === String(c.id) || (v.canvasser_name && c.name && v.canvasser_name.trim().toLowerCase() === c.name.trim().toLowerCase()))));
         return matchingVisit && matchingVisit.is_from_master_db === 0;
       }).length;
 
@@ -370,7 +379,11 @@ export async function getCanvasserLeaderboard(req, res) {
       };
     });
 
-    return res.json(ranked);
+    return res.json({
+      rankings: ranked,
+      availableMonths: sortedMonths,
+      selectedMonth
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

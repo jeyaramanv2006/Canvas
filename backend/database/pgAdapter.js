@@ -39,25 +39,27 @@ export const pgDb = {
   prepare(sql) {
     const convertedSql = convertPlaceholders(sql);
 
+    const sanitize = (params) => {
+      const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+      return flatParams.map(p => p === undefined ? null : p);
+    };
+
     return {
       async all(...params) {
         const p = await getPgPool();
-        const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-        const res = await p.query(convertedSql, flatParams);
+        const res = await p.query(convertedSql, sanitize(params));
         return res.rows;
       },
 
       async get(...params) {
         const p = await getPgPool();
-        const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-        const res = await p.query(convertedSql, flatParams);
+        const res = await p.query(convertedSql, sanitize(params));
         return res.rows[0];
       },
 
       async run(...params) {
         const p = await getPgPool();
-        const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-        const res = await p.query(convertedSql, flatParams);
+        const res = await p.query(convertedSql, sanitize(params));
         return {
           changes: res.rowCount,
           lastInsertRowid: res.rows && res.rows[0] ? (res.rows[0].id || res.rows[0].ID) : null
@@ -195,12 +197,36 @@ export async function initPgDB() {
       discount_amount NUMERIC DEFAULT 0,
       grand_total NUMERIC NOT NULL,
       status VARCHAR(50) DEFAULT 'Sent',
+      tags TEXT DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS proforma_invoices (
+      id VARCHAR(100) PRIMARY KEY,
+      quotation_id VARCHAR(100),
+      visit_id INTEGER,
+      canvasser_id INTEGER NOT NULL,
+      canvasser_name VARCHAR(255) NOT NULL,
+      school_name TEXT NOT NULL,
+      district VARCHAR(255) NOT NULL,
+      contact_person VARCHAR(255) NOT NULL,
+      phone VARCHAR(100) NOT NULL,
+      items TEXT NOT NULL,
+      subtotal NUMERIC NOT NULL,
+      tax_amount NUMERIC NOT NULL,
+      discount_amount NUMERIC DEFAULT 0,
+      grand_total NUMERIC NOT NULL,
+      status VARCHAR(50) DEFAULT 'Pending',
+      payment_status VARCHAR(50) DEFAULT 'Unpaid',
+      due_date VARCHAR(50),
+      tags TEXT DEFAULT '[]',
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS invoices (
       id VARCHAR(100) PRIMARY KEY,
       quotation_id VARCHAR(100),
+      proforma_id VARCHAR(100),
       visit_id INTEGER,
       canvasser_id INTEGER NOT NULL,
       canvasser_name VARCHAR(255) NOT NULL,
@@ -217,6 +243,7 @@ export async function initPgDB() {
       outstanding_balance NUMERIC NOT NULL,
       payment_status VARCHAR(50) DEFAULT 'Unpaid',
       due_date VARCHAR(50),
+      tags TEXT DEFAULT '[]',
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -229,11 +256,30 @@ export async function initPgDB() {
       reference_number VARCHAR(100),
       recorded_by_name VARCHAR(255) NOT NULL,
       recorded_by_role VARCHAR(50) NOT NULL,
+      notes TEXT,
+      tags TEXT DEFAULT '[]',
       recorded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
+  try {
+    await p.query("ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'");
+    await p.query("ALTER TABLE proforma_invoices ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'");
+    await p.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'");
+    await p.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS proforma_id VARCHAR(100)");
+    await p.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS notes TEXT");
+    await p.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]'");
+  } catch (err) {
+    // Migration check silent fallback
+  }
+
   await seedPgData(p);
+  try {
+    const { seedRefrensData } = await import('./seedRefrens.js');
+    await seedRefrensData(pgDb);
+  } catch (err) {
+    console.warn('Refrens seed on Postgres skipped/errored:', err.message);
+  }
   console.log('✅ Supabase PostgreSQL schema initialized and verified.');
 }
 
