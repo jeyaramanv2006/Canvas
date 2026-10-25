@@ -238,6 +238,113 @@ App.jsx (Root Isolation)
   9. *Management Oversight, Decisions & Action Alerts*: Pending governance approvals list with "Review" triggers into `<PendingApprovalsDrawer />`, and critical overdue debt alerts.
   10. *Reporting, Monthly MIS Trends & Velocity*: Longitudinal monthly billing vs. collection trajectory cards and export trigger.
 
+### 5.7 Phase 7 — Master Schools Directory (`MasterSchoolsDirectoryModule.jsx`)
+- **Executive Header Command Banner**:
+  - Obsidian glass styling (`bg-gradient-to-r from-[#14151f]/95 via-[#0e1017]/90 to-[#0c0d15]/90 border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-2xl`).
+  - Luminous top catch line and ambient gold radial background glow.
+  - Role-adaptive badges for `CEO Master Control` (amber) vs. `Admin Executive` (blue).
+  - Quick action buttons: "Export Directory (CSV)" with glass styling and "Add Master School" / "Propose New School" with vibrant amber gradient.
+- **Top Telemetry Strip (4 Stat Tiles)**:
+  - Total Registered Institutions counter (e.g. 2,480+ Schools).
+  - Districts Active across Tamil Nadu (e.g. 38 Districts).
+  - Matching Results counter with active filter percentage.
+  - Curricula / Boards counter (CBSE, Matric, State, ICSE, International).
+- **Search & Filters Command Bar**:
+  - Full-width glass search input with instant clear `X` button and gold focus.
+  - Upgraded District and Board filters to `<AestheticSelect />` with search support and dynamic counts.
+  - Z-Index and Stacking Context Fix: Removed container clipping (`overflow-hidden`), added `relative z-30` to search card, dynamic `focus-within:z-40` to filter column wrappers, and `isOpen ? "z-[100]" : "z-10"` on `AestheticSelect` to ensure dropdown menus never go behind tables or adjacent content.
+  - Active filter chip bar with one-click "Reset All Filters" trigger.
+- **Header Refinement**:
+  - Cleaned up top header card by removing redundant `"Institutional Master Directory"` and `"38 Districts"` badge pills, leaving the clean pulsating active indicator, role badge (`CEO Master Control` / `Admin Executive`), and descriptive title.
+- **Directory Table**:
+  - Container with top catch rim, sticky dark header, and smooth row hover transitions.
+  - Clickable school title directly opening `<SchoolPortfolioModal />`.
+  - Amber font-mono School ID badge and Area location subtext.
+  - **Centered Board / Syllabus Column**: Aligned both table header and data cells to center (`text-center`).
+  - **Board Badge System (Non-Yellow Outlines)**:
+    - **CBSE**: Cyan outline & tint (`bg-cyan-500/15 text-cyan-300 border-cyan-400/40`)
+    - **Matriculation**: Emerald outline & tint (`bg-emerald-500/15 text-emerald-300 border-emerald-400/40`)
+    - **State Board**: Indigo outline & tint (`bg-indigo-500/15 text-indigo-300 border-indigo-400/40`)
+    - **ICSE**: Purple outline & tint (`bg-purple-500/15 text-purple-300 border-purple-400/40`)
+    - **International / Cambridge / IB**: Rose outline & tint (`bg-rose-500/15 text-rose-300 border-rose-400/40`)
+    - **Other / Default**: Teal outline & tint (`bg-teal-500/15 text-teal-300 border-teal-400/40`)
+  - Formatted student strength in amber pill badge (`<Users />` icon, centered).
+  - Quick action buttons: **Portfolio** (emerald), **Edit / Req. Edit** (amber/white), **Delete** (rose).
+  - Formatted pagination bar with Previous/Next buttons, page indicators, and items count.
+- **Modals (Add/Edit & Delete)**:
+  - Portal-rendered with body scroll lock.
+  - Obsidian glass aesthetic with top luminous rims.
+  - `<AestheticSelect />` for District and Board inputs inside modal.
+  - Strict preservation of CEO direct execution vs. Admin Executive approval queue submission.
+
+### 5.8 Phase 8 — Central Field Visit Registry (`FieldVisitRegistry.jsx`)
+- **Card Design System Aligned with Canvasser "My Visits"**:
+  - Transitioned from flat gradients to Obsidian glass Lucid Blocks (`bg-[#0c0d15]/85 border border-white/[0.08] hover:border-amber-400/30 rounded-3xl p-5 sm:p-6 shadow-xl backdrop-blur-2xl`).
+  - Added top luminous amber rim (`h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent`).
+  - Replaced clumsy text boxes with clean, minimalist left-accent dividers (`border-l-2 border-amber-400/50` for requirements and `border-l-2 border-white/20 italic` for meeting notes).
+  - Clean inline `<ProductBadge size="sm" />` tags, reference photo thumbnail gallery with lightbox preview.
+  - Crisp footer toolbar with follow-up status (highlighted if overdue), audit trail history trigger, and executive actions (`+ Quote`, `+ Proforma`, `Edit`, and `Verify Discovery` CTA for pending schools).
+- **Search & Filters Command Bar**:
+  - Full-width glass search input with instant clear `X` button and gold focus.
+  - 5 upgraded `<AestheticSelect size="sm" />` dropdowns (Origin, District, Canvasser, Interest, Outcome).
+  - High z-index stacking (`relative z-30` and `focus-within:z-40`) preventing dropdown clipping.
+  - Active filter chips with one-click "Reset Filters" action.
+
+### 5.9 Phase 9 — User Directory & Roles (`UserManagementModule.jsx`)
+- **Top Command & Telemetry**:
+  - Lucid Block hero card with gold `ShieldCheck` icon, live pulsating indicator, and role badge (`CEO Master Control` vs `Admin Executive`).
+  - 3 crisp telemetry metric cards: Total System Accounts, Active Users, and Paused Access with font-mono counts and luminous catch lines.
+- **Search & Filtering**:
+  - Upgraded Role and Status filters to `<AestheticSelect />` with `focus-within:z-40` safety.
+  - Instant clear search input for names, emails, and usernames.
+- **Directory Table**:
+  - Obsidian glass table with sticky dark header and smooth row hover transitions.
+  - Initial avatar pill, operator name, and role title subtext.
+  - Monospace username pill badge (`<name>@<role>`) with amber/gold styling.
+  - Tailored role badges with distinct color palettes: CEO (Gold/Yellow), CFO (Emerald), CCO (Amber), Admin Executive (Purple), Canvasser (Blue).
+  - Status indicators: Active (pulsing green dot), Paused (amber font-mono), Deleted (rose font-mono), Reset Required (yellow key).
+  - Action buttons: Edit Role, Reset Pass, Pause/Resume, and Delete (rose icon button), with CEO account protected with a gold `Protected` shield.
+- **Modals (Provision User, Edit Role, Confirm Action)**:
+  - Portal-rendered to `document.body` with body scroll lock.
+  - Obsidian glass aesthetic with top luminous catch rims.
+  - `<AestheticSelect />` integration for role assignment and live monospace identifier preview.
+  - Crisp, concise text without clumps.
+
+### 5.10 Phase 10 — Team Leaderboard (`CanvasserLeaderboard.jsx`)
+- **Strict Role Boundary Preservation**:
+  - **Canvassers**: View remains 100% untouched and unchanged (`isCanvasser` guard preserves personal spotlight, tier progress bar, and canvasser-scoped elements).
+  - **Executives / Managers (`!isCanvasser`)**: Upgraded to a clean, executive intelligence performance dashboard.
+- **Executive Command Header & Cycle Toolbar**:
+  - Top hero card with gold `Trophy` icon, live status indicator, and quick "Commission Policy" guide trigger.
+  - Sales cycle toolbar with stepper navigation (`<ChevronLeft />`, `<ChevronRight />`), custom `<AestheticSelect />` month dropdown, and "All-Time" cumulative toggle.
+- **Team Aggregates Telemetry**:
+  - 4 crisp metric cards: Realized Sales (Lakhs), Schools Visited, Invoices Won, and Active Canvassers.
+- **Fluid Compare & Sort Bar**:
+  - Apple-grade fluid spring animated pill for sorting by: Realized Sales, Total Pay Earned, Invoices Converted, Schools Canvassed, and Win Rate %.
+- **Canvasser Roster Standings**:
+  - Metallic podium indicators for Top 3 performers (🥇 Gold, 🥈 Silver, 🥉 Bronze).
+  - Clean card/row layout displaying Canvasser name, slab rate, schools visited, deals won, win rate %, realized sales, and total pay earned.
+  - Expandable itemized monthly invoices table and 5-point payout breakdown summary.
+- **Commission Policy Accordion**:
+  - Streamlined, concise explanation of 8 sales slabs (2.00% to 5.50%), volume milestone bonuses, new account bonus (+₹1,000/school), and 3-step settlement protocol without clumps of text.
+  - **Removed Redundant Top Header Button**: Eliminated the duplicate "Commission Policy" toggle button from the executive top header in `CanvasserLeaderboard.jsx`, keeping the layout uncluttered while maintaining the dedicated accordion section below.
+
+### 5.11 Central Visit Logs & Registry Refinement (`FieldVisitRegistry.jsx`)
+- **Filter Bar Visibility Fix**:
+  - Reorganized the Command Bar into a 2-tier layout:
+    - **Row 1:** Full-width search bar (`min-h-[44px]`).
+    - **Row 2:** 5-column responsive grid (`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5`).
+    - Each dropdown selector (`All Sources`, `All Districts`, `All Canvassers`, `All Interests`, `All Outcomes`) is given equal wide columns (~200px+), eliminating label truncation (`All I...` and `All O...`).
+- **Exact Visit Card Visual Alignment (Matching User Reference Image)**:
+  - **Header Row**: School Name + inline dot indicator (`• Verified DB` in emerald or `• New Discovery` in amber).
+  - **Top-Right Status**: Unboxed inline dot status `• Interest | Outcome` (e.g. `• Hot | Quote Given`, `• Warm | Open`, `• Cold | Sample Sent`) with interest-colored dot, divider pipe `|`, and lavender outcome text.
+  - **Subtitle**: Clean dot-separated metadata: `District · Board/Type · Student Strength · by Canvasser`.
+  - **Contact & Products**: Person name and direct phone dialer on the left, with inline product badges on the right.
+  - **Requirements & Specifications**: Amber accent left border (`border-l-2 border-amber-400/80 pl-3.5`) with uppercase category tag.
+  - **Meeting Notes**: Subtle left quote line (`border-l-2 border-white/20 pl-3.5 italic`).
+  - **Photos**: Thumbnail gallery with rounded borders and lightbox modal trigger.
+  - **Card Footer**: `Follow-up: None` (or date) with calendar icon and `· Edited by [Name] ([count])` on left, and clean `Edit Visit` action button on right.
+
 ---
 
 ## 6. Implementation Blueprint for Upcoming Modules

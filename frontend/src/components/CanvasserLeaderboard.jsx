@@ -23,9 +23,10 @@ export default function CanvasserLeaderboard({ currentUser }) {
   const [dynamicMonths, setDynamicMonths] = useState([]);
   const [showCommissionGuide, setShowCommissionGuide] = useState(false);
 
-  // Check if current user is executive or management
+  // Check if current user is canvasser vs executive
   const userRole = (currentUser?.role || '').toLowerCase();
-  const isExecutive = ['ceo', 'cfo', 'cco', 'manager', 'admin'].includes(userRole);
+  const isCanvasser = userRole === 'canvasser';
+  const isExecutive = ['ceo', 'cfo', 'cco', 'manager', 'admin', 'admin_exec'].includes(userRole);
   const currentUserId = currentUser?.id ?? currentUser?.userId ?? currentUser?._id;
 
   // Helper to format YYYY-MM to readable label
@@ -133,10 +134,10 @@ export default function CanvasserLeaderboard({ currentUser }) {
 
   if (loading && !data) {
     return (
-      <div className="py-16 text-center space-y-3 bg-murugan-card border border-white/10 rounded-3xl p-8 shadow-xl">
+      <div className="py-20 text-center space-y-3 bg-[#0c0d15]/85 border border-white/[0.08] rounded-3xl p-8 shadow-xl backdrop-blur-2xl">
         <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
-        <p className="text-sm text-gray-300 font-bold">Calculating monthly realized sales & leaderboard rankings...</p>
-        <p className="text-xs text-gray-500">Connecting to sales database</p>
+        <p className="text-sm text-white/80 font-bold">Calculating sales &amp; leaderboard rankings...</p>
+        <p className="text-xs text-white/40">Synchronizing realized transactions from sales database</p>
       </div>
     );
   }
@@ -144,9 +145,6 @@ export default function CanvasserLeaderboard({ currentUser }) {
   const { rankings = [], teamStats = {} } = data || {};
   const myRank = rankings.find(r => String(r.id) === String(currentUserId));
   const topLeader = rankings && rankings.length > 0 ? rankings[0] : null;
-  const gapToLeader = topLeader && myRank && String(topLeader.id) !== String(myRank.id) 
-    ? Math.max(0, (Number(topLeader.totalPayout || topLeader.payEarned || topLeader.totalInvoiced) || 0) - (Number(myRank.totalPayout || myRank.payEarned || myRank.totalInvoiced) || 0))
-    : 0;
 
   const sortOptions = [
     { id: 'pay', label: 'Total Pay Earned (₹)', icon: DollarSign, metric: 'Commission + Bonus' },
@@ -159,19 +157,15 @@ export default function CanvasserLeaderboard({ currentUser }) {
   const isCurrentActiveCycle = selectedMonth === '2026-09' || selectedMonth === currentMonthKey;
 
   return (
-    <div className="space-y-5">
-      {/* Backend Connection / Session Notice Banner */}
+    <div className="space-y-5 selection:bg-amber-400 selection:text-black">
+      {/* Backend Connection Notice Banner */}
       {error && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-300">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
             <div>
-              <p className="font-bold text-amber-200">Connection or Session Update</p>
-              <p className="text-[11px] text-amber-300/80">
-                {error.includes('401') || error.toLowerCase().includes('unauthorized') || error.toLowerCase().includes('session')
-                  ? "Your session token was issued by another environment. Please Log Out and Log In again to refresh your local session."
-                  : error}
-              </p>
+              <p className="font-bold text-amber-200">Connection Notice</p>
+              <p className="text-[11px] text-amber-300/80">{error}</p>
             </div>
           </div>
           <button
@@ -184,8 +178,8 @@ export default function CanvasserLeaderboard({ currentUser }) {
         </div>
       )}
 
-      {/* ================= 1. TOP BANNER: LOGGED IN CANVASSER RANK SPOTLIGHT ================= */}
-      {myRank && (
+      {/* ================= 1. CANVASSER-ONLY SPOTLIGHT (UNCHANGED FOR CANVASSER ROLE) ================= */}
+      {myRank && isCanvasser && (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -197,7 +191,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
           
           <div className="flex items-center justify-between relative z-10 flex-wrap gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-400/25 flex-shrink-0 border border-amber-300">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-amber-400/25 shrink-0 border border-amber-300">
                 #{myRank.rank}
               </div>
               <div>
@@ -296,17 +290,47 @@ export default function CanvasserLeaderboard({ currentUser }) {
         </motion.div>
       )}
 
-      {/* ================= 2. MONTHLY TRACKING & NAVIGATION TOOLBAR ================= */}
+      {/* ================= 2. EXECUTIVE-ONLY TOP HEADER ================= */}
+      {!isCanvasser && (
+        <div className="bg-gradient-to-r from-[#14151f]/95 via-[#0e1017]/90 to-[#0c0d15]/90 border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent pointer-events-none" />
+          <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/[0.05] rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-300 flex items-center justify-center text-black font-black shadow-lg shadow-amber-400/20 shrink-0">
+                <Trophy className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-md border font-mono bg-amber-500/15 text-amber-300 border-amber-500/30">
+                    Executive Intelligence
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                  Field Sales &amp; Canvasser Leaderboard
+                </h2>
+                <p className="text-xs text-white/55 mt-0.5 max-w-xl">
+                  Real-time sales standings, commission slabs, conversion rates, and itemized payout audits.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= 3. MONTHLY CYCLE TOOLBAR ================= */}
       <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-4 rounded-3xl flex items-center justify-between flex-wrap gap-4 shadow-xl backdrop-blur-xl relative z-40 overflow-visible">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400 flex-shrink-0 shadow-inner">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
             <Calendar className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">Monthly Sales Cycle</h3>
+              <h3 className="text-sm font-bold text-white tracking-tight">Sales Cycle</h3>
               {isCurrentActiveCycle && (
-                <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
                   Active
                 </span>
               )}
@@ -329,7 +353,6 @@ export default function CanvasserLeaderboard({ currentUser }) {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* Custom AestheticSelect Month Dropdown with High Z-Index */}
             <div className="min-w-[190px] relative z-50">
               <AestheticSelect
                 value={selectedMonth}
@@ -356,64 +379,68 @@ export default function CanvasserLeaderboard({ currentUser }) {
             className={cn(
               "px-3.5 py-2 rounded-2xl text-xs font-bold transition-all border cursor-pointer whitespace-nowrap",
               selectedMonth === 'all'
-                ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black border-amber-300 font-black shadow-md shadow-amber-400/20"
+                ? "bg-gradient-to-r from-amber-400 to-amber-300 text-black border-amber-300 font-black shadow-md shadow-amber-400/20"
                 : "bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white border-white/[0.08]"
             )}
           >
-            {selectedMonth === 'all' ? 'All-Time' : 'All-Time'}
+            All-Time
           </button>
         </div>
       </div>
 
-      {/* ================= 3. TEAM AGGREGATES OVERVIEW CARDS (GENEROUS HEIGHT & SPACING) ================= */}
+      {/* ================= 4. TEAM AGGREGATES TELEMETRY CARDS ================= */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
-        <div className="bg-[#0c0d15]/85 border border-white/[0.08] py-6 px-4 sm:py-7 rounded-3xl min-h-[114px] flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-amber-400/30 transition-all duration-200">
-          <div className="flex items-center gap-1.5 text-amber-400/80 text-[10px] font-bold uppercase tracking-wider">
+        <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-5 rounded-3xl flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-amber-400/30 transition-all duration-200 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/20 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-amber-400/80 text-[10px] font-bold uppercase tracking-wider font-mono">
             <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-            <span>Team Realized Sales</span>
+            <span>Realized Sales</span>
           </div>
-          <span className="text-lg sm:text-2xl font-black text-amber-400 font-mono tracking-tight group-hover:scale-105 transition-transform">
+          <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono tracking-tight group-hover:scale-105 transition-transform">
             {teamStats.formattedTeamInvoiced || `₹${((teamStats.teamTotalInvoiced || 0) / 100000).toFixed(2)}L`}
           </span>
         </div>
 
-        <div className="bg-[#0c0d15]/85 border border-white/[0.08] py-6 px-4 sm:py-7 rounded-3xl min-h-[114px] flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-amber-400/30 transition-all duration-200">
-          <div className="flex items-center gap-1.5 text-white/50 text-[10px] font-bold uppercase tracking-wider">
+        <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-5 rounded-3xl flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-white/20 transition-all duration-200 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-white/50 text-[10px] font-bold uppercase tracking-wider font-mono">
             <Building2 className="w-3.5 h-3.5 text-amber-400" />
-            <span>Schools Canvassed</span>
+            <span>Schools Visited</span>
           </div>
-          <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-tight group-hover:scale-105 transition-transform">
+          <span className="text-xl sm:text-2xl font-black text-white font-mono tracking-tight group-hover:scale-105 transition-transform">
             {teamStats.teamTotalVisits || teamStats.totalTeamVisits || 0}
           </span>
         </div>
 
-        <div className="bg-[#0c0d15]/85 border border-white/[0.08] py-6 px-4 sm:py-7 rounded-3xl min-h-[114px] flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-purple-400/30 transition-all duration-200">
-          <div className="flex items-center gap-1.5 text-purple-300/80 text-[10px] font-bold uppercase tracking-wider">
+        <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-5 rounded-3xl flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-purple-400/30 transition-all duration-200 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-400/20 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-purple-300/80 text-[10px] font-bold uppercase tracking-wider font-mono">
             <Receipt className="w-3.5 h-3.5 text-purple-400" />
-            <span>Invoices Converted</span>
+            <span>Invoices Won</span>
           </div>
-          <span className="text-lg sm:text-2xl font-black text-purple-300 font-mono tracking-tight group-hover:scale-105 transition-transform">
+          <span className="text-xl sm:text-2xl font-black text-purple-300 font-mono tracking-tight group-hover:scale-105 transition-transform">
             {teamStats.teamTotalWon || teamStats.totalTeamWon || 0}
           </span>
         </div>
 
-        <div className="bg-[#0c0d15]/85 border border-white/[0.08] py-6 px-4 sm:py-7 rounded-3xl min-h-[114px] flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-emerald-400/30 transition-all duration-200">
-          <div className="flex items-center gap-1.5 text-emerald-400/80 text-[10px] font-bold uppercase tracking-wider">
+        <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-5 rounded-3xl flex flex-col justify-center items-center space-y-1.5 text-center shadow-xl backdrop-blur-xl group hover:border-emerald-400/30 transition-all duration-200 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-emerald-400/80 text-[10px] font-bold uppercase tracking-wider font-mono">
             <Users className="w-3.5 h-3.5 text-emerald-400" />
             <span>Active Canvassers</span>
           </div>
-          <span className="text-lg sm:text-2xl font-black text-emerald-400 font-mono tracking-tight group-hover:scale-105 transition-transform">
+          <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono tracking-tight group-hover:scale-105 transition-transform">
             {teamStats.activeCanvassersCount || rankings.length || 0}
           </span>
         </div>
       </div>
 
-      {/* ================= 4. SORTING CONTROL BAR WITH APPLE-GRADE FLUID PILL ================= */}
+      {/* ================= 5. SORTING CONTROL BAR ================= */}
       <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-4 rounded-3xl space-y-3 shadow-xl backdrop-blur-xl relative z-10">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <ArrowUpDown className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">Compare & Sort</span>
+            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Compare &amp; Sort</span>
           </div>
           
           <button
@@ -426,7 +453,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
           </button>
         </div>
 
-        {/* Quick Filter Sort Pills with Apple-grade Fluid Spring Animation */}
+        {/* Sort Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
           {sortOptions.map(opt => {
             const Icon = opt.icon;
@@ -445,7 +472,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
                 {isActive && (
                   <motion.div
                     layoutId="activeLeaderboardSortPill"
-                    className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-xl shadow-md shadow-amber-400/25 -z-10"
+                    className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-300 rounded-xl shadow-md shadow-amber-400/25 -z-10"
                     transition={{ type: "spring", stiffness: 450, damping: 35, mass: 0.5 }}
                   />
                 )}
@@ -462,37 +489,36 @@ export default function CanvasserLeaderboard({ currentUser }) {
         </div>
       </div>
 
-      {/* ================= 5. MAIN LEADERBOARD TABLE ================= */}
-      {/* ================= 5. MAIN LEADERBOARD TABLE ================= */}
-      <div className="bg-[#0c0d15]/85 rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl backdrop-blur-2xl">
+      {/* ================= 6. MAIN LEADERBOARD TABLE / CARDS ================= */}
+      <div className="bg-[#0c0d15]/85 rounded-3xl border border-white/[0.08] overflow-hidden shadow-2xl backdrop-blur-2xl relative">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent pointer-events-none" />
+
         <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/20 shadow-sm">
               <Trophy className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white tracking-tight">Canvasser Performance Leaderboard</h3>
+              <h3 className="text-sm font-black text-white tracking-tight">Canvasser Rankings &amp; Realized Volume</h3>
               <p className="text-[11px] text-white/40">Real-time team standings and realized conversion metrics</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-white/40">Cycle:</span>
-            <span className="text-amber-400 font-bold">{formatMonthLabel(selectedMonth)}</span>
+            <span className="text-amber-400 font-bold font-mono">{formatMonthLabel(selectedMonth)}</span>
           </div>
         </div>
 
         {rankings.length === 0 ? (
           <div className="p-10 text-center space-y-3">
             <Trophy className="w-10 h-10 text-white/20 mx-auto" />
-            <p className="text-sm font-bold text-white/80">No Canvasser Records Available for this cycle</p>
+            <p className="text-sm font-bold text-white/80">No Canvasser Records Available</p>
             <p className="text-xs text-white/40 max-w-md mx-auto">
-              {error 
-                ? "Start the local backend server (cd backend; npm run dev) to load live canvasser data."
-                : "No active field visits or converted sales logged for the selected timeframe."}
+              No active field visits or converted sales logged for the selected cycle.
             </p>
             <button
               onClick={loadLeaderboard}
-              className="px-4 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 cursor-pointer hover:scale-105 transition"
+              className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-300 text-black font-black text-xs rounded-xl shadow-lg shadow-amber-400/20 cursor-pointer hover:scale-105 transition"
             >
               Refresh Rankings
             </button>
@@ -507,25 +533,25 @@ export default function CanvasserLeaderboard({ currentUser }) {
               
               // Rank badge styling with metallic podium flair
               let rankBadge = (
-                <div className="w-9 h-9 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center font-mono font-bold text-xs text-white/60 flex-shrink-0">
+                <div className="w-9 h-9 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center font-mono font-bold text-xs text-white/60 shrink-0">
                   #{canvasser.rank}
                 </div>
               );
               if (canvasser.rank === 1) {
                 rankBadge = (
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 border border-amber-300 flex items-center justify-center font-black text-black text-sm shadow-lg shadow-amber-400/25 flex-shrink-0">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 border border-amber-300 flex items-center justify-center font-black text-black text-sm shadow-lg shadow-amber-400/25 shrink-0">
                     🥇
                   </div>
                 );
               } else if (canvasser.rank === 2) {
                 rankBadge = (
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-200 via-slate-300 to-gray-400 border border-slate-200 flex items-center justify-center font-black text-black text-sm shadow-lg shadow-slate-300/25 flex-shrink-0">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-200 via-slate-300 to-gray-400 border border-slate-200 flex items-center justify-center font-black text-black text-sm shadow-lg shadow-slate-300/25 shrink-0">
                     🥈
                   </div>
                 );
               } else if (canvasser.rank === 3) {
                 rankBadge = (
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-700 via-orange-700 to-amber-900 border border-amber-600/50 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-amber-700/25 flex-shrink-0">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-700 via-orange-700 to-amber-900 border border-amber-600/50 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-amber-700/25 shrink-0">
                     🥉
                   </div>
                 );
@@ -548,18 +574,18 @@ export default function CanvasserLeaderboard({ currentUser }) {
                           <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
                             <span>{canvasser.name}</span>
                             {isMe && (
-                              <span className="text-[9px] font-bold uppercase text-amber-400">
+                              <span className="text-[9px] font-bold uppercase text-amber-400 font-mono">
                                 · You
                               </span>
                             )}
                           </h4>
-                          <span className="text-[11px] font-semibold text-purple-300">
+                          <span className="text-[11px] font-semibold text-purple-300 font-mono">
                             {canvasser.commissionRate || 2}% Slab
                           </span>
                           {Number(canvasser.performanceIncentive) > 0 && canViewPay && (
                             <>
                               <span className="text-white/20">·</span>
-                              <span className="text-[11px] font-medium text-amber-300 flex items-center gap-1">
+                              <span className="text-[11px] font-medium text-amber-300 flex items-center gap-1 font-mono">
                                 +{canvasser.formattedPerformanceIncentive || `₹${Number(canvasser.performanceIncentive).toLocaleString('en-IN')}`} Bonus
                               </span>
                             </>
@@ -568,16 +594,16 @@ export default function CanvasserLeaderboard({ currentUser }) {
                         <div className="flex items-center gap-2.5 text-[11px] text-white/50 mt-1 flex-wrap">
                           <span className="flex items-center gap-1">
                             <Building2 className="w-3.5 h-3.5 text-white/40" />
-                            <strong className="text-white/80">{canvasser.schoolsCanvassed || canvasser.totalVisits || 0}</strong> Schools
+                            <strong className="text-white/80 font-mono">{canvasser.schoolsCanvassed || canvasser.totalVisits || 0}</strong> Schools
                           </span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
                             <Receipt className="w-3.5 h-3.5 text-emerald-400" />
-                            <strong className="text-emerald-300">{canvasser.invoicesConverted || canvasser.invoicesCount || 0}</strong> Invoices
+                            <strong className="text-emerald-300 font-mono">{canvasser.invoicesConverted || canvasser.invoicesCount || 0}</strong> Deals
                           </span>
                           <span>•</span>
                           <span className="text-white/50">
-                            Win Rate: <strong className="text-purple-300">{canvasser.conversionRate || 0}%</strong>
+                            Win Rate: <strong className="text-purple-300 font-mono">{canvasser.conversionRate || 0}%</strong>
                           </span>
                         </div>
                       </div>
@@ -586,21 +612,21 @@ export default function CanvasserLeaderboard({ currentUser }) {
                     {/* Metrics & Pay Display */}
                     <div className="flex items-center gap-4 sm:gap-6 justify-between w-full sm:w-auto mt-2 sm:mt-0">
                       <div className="text-right">
-                        <span className="text-[10px] font-bold text-white/40 uppercase block">Realized Sales</span>
+                        <span className="text-[10px] font-bold text-white/40 uppercase block font-mono">Realized Sales</span>
                         <span className="text-xs sm:text-sm font-black text-amber-400 font-mono">
                           {canvasser.formattedInvoiced || `₹${((canvasser.totalInvoiced || 0) / 100000).toFixed(2)}L`}
                         </span>
                       </div>
 
-                      {/* Pay column: Only visible to the specific canvasser or Executives */}
+                      {/* Pay column: Visible to Canvasser or Executives */}
                       <div className="text-right">
-                        <span className="text-[10px] font-bold text-white/40 uppercase block">Total Pay</span>
+                        <span className="text-[10px] font-bold text-white/40 uppercase block font-mono">Total Pay</span>
                         {canViewPay ? (
                           <span className="text-sm sm:text-base font-black text-emerald-400 font-mono">
                             {canvasser.formattedTotalPayout || canvasser.formattedPayEarned || canvasser.formattedCommission || '₹0'}
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-white/30 flex items-center justify-end gap-1" title="Confidential: Only visible to this canvasser">
+                          <span className="text-xs font-semibold text-white/30 flex items-center justify-end gap-1" title="Confidential">
                             <Lock className="w-3.5 h-3.5 text-white/30" />
                             <span>Private</span>
                           </span>
@@ -627,7 +653,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
                     </div>
                   </div>
 
-                  {/* ================= 6. EXPANDABLE ITEMIZED INVOICE TABLE ================= */}
+                  {/* Expandable Itemized Invoice Table */}
                   <AnimatePresence>
                     {isExpanded && canViewPay && (
                       <motion.div
@@ -639,18 +665,18 @@ export default function CanvasserLeaderboard({ currentUser }) {
                         <div className="flex items-center justify-between text-xs text-white/70 pb-1 flex-wrap gap-2">
                           <span className="font-bold flex items-center gap-1.5 text-amber-300 text-xs">
                             <Receipt className="w-4 h-4 text-amber-400" />
-                            Monthly Converted Invoices for {canvasser.name}
+                            Monthly Invoices for {canvasser.name}
                           </span>
                           <div className="flex items-center gap-2 text-[11px] text-white/50">
-                            <span>Monthly Realized Sales: <strong className="text-amber-400 font-mono">{canvasser.formattedInvoiced}</strong></span>
+                            <span>Realized: <strong className="text-amber-400 font-mono">{canvasser.formattedInvoiced}</strong></span>
                             <span>•</span>
-                            <span>Next Settlement: <strong className="text-emerald-400">{canvasser.nextSettlementDate || '1st of Month'}</strong></span>
+                            <span>Settlement: <strong className="text-emerald-400">{canvasser.nextSettlementDate || '1st of Month'}</strong></span>
                           </div>
                         </div>
 
                         {invoicesList.length === 0 ? (
                           <p className="text-xs text-white/40 py-3 italic">
-                            No converted invoices logged in this monthly cycle. Once school visits convert and invoices are issued, they will appear here.
+                            No converted invoices logged in this monthly cycle.
                           </p>
                         ) : (
                           <div className="overflow-x-auto rounded-2xl border border-white/[0.08] bg-black/40">
@@ -680,7 +706,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
                         )}
 
                         {/* Itemized Payout Breakdown Summary Card */}
-                        <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4.5 grid grid-cols-1 sm:grid-cols-5 gap-3.5 text-xs">
+                        <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-3.5 text-xs">
                           <div className="space-y-0.5">
                             <span className="text-[10px] text-white/40 block font-medium">1. Realized Sales</span>
                             <span className="text-sm font-black text-amber-400 font-mono">
@@ -706,7 +732,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
                             </span>
                           </div>
                           <div className="space-y-0.5 sm:text-right border-t sm:border-t-0 sm:border-l border-white/[0.08] pt-2 sm:pt-0 sm:pl-3.5">
-                            <span className="text-[10px] text-emerald-400 block font-bold uppercase">Total Current Pay</span>
+                            <span className="text-[10px] text-emerald-400 block font-bold uppercase font-mono">Total Current Pay</span>
                             <span className="text-base font-black text-emerald-400 font-mono">
                               {canvasser.formattedTotalPayout || canvasser.formattedPayEarned || canvasser.formattedCommission || '₹0'}
                             </span>
@@ -722,7 +748,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
         )}
       </div>
 
-      {/* ================= 7. CLEAN & COMPACT COMMISSION & INCENTIVE ACCORDION ================= */}
+      {/* ================= 7. COMMISSION & INCENTIVE ACCORDION ================= */}
       <div className="bg-[#0c0d15]/85 border border-white/[0.08] rounded-3xl overflow-hidden shadow-xl backdrop-blur-xl transition-all">
         <button
           type="button"
@@ -735,7 +761,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-xs sm:text-sm font-black text-white">Commission & Payout Policy</h4>
+                <h4 className="text-xs sm:text-sm font-black text-white">Commission &amp; Payout Policy</h4>
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/25">
                   2.00% – 5.50% Slabs
                 </span>
@@ -748,7 +774,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs font-bold text-amber-400 hidden sm:inline">
-              {showCommissionGuide ? 'Collapse Guide' : 'View Matrix & Rules'}
+              {showCommissionGuide ? 'Collapse Guide' : 'View Policy'}
             </span>
             <div className={cn("p-1.5 rounded-xl bg-white/[0.04] text-white/50 transition-transform duration-200", showCommissionGuide && "rotate-180 text-amber-400")}>
               <ChevronDown className="w-4 h-4" />
@@ -767,7 +793,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
             >
               {/* Slabs Grid */}
               <div className="space-y-2">
-                <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider block font-mono">
                   Monthly Realized Sales Slabs
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center">
@@ -837,24 +863,24 @@ export default function CanvasserLeaderboard({ currentUser }) {
                 </div>
               </div>
 
-              {/* 3-Step Clean Policy Cycle Timeline */}
+              {/* 3-Step Protocol */}
               <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-2">
-                <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider block flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider block flex items-center gap-1.5 font-mono">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                   Monthly Payout Settlement Protocol
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                   <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
                     <span className="text-[10px] text-amber-400 font-mono font-bold block mb-0.5">01 · ACCUMULATION</span>
-                    <p className="text-[11px] text-white/60">All invoices converted from 1st to month-end tally into monthly sales.</p>
+                    <p className="text-[11px] text-white/60">Invoices converted from 1st to month-end tally into monthly sales.</p>
                   </div>
                   <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
                     <span className="text-[10px] text-purple-300 font-mono font-bold block mb-0.5">02 · SLAB MULTIPLIER</span>
-                    <p className="text-[11px] text-white/60">Sales total automatically determines active commission slab (2% to 5.5%).</p>
+                    <p className="text-[11px] text-white/60">Sales total determines active commission slab (2.00% to 5.50%).</p>
                   </div>
                   <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
                     <span className="text-[10px] text-emerald-400 font-mono font-bold block mb-0.5">03 · SETTLEMENT</span>
-                    <p className="text-[11px] text-white/60">Earned commissions &amp; bonuses lock on 1st of every month for payout.</p>
+                    <p className="text-[11px] text-white/60">Commissions &amp; bonuses lock on 1st of every month for disbursement.</p>
                   </div>
                 </div>
               </div>

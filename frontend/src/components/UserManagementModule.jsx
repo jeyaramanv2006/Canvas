@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, UserPlus, Shield, KeyRound, UserX, CheckCircle2, 
   AlertTriangle, RefreshCw, Clock, Search, Filter, ShieldCheck,
   Building2, ChevronRight, Lock, Eye, EyeOff, PauseCircle, PlayCircle,
-  Trash2, ShieldAlert, Sparkles, Send, AlertCircle
+  Trash2, ShieldAlert, Sparkles, Send, AlertCircle, X, RotateCcw
 } from 'lucide-react';
 import { mockApi, formatUsername } from '../mockApi';
 import { cn } from '../lib/utils';
+import AestheticSelect from './AestheticSelect';
 
 const ROLE_OPTIONS = [
   { value: 'canvasser', label: 'Field Canvasser', slug: 'cvs', roleTitle: 'Field Sales', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
@@ -62,9 +63,10 @@ export default function UserManagementModule({ currentUser }) {
     setLoading(true);
     try {
       const data = await mockApi.getUsers();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to load users", e);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -85,6 +87,7 @@ export default function UserManagementModule({ currentUser }) {
   // ── 1. Create User ──────────────────────────────────────────────────────────
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    if (!newName.trim()) return;
     setSubmitting(true);
     try {
       const selectedRoleObj = ROLE_OPTIONS.find(r => r.value === newRole);
@@ -99,7 +102,7 @@ export default function UserManagementModule({ currentUser }) {
           password: newPassword,
           initial_password: newPassword
         });
-        showSuccess(`User "${newName}" (${generatedUsername}) provisioned and activated immediately!`);
+        showSuccess(`User "${newName}" (${generatedUsername}) provisioned successfully!`);
       } else {
         // Admin submits request to CEO approval queue
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
@@ -145,39 +148,42 @@ export default function UserManagementModule({ currentUser }) {
     e.preventDefault();
     if (!selectedUser) return;
     setSubmitting(true);
-
     try {
       const selectedRoleObj = ROLE_OPTIONS.find(r => r.value === updatedRole);
-      const newUsername = formatUsername(selectedUser.name, updatedRole);
+      const generatedUsername = formatUsername(selectedUser.name, updatedRole);
 
       if (isCEO) {
-        await mockApi.updateUserRole(selectedUser.id, updatedRole);
-        showSuccess(`Role for ${selectedUser.name} updated to ${selectedRoleObj?.label} (${newUsername}) immediately!`);
+        await mockApi.updateUser(selectedUser.id, {
+          role: updatedRole,
+          roleTitle: selectedRoleObj?.roleTitle || 'Staff',
+          username: generatedUsername
+        });
+        showSuccess(`Role for "${selectedUser.name}" updated to ${selectedRoleObj?.label}!`);
       } else {
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
         const newApproval = {
           id: `APP-${Date.now().toString().slice(-4)}`,
           type: "ROLE_CHANGE",
-          title: `Role Upgrade Request: ${selectedUser.name} -> ${selectedRoleObj?.label}`,
+          title: `Role Change: ${selectedUser.name} → ${selectedRoleObj?.label}`,
           requestedBy: currentUser?.name ? `${currentUser.name} (Admin)` : "Admin Executive",
           requestedAt: new Date().toISOString(),
           details: {
-            target_user_id: selectedUser.id,
-            target_user_name: selectedUser.name,
-            current_role: selectedUser.role,
-            requested_role: updatedRole,
-            current_username: selectedUser.username,
-            new_username: newUsername,
-            new_role_title: selectedRoleObj?.roleTitle
+            userId: selectedUser.id,
+            name: selectedUser.name,
+            oldRole: selectedUser.role,
+            newRole: updatedRole,
+            roleTitle: selectedRoleObj?.roleTitle,
+            newUsername: generatedUsername
           },
           status: "PENDING"
         };
         storedApprovals.unshift(newApproval);
         localStorage.setItem('mg_pending_approvals', JSON.stringify(storedApprovals));
-        showSuccess(`Role update request for "${selectedUser.name}" to ${selectedRoleObj?.label} submitted to CEO for approval!`);
+        showSuccess(`Role change request for "${selectedUser.name}" submitted to CEO for approval!`);
       }
 
       setEditRoleModalOpen(false);
+      setSelectedUser(null);
       await loadUsers();
     } catch (err) {
       showError("Failed to update role: " + err.message);
@@ -186,26 +192,26 @@ export default function UserManagementModule({ currentUser }) {
     }
   };
 
-  // ── 3. Pause User (Stop) ────────────────────────────────────────────────────
+  // ── 3. Pause User Access ───────────────────────────────────────────────────
   const handlePauseUser = async (u) => {
     setSubmitting(true);
     try {
       if (isCEO) {
         await mockApi.pauseUser(u.id);
-        showSuccess(`User ${u.username || u.name} paused. Login access temporarily paused; all progress preserved.`);
+        showSuccess(`Account for "${u.name}" has been paused. Login is disabled.`);
       } else {
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
         const newApproval = {
           id: `APP-${Date.now().toString().slice(-4)}`,
           type: "USER_PAUSE",
-          title: `Account Pause Request: ${u.name} (${u.username || u.email})`,
+          title: `Pause User Access: ${u.name} (${u.username})`,
           requestedBy: currentUser?.name ? `${currentUser.name} (Admin)` : "Admin Executive",
           requestedAt: new Date().toISOString(),
           details: {
-            target_user_id: u.id,
-            target_user_name: u.name,
-            username: u.username || u.email,
-            current_status: u.status
+            userId: u.id,
+            name: u.name,
+            username: u.username,
+            role: u.role
           },
           status: "PENDING"
         };
@@ -222,25 +228,26 @@ export default function UserManagementModule({ currentUser }) {
     }
   };
 
-  // ── 4. Resume User ──────────────────────────────────────────────────────────
+  // ── 4. Resume User Access ──────────────────────────────────────────────────
   const handleResumeUser = async (u) => {
     setSubmitting(true);
     try {
       if (isCEO) {
         await mockApi.resumeUser(u.id);
-        showSuccess(`User ${u.username || u.name} resumed. Login access restored.`);
+        showSuccess(`Account for "${u.name}" has been resumed. Login re-enabled.`);
       } else {
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
         const newApproval = {
           id: `APP-${Date.now().toString().slice(-4)}`,
           type: "USER_RESUME",
-          title: `Account Resume Request: ${u.name} (${u.username || u.email})`,
+          title: `Resume User Access: ${u.name} (${u.username})`,
           requestedBy: currentUser?.name ? `${currentUser.name} (Admin)` : "Admin Executive",
           requestedAt: new Date().toISOString(),
           details: {
-            target_user_id: u.id,
-            target_user_name: u.name,
-            username: u.username || u.email
+            userId: u.id,
+            name: u.name,
+            username: u.username,
+            role: u.role
           },
           status: "PENDING"
         };
@@ -257,25 +264,26 @@ export default function UserManagementModule({ currentUser }) {
     }
   };
 
-  // ── 5. Delete User (Permanently removes from database) ──────────────────────
+  // ── 5. Delete User ──────────────────────────────────────────────────────────
   const handleDeleteUser = async (u) => {
     setSubmitting(true);
     try {
       if (isCEO) {
         await mockApi.deleteUser(u.id);
-        showSuccess(`User "${u.name}" (${u.username || u.email}) permanently deleted from database.`);
+        showSuccess(`User "${u.name}" completely deleted from system.`);
       } else {
         const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
         const newApproval = {
           id: `APP-${Date.now().toString().slice(-4)}`,
-          type: "USER_DELETE",
-          title: `User Deletion Request: ${u.name} (${u.username || u.email})`,
+          type: "USER_DELETION",
+          title: `Delete User: ${u.name} (${u.username})`,
           requestedBy: currentUser?.name ? `${currentUser.name} (Admin)` : "Admin Executive",
           requestedAt: new Date().toISOString(),
           details: {
-            target_user_id: u.id,
-            target_user_name: u.name,
-            username: u.username || u.email
+            userId: u.id,
+            name: u.name,
+            username: u.username,
+            role: u.role
           },
           status: "PENDING"
         };
@@ -297,7 +305,7 @@ export default function UserManagementModule({ currentUser }) {
     setSubmitting(true);
     try {
       await mockApi.triggerPasswordReset(u.id);
-      showSuccess(`Password reset for "${u.username || u.name}"! Temporary password is set to "reset". They can now log in using password "reset" and set a new password.`);
+      showSuccess(`Temporary password set to "reset" for "${u.username || u.name}". User can log in and set a new password.`);
       await loadUsers();
     } catch (err) {
       showError("Failed to trigger password reset: " + err.message);
@@ -307,161 +315,217 @@ export default function UserManagementModule({ currentUser }) {
   };
 
   // Filtered dataset
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = 
-      (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || (u.status || 'ACTIVE') === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => {
+      const q = searchTerm.toLowerCase().trim();
+      const matchesSearch = !q ||
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.username || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q);
+      
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchesStatus = statusFilter === 'all' || (u.status || 'ACTIVE') === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, roleFilter, statusFilter]);
 
   // KPI calculations
   const totalAccounts = users.length;
   const activeAccounts = users.filter(u => (u.status || 'ACTIVE') === 'ACTIVE').length;
   const pausedAccounts = users.filter(u => u.status === 'PAUSED').length;
-  const deletedAccounts = users.filter(u => u.status === 'DELETED').length;
+
+  const roleFilterOptions = [
+    { value: 'all', label: `All Roles (${users.length})` },
+    { value: 'ceo', label: 'CEO (Command)' },
+    { value: 'cfo', label: 'CFO (Treasury)' },
+    { value: 'cco', label: 'CCO (Commercial)' },
+    { value: 'admin_exec', label: 'Admin Executive (Operations)' },
+    { value: 'canvasser', label: 'Field Canvassers' }
+  ];
+
+  const statusFilterOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'ACTIVE', label: 'Active Only' },
+    { value: 'PAUSED', label: 'Paused / Stopped' }
+  ];
+
+  const modalRoleOptions = ROLE_OPTIONS.map(r => ({
+    value: r.value,
+    label: `${r.label} (${r.roleTitle})`
+  }));
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Stats Overview */}
-      <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] p-6 rounded-3xl border border-white/10 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 flex items-center justify-center text-black font-black shadow-lg shadow-amber-400/20 flex-shrink-0">
-              <ShieldCheck className="w-6 h-6" />
+    <div className="space-y-6 selection:bg-amber-400 selection:text-black">
+      {/* ── TOP BANNER & STATS OVERVIEW ─────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-[#14151f]/95 via-[#0e1017]/90 to-[#0c0d15]/90 border border-white/[0.08] rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/[0.06] rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative z-10">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-300 flex items-center justify-center text-black font-black shadow-lg shadow-amber-400/20 shrink-0">
+              <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-black text-white">Team Directory & User Roles</h2>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 <span className={cn(
-                  "text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border",
-                  isCEO ? "bg-amber-500/20 text-amber-300 border-amber-500/40" : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                  "text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-md border font-mono",
+                  isCEO ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-purple-500/15 text-purple-300 border-purple-500/30"
                 )}>
-                  {isCEO ? "CEO Access (Direct Action)" : "Admin Executive (Requires CEO Approval)"}
+                  {isCEO ? "CEO Master Control" : "Admin Executive"}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Manage team member accounts, adjust roles, pause or resume access, and reset passwords.
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                Team Directory &amp; User Roles
+              </h2>
+              <p className="text-xs text-white/55 mt-0.5 max-w-xl">
+                Manage accounts, assign roles, pause or resume logins, and issue instant password resets.
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setCreateModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap self-start sm:self-auto cursor-pointer"
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap self-start sm:self-auto cursor-pointer active:scale-95"
           >
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="w-4 h-4 stroke-[3]" />
             <span>{isCEO ? "Add New User" : "Request New User"}</span>
           </button>
         </div>
 
-        {/* Metric Badges */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/5">
-          <div className="p-3.5 bg-white/5 rounded-2xl border border-white/5">
-            <span className="text-[10px] font-bold uppercase text-gray-400 block tracking-wider">Total Active Accounts</span>
-            <span className="text-xl font-black text-white mt-0.5 block">{totalAccounts}</span>
+        {/* 3 Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-5 mt-5 border-t border-white/[0.08] relative z-10">
+          <div className="p-4 bg-black/40 rounded-2xl border border-white/[0.08] relative overflow-hidden">
+            <span className="text-[10px] font-bold uppercase text-white/45 block tracking-wider font-mono">Total System Accounts</span>
+            <span className="text-2xl font-black text-white font-mono mt-1 block">{totalAccounts}</span>
           </div>
-          <div className="p-3.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-            <span className="text-[10px] font-bold uppercase text-emerald-400 block tracking-wider flex items-center gap-1.5">
+
+          <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 relative overflow-hidden">
+            <span className="text-[10px] font-bold uppercase text-emerald-400 block tracking-wider font-mono flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Active Users
             </span>
-            <span className="text-xl font-black text-emerald-300 mt-0.5 block">{activeAccounts}</span>
+            <span className="text-2xl font-black text-emerald-300 font-mono mt-1 block">{activeAccounts}</span>
           </div>
-          <div className="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/20">
-            <span className="text-[10px] font-bold uppercase text-amber-400 block tracking-wider">Paused / Stopped</span>
-            <span className="text-xl font-black text-amber-300 mt-0.5 block">{pausedAccounts}</span>
+
+          <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 relative overflow-hidden">
+            <span className="text-[10px] font-bold uppercase text-amber-400 block tracking-wider font-mono">
+              Paused Access
+            </span>
+            <span className="text-2xl font-black text-amber-300 font-mono mt-1 block">{pausedAccounts}</span>
           </div>
         </div>
       </div>
 
-      {/* Success Notification */}
-      {actionSuccess && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs font-bold flex items-center gap-2.5 shadow-lg"
-        >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span>{actionSuccess}</span>
-        </motion.div>
-      )}
-
-      {/* Error Notification */}
-      {actionError && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-red-500/15 border border-red-500/30 rounded-2xl text-red-300 text-xs font-bold flex items-center gap-2.5 shadow-lg"
-        >
-          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <span>{actionError}</span>
-        </motion.div>
-      )}
-
-      {/* Search & Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-        <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search by name, username (<name>@<role>), or email..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-[#16171d] border border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400"
-          />
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value)}
-            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400"
+      {/* ── NOTIFICATIONS ────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {actionSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs font-bold flex items-center gap-2.5 shadow-lg backdrop-blur-md"
           >
-            <option value="all">All Roles ({users.length})</option>
-            <option value="ceo">CEO (Command)</option>
-            <option value="cfo">CFO (Treasury)</option>
-            <option value="cco">CCO (Commercial)</option>
-            <option value="admin_exec">Admin Executive (Operations)</option>
-            <option value="canvasser">Field Canvassers</option>
-          </select>
-        </div>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{actionSuccess}</span>
+          </motion.div>
+        )}
 
-        <div className="sm:col-span-3">
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="w-full bg-[#16171d] border border-white/10 rounded-2xl px-3 py-2.5 text-xs text-gray-300 focus:outline-none focus:border-amber-400"
+        {actionError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-rose-300 text-xs font-bold flex items-center gap-2.5 shadow-lg backdrop-blur-md"
           >
-            <option value="all">All Statuses</option>
-            <option value="ACTIVE">Active Only</option>
-            <option value="PAUSED">Paused / Stopped</option>
-          </select>
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{actionError}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── SEARCH & FILTERS BAR ─────────────────────────────────────────── */}
+      <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-4 sm:p-5 rounded-2xl shadow-xl backdrop-blur-2xl relative z-30">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/20 to-transparent pointer-events-none" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          {/* Search Box */}
+          <div className="sm:col-span-6 relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              type="text"
+              placeholder="Search by name, username (<name>@<role>), or email..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full min-h-[44px] bg-black/40 border border-white/[0.1] hover:border-white/20 focus:border-amber-400/80 rounded-xl pl-10 pr-9 text-xs text-white placeholder:text-white/40 focus:outline-none transition-colors shadow-inner"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1 rounded-md transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Role Filter */}
+          <div className="sm:col-span-3 relative focus-within:z-40">
+            <AestheticSelect
+              value={roleFilter}
+              onChange={setRoleFilter}
+              options={roleFilterOptions}
+              placeholder="Filter by Role..."
+              icon={Shield}
+              buttonClassName="min-h-[44px] bg-black/40 border-white/[0.1] hover:border-white/20"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="sm:col-span-3 relative focus-within:z-40">
+            <AestheticSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusFilterOptions}
+              placeholder="Filter by Status..."
+              icon={Filter}
+              buttonClassName="min-h-[44px] bg-black/40 border-white/[0.1] hover:border-white/20"
+            />
+          </div>
         </div>
       </div>
 
-      {/* User Directory Dataset Table */}
-      <div className="bg-gradient-to-br from-[#181922] via-[#14151c] to-[#101116] rounded-3xl border border-white/10 shadow-xl overflow-hidden">
+      {/* ── USER DIRECTORY TABLE ─────────────────────────────────────────── */}
+      <div className="bg-[#0c0d15]/85 rounded-3xl border border-white/[0.08] shadow-2xl overflow-hidden backdrop-blur-2xl relative">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent pointer-events-none" />
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-            <thead className="bg-black/50 text-gray-400 uppercase text-[10px] border-b border-white/10 font-bold tracking-wider whitespace-nowrap">
+          <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+            <thead className="bg-black/50 text-white/50 uppercase text-[10px] border-b border-white/[0.08] font-bold tracking-wider whitespace-nowrap">
               <tr>
-                <th className="py-3.5 px-4">Operator / User</th>
-                <th className="py-3.5 px-4">Username (<span className="font-mono text-amber-400">&lt;name&gt;@&lt;role&gt;</span>)</th>
-                <th className="py-3.5 px-4">Assigned Role</th>
-                <th className="py-3.5 px-4">Status & Flags</th>
-                <th className="py-3.5 px-4 text-right">Actions & Lifecycle</th>
+                <th className="py-4 px-4 sm:px-5">Operator / User</th>
+                <th className="py-4 px-4 sm:px-5">Username (<span className="font-mono text-amber-400">&lt;name&gt;@&lt;role&gt;</span>)</th>
+                <th className="py-4 px-4 sm:px-5 text-center">Assigned Role</th>
+                <th className="py-4 px-4 sm:px-5">Status &amp; Flags</th>
+                <th className="py-4 px-4 sm:px-5 text-right">Actions &amp; Lifecycle</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredUsers.length === 0 ? (
+            <tbody className="divide-y divide-white/[0.05]">
+              {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-400">
-                    No matching users found in the directory.
+                  <td colSpan={5} className="py-16 text-center text-white/50">
+                    <RefreshCw className="w-7 h-7 animate-spin mx-auto text-amber-400 mb-3" />
+                    <span className="text-xs font-bold text-white/70">Loading User Accounts...</span>
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-16 text-center text-white/50">
+                    <Users className="w-8 h-8 text-white/20 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-white/70">No matching users found in directory.</p>
                   </td>
                 </tr>
               ) : (
@@ -475,70 +539,73 @@ export default function UserManagementModule({ currentUser }) {
 
                   return (
                     <tr key={u.id} className={cn(
-                      "transition-colors",
-                      isDeleted ? "bg-rose-500/[0.03] opacity-75" : isPaused ? "bg-amber-500/[0.03]" : "hover:bg-white/5"
+                      "transition-colors group",
+                      isDeleted ? "bg-rose-500/[0.02] opacity-75" : isPaused ? "bg-amber-500/[0.02]" : "hover:bg-white/[0.03]"
                     )}>
                       {/* Name & Title */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2.5">
+                      <td className="py-4 px-4 sm:px-5 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
                           <div className={cn(
-                            "w-8 h-8 rounded-xl border flex items-center justify-center font-bold flex-shrink-0 text-xs",
+                            "w-9 h-9 rounded-2xl border flex items-center justify-center font-black shrink-0 text-xs shadow-sm",
                             isUserCEO ? "bg-amber-500/20 border-amber-500/40 text-amber-300" :
                             isDeleted ? "bg-rose-500/20 border-rose-500/40 text-rose-300" :
                             isPaused ? "bg-amber-500/20 border-amber-500/40 text-amber-300" :
                             "bg-blue-500/20 border-blue-500/40 text-blue-300"
                           )}>
-                            {u.name.charAt(0)}
+                            {u.name?.charAt(0) || 'U'}
                           </div>
                           <div>
                             <p className="font-bold text-white text-xs flex items-center gap-1.5">
                               <span>{u.name}</span>
                               {isUserCEO && (
-                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.2 rounded font-black">
+                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.2 rounded font-black font-mono">
                                   CHIEF
                                 </span>
                               )}
                             </p>
-                            <span className="text-[10px] text-gray-400">{u.roleTitle || roleObj.roleTitle}</span>
+                            <span className="text-[10px] text-white/45">{u.roleTitle || roleObj.roleTitle}</span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Strict Username */}
-                      <td className="py-3.5 px-4 font-mono text-gray-300 whitespace-nowrap">
-                        <span className="bg-black/40 px-2 py-1 rounded-lg border border-white/5 text-amber-300 text-[11px]">
+                      {/* Strict Monospace Username */}
+                      <td className="py-4 px-4 sm:px-5 font-mono whitespace-nowrap">
+                        <span className="bg-black/50 px-2.5 py-1 rounded-lg border border-white/[0.08] text-amber-300 text-[11px] font-bold">
                           {u.username || formatUsername(u.name, u.role)}
                         </span>
                       </td>
 
-                      {/* Role Badge */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center justify-center whitespace-nowrap shadow-xs", roleObj.color)}>
+                      {/* Assigned Role */}
+                      <td className="py-4 px-4 sm:px-5 whitespace-nowrap text-center">
+                        <span className={cn(
+                          "px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center justify-center whitespace-nowrap font-mono shadow-xs",
+                          roleObj.color
+                        )}>
                           {roleObj.label}
                         </span>
                       </td>
 
                       {/* Status & Flags */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-4 px-4 sm:px-5">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isActive && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                               ACTIVE
                             </span>
                           )}
                           {isPaused && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
                               PAUSED
                             </span>
                           )}
                           {isDeleted && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                              DELETED (Preserved)
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 font-mono">
+                              DELETED
                             </span>
                           )}
                           {u.requires_password_reset && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 flex items-center gap-1" title="User must reset password on login">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 flex items-center gap-1 font-mono" title="User must reset password on next login">
                               <KeyRound className="w-2.5 h-2.5" />
                               Reset Required
                             </span>
@@ -547,17 +614,17 @@ export default function UserManagementModule({ currentUser }) {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-4 px-4 sm:px-5 text-right whitespace-nowrap">
                         {isTargetProtected ? (
                           <div className="flex items-center justify-end gap-1.5">
-                            <span className="text-[10px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg font-bold inline-flex items-center gap-1">
+                            <span className="text-[10px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg font-bold inline-flex items-center gap-1 font-mono">
                               <Shield className="w-3 h-3 text-amber-400" />
                               Protected
                             </span>
                             <button
                               onClick={() => handleTriggerResetPassword(u)}
-                              className="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
-                              title="Set temporary password to 'reset' so CEO can log in and choose a new password"
+                              className="px-2.5 py-1 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/25 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="Reset password to 'reset'"
                             >
                               <KeyRound className="w-3 h-3" />
                               <span>Reset Pass</span>
@@ -569,10 +636,10 @@ export default function UserManagementModule({ currentUser }) {
                             {!isDeleted && (
                               <button
                                 onClick={() => handleOpenEditRole(u)}
-                                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-[11px] font-semibold transition cursor-pointer"
+                                className="px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white border border-white/[0.1] text-[11px] font-bold transition cursor-pointer"
                                 title={isCEO ? "Edit User Role Immediately" : "Submit Role Change Request to CEO"}
                               >
-                                {isCEO ? "Edit Role" : "Request Role"}
+                                {isCEO ? "Edit Role" : "Req. Role"}
                               </button>
                             )}
 
@@ -581,24 +648,24 @@ export default function UserManagementModule({ currentUser }) {
                               <button
                                 onClick={() => isPaused ? handleResumeUser(u) : setConfirmModal({ type: 'PAUSE', user: u })}
                                 className={cn(
-                                  "px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer",
+                                  "px-2.5 py-1 rounded-xl border text-[11px] font-bold transition flex items-center gap-1 cursor-pointer",
                                   isPaused 
                                     ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30" 
                                     : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30"
                                 )}
-                                title={isPaused ? "Resume user login access" : "Temporarily pause user access while preserving progress"}
+                                title={isPaused ? "Resume user login access" : "Temporarily pause user access"}
                               >
                                 {isPaused ? <PlayCircle className="w-3 h-3" /> : <PauseCircle className="w-3 h-3" />}
                                 <span>{isPaused ? (isCEO ? "Resume" : "Req. Resume") : (isCEO ? "Pause" : "Req. Pause")}</span>
                               </button>
                             )}
 
-                            {/* 3. Send Reset Password Button (Instant for both Admin & CEO) */}
+                            {/* 3. Send Reset Password Button */}
                             {!isDeleted && (
                               <button
                                 onClick={() => handleTriggerResetPassword(u)}
-                                className="px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
-                                title="Set temporary password to 'reset' so user can log in and choose a new password"
+                                className="px-2.5 py-1 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/25 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="Reset password to 'reset'"
                               >
                                 <KeyRound className="w-3 h-3" />
                                 <span>Reset Pass</span>
@@ -609,8 +676,8 @@ export default function UserManagementModule({ currentUser }) {
                             {!isDeleted && (
                               <button
                                 onClick={() => setConfirmModal({ type: 'DELETE', user: u })}
-                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
-                                title={isCEO ? "Delete user completely from database" : "Request deletion to CEO"}
+                                className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
+                                title={isCEO ? "Delete user completely" : "Submit deletion request to CEO"}
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                               </button>
@@ -629,74 +696,80 @@ export default function UserManagementModule({ currentUser }) {
 
       {/* ── CREATE USER MODAL ──────────────────────────────────────────────── */}
       {createModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-amber-400" />
-              {isCEO ? "Provision New System Account" : "Submit User Creation Request to CEO"}
-            </h3>
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#0e0f17]/95 border border-white/[0.12] rounded-3xl p-6 sm:p-7 max-w-md w-full space-y-4 shadow-2xl backdrop-blur-2xl text-white my-auto max-h-[90vh] overflow-y-auto relative">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent pointer-events-none" />
 
-            <p className="text-xs text-gray-400">
-              Users are provisioned with Name, Role, and Initial Password. Usernames are automatically generated in strict <code className="text-amber-300">&lt;name&gt;@&lt;role&gt;</code> format.
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-400/15 text-amber-400 border border-amber-400/30">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">
+                  {isCEO ? "Provision System Account" : "Submit Provisioning Request"}
+                </h3>
+                <p className="text-[11px] text-white/50">Team Directory Management</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/60 leading-relaxed">
+              Provision account with Name and Role. Login identifier is generated in strict <code className="text-amber-300 font-mono">&lt;name&gt;@&lt;role&gt;</code> format.
             </p>
 
             <form onSubmit={handleCreateUser} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-gray-400 block mb-1">Full Name</label>
+                <label className="text-white/70 font-bold block mb-1.5">Full Name</label>
                 <input
                   required
                   type="text"
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   placeholder="e.g. Anand Kumar"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400"
+                  className="w-full bg-black/40 border border-white/[0.1] hover:border-white/20 focus:border-amber-400/80 rounded-xl px-3.5 py-2.5 text-white placeholder:text-white/30 focus:outline-none transition"
                 />
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">System Role</label>
-                <select
+                <label className="text-white/70 font-bold block mb-1.5">System Role</label>
+                <AestheticSelect
                   value={newRole}
-                  onChange={e => setNewRole(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-                >
-                  {ROLE_OPTIONS.map(r => (
-                    <option key={r.value} value={r.value}>{r.label} ({r.roleTitle})</option>
-                  ))}
-                </select>
+                  onChange={setNewRole}
+                  options={modalRoleOptions}
+                  buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1]"
+                />
               </div>
 
               {/* Username live preview */}
               <div className="p-3 bg-black/50 rounded-xl border border-amber-500/20 text-xs">
-                <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">Generated Login Identifier:</span>
+                <span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider font-mono">Generated Login Identifier:</span>
                 <span className="font-mono text-amber-300 font-bold text-sm mt-0.5 block">
                   {formatUsername(newName || 'username', newRole)}
                 </span>
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">Initial Temporary Password</label>
+                <label className="text-white/70 font-bold block mb-1.5">Initial Temporary Password</label>
                 <input
                   required
                   type="password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400 font-mono"
+                  className="w-full bg-black/40 border border-white/[0.1] hover:border-white/20 focus:border-amber-400/80 rounded-xl px-3.5 py-2.5 text-white placeholder:text-white/30 focus:outline-none transition font-mono"
                 />
               </div>
 
-              <div className="flex gap-2 pt-3">
+              <div className="flex gap-2.5 pt-3 border-t border-white/[0.08]">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black font-black rounded-xl transition cursor-pointer"
+                  className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black rounded-xl transition cursor-pointer shadow-lg shadow-amber-400/20 active:scale-95 disabled:opacity-50"
                 >
-                  {isCEO ? "Create & Activate Immediately" : "Submit Request to CEO"}
+                  {submitting ? "Processing..." : isCEO ? "Create Immediately" : "Submit Request to CEO"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition cursor-pointer"
+                  className="px-5 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-white/80 hover:text-white font-bold rounded-xl transition cursor-pointer border border-white/[0.08]"
                 >
                   Cancel
                 </button>
@@ -709,52 +782,58 @@ export default function UserManagementModule({ currentUser }) {
 
       {/* ── EDIT ROLE MODAL ────────────────────────────────────────────────── */}
       {editRoleModalOpen && selectedUser && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-purple-400" />
-              {isCEO ? `Modify Role: ${selectedUser.name}` : `Request Role Upgrade: ${selectedUser.name}`}
-            </h3>
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#0e0f17]/95 border border-white/[0.12] rounded-3xl p-6 sm:p-7 max-w-md w-full space-y-4 shadow-2xl backdrop-blur-2xl text-white my-auto max-h-[90vh] overflow-y-auto relative">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-400/40 to-transparent pointer-events-none" />
+
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">
+                  {isCEO ? `Modify Role: ${selectedUser.name}` : `Request Role Upgrade: ${selectedUser.name}`}
+                </h3>
+                <p className="text-[11px] text-white/50">User Role Authorization</p>
+              </div>
+            </div>
 
             <form onSubmit={handleUpdateRole} className="space-y-3.5 text-xs">
-              <div className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-1">
-                <p className="text-gray-400">Current Role: <strong className="text-white">{selectedUser.role?.toUpperCase()}</strong></p>
-                <p className="text-gray-400">Current Login: <span className="font-mono text-amber-300">{selectedUser.username || selectedUser.email}</span></p>
+              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/[0.08] space-y-1">
+                <p className="text-white/50">Current Role: <strong className="text-white font-mono">{selectedUser.role?.toUpperCase()}</strong></p>
+                <p className="text-white/50">Current Identifier: <span className="font-mono text-amber-300">{selectedUser.username || selectedUser.email}</span></p>
               </div>
 
               <div>
-                <label className="text-gray-400 block mb-1">New Assigned Role</label>
-                <select
+                <label className="text-white/70 font-bold block mb-1.5">New Assigned Role</label>
+                <AestheticSelect
                   value={updatedRole}
-                  onChange={e => setUpdatedRole(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-                >
-                  {ROLE_OPTIONS.map(r => (
-                    <option key={r.value} value={r.value}>{r.label} ({r.roleTitle})</option>
-                  ))}
-                </select>
+                  onChange={setUpdatedRole}
+                  options={modalRoleOptions}
+                  buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1]"
+                />
               </div>
 
               {/* Updated Username preview */}
               <div className="p-3 bg-black/50 rounded-xl border border-purple-500/20 text-xs">
-                <span className="text-gray-400 block text-[10px] uppercase font-bold tracking-wider">New Login Identifier:</span>
+                <span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider font-mono">New Login Identifier:</span>
                 <span className="font-mono text-purple-300 font-bold text-sm mt-0.5 block">
                   {formatUsername(selectedUser.name, updatedRole)}
                 </span>
               </div>
 
-              <div className="flex gap-2 pt-3">
+              <div className="flex gap-2.5 pt-3 border-t border-white/[0.08]">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-black rounded-xl transition cursor-pointer"
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-black rounded-xl transition cursor-pointer shadow-lg shadow-purple-500/20 active:scale-95 disabled:opacity-50"
                 >
-                  {isCEO ? "Confirm Role Update" : "Submit Request to CEO"}
+                  {submitting ? "Processing..." : isCEO ? "Confirm Role Update" : "Submit Request to CEO"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditRoleModalOpen(false)}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition cursor-pointer"
+                  className="px-5 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-white/80 hover:text-white font-bold rounded-xl transition cursor-pointer border border-white/[0.08]"
                 >
                   Cancel
                 </button>
@@ -767,60 +846,68 @@ export default function UserManagementModule({ currentUser }) {
 
       {/* ── CONFIRMATION MODAL FOR PAUSE / DELETE ──────────────────────────── */}
       {confirmModal && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#181922] border border-white/20 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl text-white my-auto">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              {confirmModal.type === 'DELETE' ? (
-                <>
-                  <Trash2 className="w-4 h-4 text-rose-400" />
-                  <span>{isCEO ? "Confirm User Deletion" : "Submit Deletion Request to CEO"}</span>
-                </>
-              ) : (
-                <>
-                  <PauseCircle className="w-4 h-4 text-amber-400" />
-                  <span>{isCEO ? "Pause User Access" : "Submit Pause Request to CEO"}</span>
-                </>
-              )}
-            </h3>
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#0e0f17]/95 border border-white/[0.12] rounded-3xl p-6 sm:p-7 max-w-md w-full space-y-4 shadow-2xl backdrop-blur-2xl text-white my-auto relative">
+            <div className={cn(
+              "absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent to-transparent pointer-events-none",
+              confirmModal.type === 'DELETE' ? "via-rose-500/40" : "via-amber-400/40"
+            )} />
 
-            <p className="text-xs text-gray-300 leading-relaxed">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-2.5 rounded-2xl border",
+                confirmModal.type === 'DELETE' ? "bg-rose-500/15 text-rose-400 border-rose-500/30" : "bg-amber-400/15 text-amber-400 border-amber-400/30"
+              )}>
+                {confirmModal.type === 'DELETE' ? <Trash2 className="w-5 h-5" /> : <PauseCircle className="w-5 h-5" />}
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">
+                  {confirmModal.type === 'DELETE' 
+                    ? (isCEO ? "Confirm User Deletion" : "Submit Deletion Request") 
+                    : (isCEO ? "Pause User Access" : "Submit Pause Request")}
+                </h3>
+                <p className="text-[11px] text-white/50">Account Lifecycle</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/70 leading-relaxed">
               {confirmModal.type === 'DELETE' ? (
                 <>
-                  Are you sure you want to permanently delete <strong>{confirmModal.user.name}</strong> ({confirmModal.user.username})?
-                  <span className="block text-rose-300 mt-2 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-                    🗑️ This account will be completely removed from the database. No trace will remain, and you can create a new user with this name at any time.
+                  Are you sure you want to permanently delete <strong className="text-white">{confirmModal.user.name}</strong> ({confirmModal.user.username})?
+                  <span className="block text-rose-300 mt-2.5 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 font-medium">
+                    🗑️ This account will be completely removed from the database.
                   </span>
                 </>
               ) : (
                 <>
-                  Are you sure you want to pause <strong>{confirmModal.user.name}</strong> ({confirmModal.user.username})?
-                  <span className="block text-amber-300 mt-2 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
-                    ⏸️ This will temporarily prevent the user from logging in while keeping all user data intact. The account can be resumed at any time.
+                  Are you sure you want to pause access for <strong className="text-white">{confirmModal.user.name}</strong> ({confirmModal.user.username})?
+                  <span className="block text-amber-300 mt-2.5 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 font-medium">
+                    ⏸️ This will temporarily prevent the user from logging in while preserving all historical data.
                   </span>
                 </>
               )}
             </p>
 
-            <div className="flex gap-2 pt-3">
+            <div className="flex gap-2.5 pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => confirmModal.type === 'DELETE' ? handleDeleteUser(confirmModal.user) : handlePauseUser(confirmModal.user)}
                 className={cn(
-                  "flex-1 py-2.5 font-black rounded-xl transition cursor-pointer",
+                  "flex-1 py-3 font-black rounded-xl transition cursor-pointer active:scale-95 disabled:opacity-50",
                   confirmModal.type === 'DELETE'
                     ? "bg-rose-500 hover:bg-rose-400 text-white shadow-lg shadow-rose-500/20"
-                    : "bg-amber-400 hover:bg-amber-300 text-black shadow-lg shadow-amber-400/20"
+                    : "bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black shadow-lg shadow-amber-400/20"
                 )}
               >
-                {confirmModal.type === 'DELETE'
-                  ? (isCEO ? "Permanently Delete User" : "Submit Deletion Request")
+                {submitting ? "Processing..." : confirmModal.type === 'DELETE'
+                  ? (isCEO ? "Delete User Immediately" : "Submit Deletion Request")
                   : (isCEO ? "Pause User Immediately" : "Submit Pause Request")}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmModal(null)}
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition cursor-pointer"
+                className="px-5 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-white/80 hover:text-white font-bold rounded-xl transition cursor-pointer border border-white/[0.08]"
               >
                 Cancel
               </button>

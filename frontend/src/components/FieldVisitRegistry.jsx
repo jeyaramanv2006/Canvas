@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Download, Users, Search, Filter, Edit3, Trash2, Phone, MapPin, 
-  CheckCircle2, Receipt, History, FileText, Camera, X, RefreshCw
+  CheckCircle2, Receipt, History, FileText, Camera, X, RefreshCw,
+  Calendar, User, Clock, RotateCcw, Sparkles, AlertCircle
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import EditVisitModal from './EditVisitModal';
@@ -11,6 +12,7 @@ import EditHistoryModal from './EditHistoryModal';
 import InvoiceDocumentModal from './InvoiceDocumentModal';
 import ProductBadge from './ProductBadge';
 import VerifySchoolDiscoveryModal from './VerifySchoolDiscoveryModal';
+import AestheticSelect from './AestheticSelect';
 import { cn } from '../lib/utils';
 
 export default function FieldVisitRegistry({ currentUser }) {
@@ -25,7 +27,6 @@ export default function FieldVisitRegistry({ currentUser }) {
   const [selectedInterest, setSelectedInterest] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedOrigin, setSelectedOrigin] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState('all');
 
   // Modals & Lightbox
   const [editingVisit, setEditingVisit] = useState(null);
@@ -53,7 +54,7 @@ export default function FieldVisitRegistry({ currentUser }) {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
+    setTimeout(() => setToastMessage(''), 3500);
   };
 
   const loadData = async () => {
@@ -85,322 +86,522 @@ export default function FieldVisitRegistry({ currentUser }) {
     await loadData();
   };
 
-  const filteredVisits = visits.filter(v => {
-    const matchesSearch = 
-      (v.school_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.district || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.contact_person || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.canvasser_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (v.notes || '').toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredVisits = useMemo(() => {
+    return visits.filter(v => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || 
+        (v.school_name || '').toLowerCase().includes(q) ||
+        (v.district || '').toLowerCase().includes(q) ||
+        (v.contact_person || '').toLowerCase().includes(q) ||
+        (v.canvasser_name || '').toLowerCase().includes(q) ||
+        (v.notes || '').toLowerCase().includes(q) ||
+        (v.id && String(v.id).toLowerCase().includes(q));
 
-    const matchesDistrict = selectedDistrict === 'all' || v.district === selectedDistrict;
-    const matchesCanvasser = selectedCanvasser === 'all' || String(v.canvasser_id) === String(selectedCanvasser);
-    const matchesInterest = selectedInterest === 'all' || v.interest_level === selectedInterest;
-    const matchesStatus = selectedStatus === 'all' || v.outcome_status === selectedStatus;
-    const matchesOrigin = selectedOrigin === 'all' || 
-      (selectedOrigin === 'master' && v.is_from_master_db && v.discovery_status !== 'LINKED_EXISTING') ||
-      (selectedOrigin === 'custom' && !v.is_from_master_db) ||
-      (selectedOrigin === 'pending' && (!v.is_from_master_db || v.discovery_status === 'PENDING_VERIFICATION')) ||
-      (selectedOrigin === 'verified_new' && v.discovery_status === 'VERIFIED_NEW') ||
-      (selectedOrigin === 'linked_typo' && v.discovery_status === 'LINKED_EXISTING');
+      const matchesDistrict = selectedDistrict === 'all' || v.district === selectedDistrict;
+      const matchesCanvasser = selectedCanvasser === 'all' || String(v.canvasser_id) === String(selectedCanvasser);
+      const matchesInterest = selectedInterest === 'all' || v.interest_level === selectedInterest;
+      const matchesStatus = selectedStatus === 'all' || v.outcome_status === selectedStatus;
+      const matchesOrigin = selectedOrigin === 'all' || 
+        (selectedOrigin === 'master' && v.is_from_master_db && v.discovery_status !== 'LINKED_EXISTING') ||
+        (selectedOrigin === 'custom' && !v.is_from_master_db) ||
+        (selectedOrigin === 'pending' && (!v.is_from_master_db || v.discovery_status === 'PENDING_VERIFICATION')) ||
+        (selectedOrigin === 'verified_new' && v.discovery_status === 'VERIFIED_NEW') ||
+        (selectedOrigin === 'linked_typo' && v.discovery_status === 'LINKED_EXISTING');
 
-    return matchesSearch && matchesDistrict && matchesCanvasser && matchesInterest && matchesStatus && matchesOrigin;
-  });
+      return matchesSearch && matchesDistrict && matchesCanvasser && matchesInterest && matchesStatus && matchesOrigin;
+    });
+  }, [visits, searchQuery, selectedDistrict, selectedCanvasser, selectedInterest, selectedStatus, selectedOrigin]);
 
   const handleExportCSV = () => {
     mockApi.exportToCSV(filteredVisits);
     showToast(`Exported ${filteredVisits.length} records to CSV`);
   };
 
-  const uniqueDistricts = Array.from(new Set(visits.map(v => v.district).filter(Boolean)));
-  const uniqueCanvassers = (stats?.canvasserStats && stats.canvasserStats.length > 0)
-    ? stats.canvasserStats
-    : Array.from(
-        new Map(
-          visits
-            .filter(v => v.canvasser_id)
-            .map(v => [v.canvasser_id, { id: v.canvasser_id, name: v.canvasser_name || `Canvasser ${v.canvasser_id}` }])
-        ).values()
-      );
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedDistrict('all');
+    setSelectedCanvasser('all');
+    setSelectedInterest('all');
+    setSelectedStatus('all');
+    setSelectedOrigin('all');
+  };
+
+  const hasActiveFilters = searchQuery || selectedDistrict !== 'all' || selectedCanvasser !== 'all' || selectedInterest !== 'all' || selectedStatus !== 'all' || selectedOrigin !== 'all';
+
+  const uniqueDistricts = useMemo(() => {
+    return Array.from(new Set(visits.map(v => v.district).filter(Boolean))).sort();
+  }, [visits]);
+
+  const uniqueCanvassers = useMemo(() => {
+    if (stats?.canvasserStats && stats.canvasserStats.length > 0) {
+      return stats.canvasserStats;
+    }
+    return Array.from(
+      new Map(
+        visits
+          .filter(v => v.canvasser_id)
+          .map(v => [v.canvasser_id, { id: v.canvasser_id, name: v.canvasser_name || `Canvasser ${v.canvasser_id}` }])
+      ).values()
+    );
+  }, [stats, visits]);
+
+  // Filter Dropdown Options
+  const originOptions = [
+    { value: 'all', label: 'All Sources' },
+    { value: 'pending', label: '⏳ Pending Verification' },
+    { value: 'verified_new', label: '✨ Verified New (+Bonus)' },
+    { value: 'linked_typo', label: '🔗 Linked Typo to Master' },
+    { value: 'master', label: '🏛️ Original Master DB' },
+    { value: 'custom', label: '🆕 All Non-Master' }
+  ];
+
+  const districtOptions = useMemo(() => {
+    return [
+      { value: 'all', label: 'All Districts' },
+      ...uniqueDistricts.map(d => ({ value: d, label: d }))
+    ];
+  }, [uniqueDistricts]);
+
+  const canvasserOptions = useMemo(() => {
+    return [
+      { value: 'all', label: 'All Canvassers' },
+      ...uniqueCanvassers.map(c => ({ value: String(c.id), label: c.name }))
+    ];
+  }, [uniqueCanvassers]);
+
+  const interestOptions = [
+    { value: 'all', label: 'All Interests' },
+    { value: 'Hot', label: '🔥 Hot' },
+    { value: 'Warm', label: '⚡ Warm' },
+    { value: 'Cold', label: '❄️ Cold' },
+    { value: 'Not Interested', label: '⛔ Not Interested' }
+  ];
+
+  const statusOptions = [
+    { value: 'all', label: 'All Outcomes' },
+    { value: 'Open', label: 'Open' },
+    { value: 'Sample Sent', label: 'Sample Sent' },
+    { value: 'Quote Given', label: 'Quote Given' },
+    { value: 'Won', label: 'Won' },
+    { value: 'Lost', label: 'Lost' },
+    { value: 'Not Interested', label: 'Not Interested' }
+  ];
 
   if (loading && visits.length === 0) {
     return (
-      <div className="py-16 text-center space-y-3">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-murugan-accent" />
-        <p className="text-xs text-gray-400 font-medium">Loading central field visit registry...</p>
+      <div className="py-20 text-center space-y-3 bg-[#0c0d15]/85 rounded-3xl border border-white/[0.08] p-8 shadow-xl backdrop-blur-2xl">
+        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
+        <p className="text-sm font-bold text-white/80">Loading central field visit registry...</p>
+        <p className="text-xs text-white/40">Fetching institutional visits, specifications, and media attachments</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-br from-[#181922] to-[#13141a] p-4 sm:p-5 rounded-2xl border border-white/10 shadow-lg">
-        <div>
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <History className="w-4 h-4 text-murugan-accent" />
-            Central Field Visit Registry
-          </h3>
-          <p className="text-xs text-gray-400 mt-0.5">{filteredVisits.length} visits matching filters ({visits.length} total)</p>
+    <div className="space-y-5 selection:bg-amber-400 selection:text-black">
+      {/* ── TOP HEADER & TELEMETRY ───────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-[#14151f]/95 via-[#0e1017]/90 to-[#0c0d15]/90 border border-white/[0.08] rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/[0.05] rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-300 flex items-center justify-center text-black font-black shadow-lg shadow-amber-400/20 shrink-0">
+              <History className="w-6 h-6 stroke-[2.2]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  Central Field Visit Registry
+                </h3>
+              </div>
+              <p className="text-xs text-white/50 mt-0.5">
+                Showing <strong className="text-white font-mono">{filteredVisits.length}</strong> visits matching filters (<strong className="text-white/80 font-mono">{visits.length}</strong> total)
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap self-start sm:self-auto cursor-pointer active:scale-95"
+            title="Export filtered visits to CSV"
+          >
+            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Export CSV</span>
+          </button>
         </div>
-        <button
-          onClick={handleExportCSV}
-          className="px-4 py-2 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-murugan-accent/20 transition-all self-start sm:self-auto"
-        >
-          <Download className="w-3.5 h-3.5" />
-          Export CSV
-        </button>
       </div>
 
-      {/* Filters Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 bg-gradient-to-br from-[#181922] to-[#13141a] p-3.5 rounded-2xl border border-white/10 shadow-md">
-        <div className="sm:col-span-2 relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+      {/* ── SEARCH & 5 FILTERS COMMAND BAR ───────────────────────────────── */}
+      <div className="bg-[#0c0d15]/85 border border-white/[0.08] p-4 sm:p-5 rounded-2xl shadow-xl backdrop-blur-2xl relative z-30 space-y-3">
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/20 to-transparent pointer-events-none" />
+
+        {/* Row 1: Full-Width Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             type="text"
             placeholder="Search school, district, notes, canvasser..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
+            className="w-full min-h-[44px] bg-black/40 border border-white/[0.1] hover:border-white/20 focus:border-amber-400/80 rounded-xl pl-10 pr-9 text-xs text-white placeholder:text-white/40 focus:outline-none transition-colors shadow-inner"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1 rounded-md transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        <select
-          value={selectedOrigin}
-          onChange={e => setSelectedOrigin(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent font-medium"
-        >
-          <option value="all">All Sources</option>
-          <option value="pending">⏳ Pending Verification</option>
-          <option value="verified_new">✨ Verified New (+Bonus)</option>
-          <option value="linked_typo">🔗 Linked Typo to Master</option>
-          <option value="master">🏛️ Original Master DB</option>
-          <option value="custom">🆕 All Non-Master</option>
-        </select>
+        {/* Row 2: 5 Equal-Width Filter Selectors - ample space so no label is truncated */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          <div className="relative focus-within:z-40">
+            <AestheticSelect
+              value={selectedOrigin}
+              onChange={setSelectedOrigin}
+              options={originOptions}
+              placeholder="All Sources"
+              size="sm"
+              buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1] hover:border-white/20 font-medium"
+            />
+          </div>
 
-        <select
-          value={selectedDistrict}
-          onChange={e => setSelectedDistrict(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
-        >
-          <option value="all">All Districts</option>
-          {uniqueDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+          <div className="relative focus-within:z-40">
+            <AestheticSelect
+              value={selectedDistrict}
+              onChange={setSelectedDistrict}
+              options={districtOptions}
+              searchable={true}
+              placeholder="All Districts"
+              size="sm"
+              icon={MapPin}
+              buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1] hover:border-white/20 font-medium"
+            />
+          </div>
 
-        <select
-          value={selectedCanvasser}
-          onChange={e => setSelectedCanvasser(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
-        >
-          <option value="all">All Canvassers</option>
-          {uniqueCanvassers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+          <div className="relative focus-within:z-40">
+            <AestheticSelect
+              value={selectedCanvasser}
+              onChange={setSelectedCanvasser}
+              options={canvasserOptions}
+              searchable={true}
+              placeholder="All Canvassers"
+              size="sm"
+              icon={Users}
+              buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1] hover:border-white/20 font-medium"
+            />
+          </div>
 
-        <select
-          value={selectedInterest}
-          onChange={e => setSelectedInterest(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent"
-        >
-          <option value="all">All Interests</option>
-          <option value="Hot">Hot</option>
-          <option value="Warm">Warm</option>
-          <option value="Cold">Cold</option>
-          <option value="Not Interested">Not Interested</option>
-        </select>
+          <div className="relative focus-within:z-40">
+            <AestheticSelect
+              value={selectedInterest}
+              onChange={setSelectedInterest}
+              options={interestOptions}
+              placeholder="All Interests"
+              size="sm"
+              buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1] hover:border-white/20 font-medium"
+            />
+          </div>
 
-        <select
-          value={selectedStatus}
-          onChange={e => setSelectedStatus(e.target.value)}
-          className="bg-black/40 border border-white/10 rounded-xl p-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-murugan-accent sm:col-span-1"
-        >
-          <option value="all">All Outcomes</option>
-          <option value="Open">Open</option>
-          <option value="Sample Sent">Sample Sent</option>
-          <option value="Quote Given">Quote Given</option>
-          <option value="Won">Won</option>
-          <option value="Lost">Lost</option>
-          <option value="Not Interested">Not Interested</option>
-        </select>
+          <div className="col-span-2 sm:col-span-1 relative focus-within:z-40">
+            <AestheticSelect
+              value={selectedStatus}
+              onChange={setSelectedStatus}
+              options={statusOptions}
+              placeholder="All Outcomes"
+              size="sm"
+              buttonClassName="min-h-[42px] bg-black/40 border-white/[0.1] hover:border-white/20 font-medium"
+            />
+          </div>
+        </div>
+
+        {/* Filter Reset pill bar if active */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between text-xs pt-3 mt-3 border-t border-white/[0.06] flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-white/50 text-[11px] flex-wrap">
+              <span className="font-bold text-white">Active Filters:</span>
+              {searchQuery && (
+                <span className="bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-mono">
+                  "{searchQuery}"
+                </span>
+              )}
+              {selectedOrigin !== 'all' && (
+                <span className="bg-white/10 text-white/80 border border-white/20 px-2 py-0.5 rounded-full font-mono">
+                  Origin: {originOptions.find(o => o.value === selectedOrigin)?.label || selectedOrigin}
+                </span>
+              )}
+              {selectedDistrict !== 'all' && (
+                <span className="bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">
+                  District: {selectedDistrict}
+                </span>
+              )}
+              {selectedCanvasser !== 'all' && (
+                <span className="bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-mono">
+                  Canvasser: {canvasserOptions.find(c => c.value === selectedCanvasser)?.label || selectedCanvasser}
+                </span>
+              )}
+              {selectedInterest !== 'all' && (
+                <span className="bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full font-mono">
+                  Interest: {selectedInterest}
+                </span>
+              )}
+              {selectedStatus !== 'all' && (
+                <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                  Outcome: {selectedStatus}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={handleResetFilters}
+              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-400/10 border border-amber-400/25 transition cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Visits List */}
+      {/* ── VISITS LIST (CANVASSER "MY VISITS" CARD AESTHETIC) ─────────────── */}
       {filteredVisits.length === 0 ? (
-        <div className="bg-[#181922] p-12 rounded-3xl border border-white/5 text-center">
-          <p className="text-sm font-bold text-gray-300">No field visits matched the current criteria.</p>
+        <div className="bg-[#0c0d15]/85 p-12 rounded-3xl border border-white/[0.08] text-center space-y-2 backdrop-blur-2xl">
+          <History className="w-8 h-8 text-white/20 mx-auto" />
+          <p className="text-sm font-bold text-white/80">No field visits matched the current criteria.</p>
+          <p className="text-xs text-white/40">Try resetting filters or adjusting search parameters.</p>
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              className="mt-3 px-3.5 py-1.5 rounded-xl bg-amber-400/10 border border-amber-400/25 text-amber-300 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Clear All Filters</span>
+            </button>
+          )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredVisits.map((visit) => (
-            <motion.div
-              key={visit.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-[#1c1d27] via-[#161720] to-[#121319] p-5 rounded-2xl border border-white/10 hover:border-amber-500/30 shadow-xl hover:shadow-2xl transition-all space-y-3"
-            >
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                <div className="space-y-2 flex-1">
+        <div className="space-y-3.5">
+          {filteredVisits.map((visit) => {
+            const isOverdue = visit.follow_up_date && new Date(visit.follow_up_date) < new Date(new Date().setHours(0, 0, 0, 0));
+
+            return (
+              <motion.div
+                key={visit.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[#0c0d15]/85 rounded-3xl border border-white/[0.08] hover:border-amber-400/30 p-5 sm:p-6 transition-all duration-300 relative overflow-hidden backdrop-blur-2xl shadow-xl space-y-3.5 group"
+              >
+                {/* Luminous Top Catch Rim */}
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent pointer-events-none" />
+
+                {/* 1. Header: School Name, Origin • Dot, and • Interest | Outcome (matching attached screenshot) */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-extrabold text-sm text-white">{visit.school_name}</h4>
+                    <h4 className="font-extrabold text-base text-white tracking-tight leading-snug">
+                      {visit.school_name}
+                    </h4>
+
+                    {/* Origin / Discovery Badge (format: • Verified DB / • New Discovery) */}
                     {visit.is_from_master_db ? (
-                      visit.discovery_status === 'LINKED_EXISTING' ? (
-                        <span className="text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                          🔗 Master DB (Typo Resolved)
-                        </span>
-                      ) : visit.discovery_status === 'VERIFIED_NEW' ? (
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-black inline-flex items-center gap-1 shadow-sm">
-                          ✨ Verified New (+₹{Number(visit.discovery_bonus_amount || 1000).toLocaleString('en-IN')} Bonus)
-                        </span>
-                      ) : (
-                        <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                          🏛️ Master DB
-                        </span>
-                      )
+                      <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>Verified DB</span>
+                      </span>
                     ) : (
-                      <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                        ⏳ Discovered (Pending Verification)
+                      <span 
+                        onClick={() => {
+                          if (visit.discovery_status === 'PENDING_VERIFICATION') {
+                            setVerifyDiscoveryVisit(visit);
+                          }
+                        }}
+                        className={cn(
+                          "text-xs font-semibold text-amber-400 flex items-center gap-1.5",
+                          visit.discovery_status === 'PENDING_VERIFICATION' && "cursor-pointer hover:underline"
+                        )}
+                        title={visit.discovery_status === 'PENDING_VERIFICATION' ? "Click to verify discovery" : undefined}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                        <span>New Discovery</span>
                       </span>
                     )}
+                  </div>
+
+                  {/* Top Right: • Interest | Outcome Status (exact format of attached image) */}
+                  <div className="flex items-center gap-3 shrink-0 text-xs">
+                    {/* Interest Level */}
                     <span className={cn(
-                      "text-[10px] px-2 py-0.5 rounded-full font-bold",
-                      visit.outcome_status === 'Won' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                      visit.outcome_status === 'Lost' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                      visit.outcome_status === 'Sample Sent' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-                      visit.outcome_status === 'Quote Given' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                      'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      "flex items-center gap-1.5 font-bold tracking-wide",
+                      visit.interest_level === 'Hot' ? 'text-rose-400' :
+                      visit.interest_level === 'Warm' ? 'text-amber-400' :
+                      visit.interest_level === 'Cold' ? 'text-blue-400' : 'text-white/40'
                     )}>
-                      {visit.outcome_status}
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        visit.interest_level === 'Hot' ? 'bg-rose-400 animate-pulse' :
+                        visit.interest_level === 'Warm' ? 'bg-amber-400' :
+                        visit.interest_level === 'Cold' ? 'bg-blue-400' : 'bg-white/40'
+                      )} />
+                      <span>{visit.interest_level || 'Open'}</span>
+                    </span>
+
+                    <span className="text-white/20 select-none">|</span>
+
+                    {/* Outcome Status */}
+                    <span className={cn(
+                      "font-bold tracking-tight",
+                      visit.outcome_status === 'Won' ? 'text-emerald-400' :
+                      visit.outcome_status === 'Lost' ? 'text-rose-400' :
+                      'text-purple-300'
+                    )}>
+                      {visit.outcome_status || 'Open'}
                     </span>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-400">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-gray-500" />
-                      <span>{visit.district} • {visit.institution_type}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-gray-500" />
-                      <span>Canvassed by: <strong className="text-murugan-accent">{visit.canvasser_name || 'Canvasser'}</strong></span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-gray-500" />
-                      <span>{visit.contact_person} ({visit.phone})</span>
-                    </div>
+                {/* Subtitle: District · Board / Type · Student Strength */}
+                <div className="flex items-center gap-2 text-xs text-white/50 flex-wrap">
+                  <span>{visit.district}</span>
+                  {visit.board ? (
+                    <>
+                      <span className="text-white/20">·</span>
+                      <span>{visit.board}</span>
+                    </>
+                  ) : visit.institution_type ? (
+                    <>
+                      <span className="text-white/20">·</span>
+                      <span>{visit.institution_type}</span>
+                    </>
+                  ) : null}
+                  {visit.student_strength && Number(visit.student_strength) > 0 && (
+                    <>
+                      <span className="text-white/20">·</span>
+                      <span>{Number(visit.student_strength).toLocaleString('en-IN')} students</span>
+                    </>
+                  )}
+                  {visit.canvasser_name && (
+                    <>
+                      <span className="text-white/20">·</span>
+                      <span className="text-white/40">by <strong className="text-white/70 font-normal">{visit.canvasser_name}</strong></span>
+                    </>
+                  )}
+                </div>
+
+                {/* 2. Contact Person & Direct Phone Link */}
+                <div className="flex items-center justify-between text-xs text-white/70 flex-wrap gap-2 pt-1 border-t border-white/[0.04]">
+                  <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-white/40" />
+                    <span className="font-medium text-white/90">{visit.contact_person || 'Management'}</span>
+                    {visit.phone && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <a 
+                          href={`tel:${visit.phone.replace(/[^0-9+]/g, '')}`} 
+                          className="text-amber-400/90 hover:text-amber-300 hover:underline flex items-center gap-1 font-semibold font-mono text-[11px]"
+                        >
+                          <Phone className="w-3 h-3 text-amber-400/70" />
+                          {visit.phone}
+                        </a>
+                      </>
+                    )}
                   </div>
 
-                  {/* Product Interests Tags */}
+                  {/* Product Badges (Inline) */}
                   {Array.isArray(visit.product_interests) && visit.product_interests.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {visit.product_interests.map(p => (
                         <ProductBadge key={p} product={p} size="sm" />
                       ))}
                     </div>
                   )}
+                </div>
 
-                  {/* Product Specifications Note */}
-                  {visit.product_specifications && (
-                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
-                        <FileText className="w-3 h-3" />
-                        <span>Product Specifications Requested:</span>
-                      </div>
-                      <p className="text-xs text-gray-200">{visit.product_specifications}</p>
-                    </div>
-                  )}
+                {/* 3. Product Specifications (Minimalist Left Accent) */}
+                {visit.product_specifications && (
+                  <div className="border-l-2 border-amber-400/80 pl-3.5 py-1 text-xs space-y-0.5">
+                    <span className="text-[10px] uppercase tracking-wider text-amber-400 font-bold block">
+                      REQUIREMENTS &amp; SPECIFICATIONS
+                    </span>
+                    <p className="leading-relaxed text-white/80">{visit.product_specifications}</p>
+                  </div>
+                )}
 
-                  {/* Sample Photo Attachments */}
-                  {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
-                        <Camera className="w-3 h-3 text-murugan-accent" />
-                        Reference Photos ({visit.attachments.length})
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {visit.attachments.map((att, i) => (
-                          <div 
-                            key={att.id || i} 
-                            onClick={() => setPreviewImage(att.url)}
-                            className="w-14 h-14 rounded-xl overflow-hidden border border-white/15 cursor-pointer hover:border-murugan-accent hover:scale-105 transition-all shadow-md bg-black"
-                          >
-                            <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                {/* 4. Meeting Notes (Clean Left Border Quote) */}
+                {visit.notes && (
+                  <div className="border-l-2 border-white/20 pl-3.5 py-0.5 text-xs text-white/60 italic leading-relaxed">
+                    "{visit.notes}"
+                  </div>
+                )}
 
-                  {visit.notes && (
-                    <p className="text-xs text-gray-300 bg-black/30 p-2.5 rounded-xl border border-white/5 italic">
-                      "{visit.notes}"
-                    </p>
-                  )}
-
-                  {/* Verification & Audit Trail Info */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-gray-400 bg-white/5 p-2.5 rounded-xl">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {visit.discovery_status === 'VERIFIED_NEW' && (
-                        <span className="text-emerald-400 font-bold">
-                          ✓ Verified New by {visit.verified_by_name || 'Admin'}
-                        </span>
-                      )}
-                      {visit.discovery_status === 'LINKED_EXISTING' && (
-                        <span className="text-blue-400 font-bold">
-                          ✓ Typo Linked to Master by {visit.verified_by_name || 'Admin'}
-                        </span>
-                      )}
-                      {visit.last_edited_by_name && (
-                        <span>Modified by <strong className="text-gray-200">{visit.last_edited_by_name}</strong></span>
-                      )}
-                    </div>
-                    {visit.edit_history?.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setInspectHistoryVisit(visit)}
-                        className="text-murugan-accent font-semibold hover:underline flex items-center gap-1 self-start sm:self-auto"
+                {/* 5. Reference Photo Thumbnails */}
+                {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span className="text-[10px] uppercase text-white/40 flex items-center gap-1 mr-1 font-semibold">
+                      <Camera className="w-3 h-3 text-amber-400" />
+                      PHOTOS ({visit.attachments.length}):
+                    </span>
+                    {visit.attachments.map((att, i) => (
+                      <div 
+                        key={att.id || i} 
+                        onClick={() => setPreviewImage(att.url)}
+                        className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-amber-400 hover:scale-105 transition-all shadow-md bg-black"
+                        title="Click to view full photo"
                       >
-                        <History className="w-3 h-3" />
-                        Audit History ({visit.edit_history?.length || 0})
-                      </button>
+                        <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 6. Card Footer: Follow-up & Audit & Actions */}
+                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs flex-wrap gap-2">
+                  <div className="flex items-center gap-3 text-[11px] text-white/50 flex-wrap">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Follow-up: <strong className={cn(isOverdue ? "text-rose-400 font-bold" : "text-white/80")}>
+                        {visit.follow_up_date || 'None'}
+                        {isOverdue && ' (Overdue)'}
+                      </strong></span>
+                    </span>
+
+                    {visit.last_edited_by_name && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <button
+                          type="button"
+                          onClick={() => setInspectHistoryVisit(visit)}
+                          className="text-white/40 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer text-[11px] font-medium"
+                          title="Inspect audit history"
+                        >
+                          <History className="w-3 h-3 text-white/30" />
+                          <span>Edited by {visit.last_edited_by_name} ({visit.edit_history?.length || 0})</span>
+                        </button>
+                      </>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 mt-4 pt-2 border-t border-white/5">
-                    {/* Admin Verification CTA Button for Discovered Schools */}
-                    {(!visit.is_from_master_db || visit.discovery_status === 'PENDING_VERIFICATION') && (
-                      <button
-                        onClick={() => setVerifyDiscoveryVisit(visit)}
-                        className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-                      >
-                        <Search className="w-3.5 h-3.5 stroke-[2.5]" /> Verify School & Bonus
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => { setDocModalType('quote'); setDocModalVisit(visit); }}
-                      className="px-3 py-2 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-murugan-accent/10 transition-all"
-                    >
-                      <Receipt className="w-3.5 h-3.5" /> + Issue Quote
-                    </button>
-                    <button
-                      onClick={() => { setDocModalType('proforma'); setDocModalVisit(visit); }}
-                      className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                    >
-                      <Receipt className="w-3.5 h-3.5 text-emerald-400" /> + Proforma Invoice
-                    </button>
+                  {/* Actions Toolbar */}
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setEditingVisit(visit)}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-all"
+                      className="px-3.5 py-1.5 bg-white/[0.05] hover:bg-amber-400/15 text-white/80 hover:text-amber-300 border border-white/10 hover:border-amber-400/40 rounded-xl font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5 text-murugan-accent" /> Edit Record
+                      <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Edit Visit</span>
                     </button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
-      {/* Modals */}
+      {/* ── MODALS & OVERLAYS ────────────────────────────────────────────── */}
       <VerifySchoolDiscoveryModal
         isOpen={!!verifyDiscoveryVisit}
         onClose={() => setVerifyDiscoveryVisit(null)}
@@ -410,6 +611,7 @@ export default function FieldVisitRegistry({ currentUser }) {
           loadData();
         }}
       />
+
       <EditVisitModal 
         isOpen={!!editingVisit} 
         onClose={() => setEditingVisit(null)} 
@@ -418,11 +620,13 @@ export default function FieldVisitRegistry({ currentUser }) {
         onDelete={handleDeleteVisit} 
         isManager={true} 
       />
+
       <EditHistoryModal 
         isOpen={!!inspectHistoryVisit} 
         onClose={() => setInspectHistoryVisit(null)} 
         visit={inspectHistoryVisit} 
       />
+
       <InvoiceDocumentModal
         key={`visit-doc-${docModalType}-${docModalVisit?.id || 'none'}-${docModalVisit ? '1' : '0'}`}
         isOpen={!!docModalVisit}
@@ -437,18 +641,21 @@ export default function FieldVisitRegistry({ currentUser }) {
         }}
       />
 
-      {/* Image Lightbox Modal */}
+      {/* Lightbox Image Preview Modal */}
       <AnimatePresence>
         {previewImage && createPortal(
           <div 
             className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
             onClick={() => setPreviewImage(null)}
           >
-            <div className="relative max-w-xl max-h-[85vh] p-2 bg-[#181922] border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
+            <div 
+              className="relative max-w-xl max-h-[85vh] p-2 bg-[#0c0d15] border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" 
+              onClick={e => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => setPreviewImage(null)}
-                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10"
+                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -459,11 +666,17 @@ export default function FieldVisitRegistry({ currentUser }) {
         )}
       </AnimatePresence>
 
+      {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-6 right-6 bg-emerald-500 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-2xl flex items-center gap-2 z-50">
-            <CheckCircle2 className="w-5 h-5" />
-            {toastMessage}
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: 30 }} 
+            className="fixed bottom-6 right-6 bg-emerald-500 text-white px-5 py-3 rounded-2xl font-bold text-xs shadow-2xl flex items-center gap-2 z-50 backdrop-blur-md"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>

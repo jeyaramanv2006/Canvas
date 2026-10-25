@@ -77,7 +77,7 @@ export default function AestheticSelect({
   };
 
   return (
-    <div ref={containerRef} className={cn("relative inline-block w-full text-left", className)}>
+    <div ref={containerRef} className={cn("relative inline-block w-full text-left", isOpen ? "z-[100]" : "z-10", className)}>
       {label && (
         <label className="block text-[11px] font-bold uppercase tracking-wider text-white/50 mb-1.5">
           {label}
