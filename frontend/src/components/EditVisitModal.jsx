@@ -150,74 +150,74 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
 
   const modalContent = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-murugan-card border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto"
+          className="bg-[#0c0d15]/95 border border-white/[0.12] rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto backdrop-blur-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-white/10 bg-black/40">
+          <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/[0.08] bg-black/40">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-murugan-accent/20 text-murugan-accent border border-murugan-accent/30">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30">
                   {isManager ? 'Executive Control' : 'Field Record Edit'}
                 </span>
                 {formData.is_from_master_db ? (
-                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm">
                     🏛️ Master DB School
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm">
                     🆕 Unlisted / Custom
                   </span>
                 )}
                 {formData.canvasser_name && (
-                  <span className="text-xs text-gray-400">by {formData.canvasser_name}</span>
+                  <span className="text-xs text-white/50">by {formData.canvasser_name}</span>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-white mt-1">{formData.school_name || 'Edit School Visit'}</h2>
+              <h2 className="text-lg sm:text-xl font-black text-white mt-1.5 tracking-tight">{formData.school_name || 'Edit School Visit'}</h2>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              className="p-2 rounded-full bg-white/[0.05] hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Form Body */}
-          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1 scrollbar-thin scrollbar-thumb-white/10">
             {/* Basic Info */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Institution Details</h3>
+              <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider">Institution Details</h3>
               <div className="relative">
-                <Building2 className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                <Building2 className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                 <input
                   required
                   placeholder="Institution Name"
                   value={formData.school_name || ''}
                   onChange={e => setFormData({ ...formData, school_name: e.target.value })}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent"
+                  className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                  <MapPin className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                   <input
                     required
                     placeholder="District"
                     value={formData.district || ''}
                     onChange={e => setFormData({ ...formData, district: e.target.value })}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner text-sm"
                   />
                 </div>
                 <select
                   value={formData.institution_type || 'School'}
                   onChange={e => setFormData({ ...formData, institution_type: e.target.value })}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent appearance-none"
+                  className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 appearance-none cursor-pointer text-sm"
                 >
                   <option value="School">School</option>
                   <option value="College">College</option>
@@ -228,46 +228,46 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             </div>
 
             {/* Contact Details */}
-            <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Contact & Scale</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4 pt-4 border-t border-white/[0.08]">
+              <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider">Contact &amp; Scale</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="relative">
-                  <User className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                  <User className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                   <input
                     required
                     placeholder="Contact Person"
                     value={formData.contact_person || ''}
                     onChange={e => setFormData({ ...formData, contact_person: e.target.value })}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner text-sm"
                   />
                 </div>
                 <div className="relative">
-                  <Phone className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                  <Phone className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                   <input
                     required
                     type="tel"
                     placeholder="Phone"
                     value={formData.phone || ''}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent"
+                    className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner text-sm"
                   />
                 </div>
               </div>
 
               <div className="relative">
-                <Users className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                <Users className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                 <input
                   type="number"
                   placeholder="Estimated Student Strength"
                   value={formData.student_strength || ''}
                   onChange={e => setFormData({ ...formData, student_strength: Number(e.target.value) || '' })}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent"
+                  className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner text-sm"
                 />
               </div>
             </div>
 
             {/* Products & Interest */}
-            <div className="space-y-4 pt-4 border-t border-white/10">
+            <div className="space-y-4 pt-4 border-t border-white/[0.08]">
               <CompanyProductSelector 
                 selectedProducts={formData.product_interests || []}
                 onToggleProduct={handleProductToggle}
@@ -275,36 +275,36 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             </div>
 
             {/* Product Specifications */}
-            <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="space-y-3 pt-4 border-t border-white/[0.08]">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-murugan-accent" />
-                  Product Specifications & Requirements
+                <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-amber-400" />
+                  Product Specifications &amp; Requirements
                 </h3>
-                <span className="text-[10px] text-gray-400">Principal's specs</span>
+                <span className="text-[10px] text-white/40">Principal's specs</span>
               </div>
               <textarea
                 rows={3}
                 placeholder="Type specific material/design requirements (e.g. 100% combed cotton, 220 GSM uniform fabric, school crest on belts)..."
                 value={formData.product_specifications || ''}
                 onChange={e => setFormData({ ...formData, product_specifications: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 focus:border-murugan-accent/50 rounded-xl p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent/30 text-sm resize-none"
+                className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl p-3.5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 text-xs sm:text-sm resize-none transition-all shadow-inner"
               />
             </div>
 
             {/* Reference Photos & Sample Images */}
-            <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="space-y-3 pt-4 border-t border-white/[0.08]">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-murugan-accent" />
-                  Sample Photos & Reference Images
+                <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-amber-400" />
+                  Sample Photos &amp; Reference Images
                 </h3>
-                <span className="text-xs text-gray-400">{formData.attachments?.length || 0} attached</span>
+                <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20 font-bold">{formData.attachments?.length || 0} attached</span>
               </div>
 
               <div className="flex items-center gap-3">
-                <label className="cursor-pointer px-4 py-2 bg-black/60 hover:bg-white/10 border border-dashed border-white/20 hover:border-murugan-accent rounded-xl text-xs font-bold text-gray-300 hover:text-white flex items-center gap-2 transition-all">
-                  <Image className="w-4 h-4 text-murugan-accent" />
+                <label className="cursor-pointer px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-dashed border-white/20 hover:border-amber-400/60 rounded-xl text-xs font-bold text-white/80 hover:text-white flex items-center gap-2 transition-all">
+                  <Image className="w-4 h-4 text-amber-400" />
                   <span>+ Attach Photo</span>
                   <input
                     type="file"
@@ -314,18 +314,18 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                     onChange={handleImageUpload}
                   />
                 </label>
-                <span className="text-xs text-gray-500">Upload sample reference photos</span>
+                <span className="text-xs text-white/40">Upload sample reference photos</span>
               </div>
 
               {formData.attachments && formData.attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2.5 pt-1">
                   {formData.attachments.map(att => (
-                    <div key={att.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-white/20 bg-black shadow-md">
+                    <div key={att.id} className="relative group w-20 h-20 rounded-2xl overflow-hidden border border-white/20 bg-black shadow-md">
                       <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => handleRemoveAttachment(att.id)}
-                        className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors"
+                        className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors cursor-pointer"
                         title="Remove"
                       >
                         <X className="w-3 h-3" />
@@ -337,12 +337,13 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             </div>
 
             {/* Pipeline Stages */}
-            <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Pipeline & Deal Status</h3>
+            {/* Pipeline Stages */}
+            <div className="space-y-4 pt-4 border-t border-white/[0.08]">
+              <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider">Pipeline &amp; Deal Status</h3>
               
               <div>
-                <label className="text-xs text-gray-400 block mb-2 font-medium">Interest Level</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className="text-xs text-white/60 block mb-2 font-medium">Interest Level</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {INTEREST_LEVELS.map(level => {
                     const isSelected = formData.interest_level === level.label;
                     return (
@@ -351,10 +352,10 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                         key={level.label}
                         onClick={() => setFormData({ ...formData, interest_level: level.label })}
                         className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                          "py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                           isSelected 
                             ? `${level.color} ${level.border} shadow-lg` 
-                            : "bg-black/30 text-gray-400 border-white/10 hover:border-white/20"
+                            : "bg-black/30 text-white/50 border-white/[0.08] hover:border-white/20 hover:text-white"
                         )}
                       >
                         {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -367,9 +368,9 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
 
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs text-gray-400 font-medium">Outcome Status</label>
+                  <label className="text-xs text-white/60 font-medium">Outcome Status</label>
                   {!isManager && (
-                    <span className="text-[10px] text-gray-400 font-semibold">Quotes & Orders managed by Admin</span>
+                    <span className="text-[10px] text-white/40 font-semibold">Quotes &amp; orders are processed by Admin</span>
                   )}
                 </div>
                 <div className={cn(
@@ -384,16 +385,16 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                         key={status}
                         onClick={() => setFormData({ ...formData, outcome_status: status })}
                         className={cn(
-                          "py-2 px-2.5 rounded-xl border text-xs font-bold transition-all text-center",
+                          "py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all text-center cursor-pointer shadow-sm",
                           isSelected
                             ? status === 'Won' 
-                              ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20"
+                              ? "bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20 font-black"
                               : status === 'Lost'
-                              ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20"
+                              ? "bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/20 font-black"
                               : status === 'Sample Sent'
-                              ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20"
-                              : "bg-amber-400 text-black border-amber-300 shadow-lg shadow-amber-500/20 font-bold"
-                            : "bg-black/30 text-gray-400 border-white/10 hover:border-white/20"
+                              ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-500/20 font-black"
+                              : "bg-gradient-to-r from-amber-400 to-amber-300 text-black border-amber-300 shadow-lg shadow-amber-400/20 font-black"
+                            : "bg-black/30 text-white/50 border-white/[0.08] hover:border-white/20 hover:text-white"
                         )}
                       >
                         {status}
@@ -405,26 +406,26 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
             </div>
 
             {/* Follow-up & Notes */}
-            <div className="space-y-4 pt-4 border-t border-white/10">
+            <div className="space-y-4 pt-4 border-t border-white/[0.08]">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Next Action Follow-up</h3>
+                <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider">Next Action Follow-up</h3>
                 {formData.follow_up_date && (
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, follow_up_date: '' })}
-                    className="text-xs text-red-400 hover:underline"
+                    className="text-xs text-amber-400 hover:underline cursor-pointer"
                   >
                     Clear Follow-up Date
                   </button>
                 )}
               </div>
               <div className="relative">
-                <Calendar className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-500" />
+                <Calendar className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
                 <input
                   type="date"
                   value={formData.follow_up_date || ''}
                   onChange={e => setFormData({ ...formData, follow_up_date: e.target.value })}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent [color-scheme:dark]"
+                  className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 [color-scheme:dark] transition-all text-sm"
                 />
               </div>
 
@@ -432,7 +433,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 placeholder="Notes / Detailed school requirements / Sample feedback"
                 value={formData.notes || ''}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-murugan-accent h-24 resize-none text-sm placeholder:text-gray-600"
+                className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 h-24 resize-none text-xs sm:text-sm placeholder:text-white/30 transition-all shadow-inner"
               />
 
               {/* In-Modal Error Alert Banner */}
@@ -440,14 +441,14 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md"
+                  className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-2.5 text-red-400 text-xs shadow-lg backdrop-blur-md"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
                   <div className="flex-1 font-medium leading-relaxed">{modalError}</div>
                   <button 
                     type="button" 
                     onClick={() => setModalError(null)} 
-                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5"
+                    className="text-red-400/60 hover:text-red-400 transition-colors p-0.5 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -457,16 +458,16 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
           </form>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-white/10 bg-black/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 sm:p-5 border-t border-white/[0.08] bg-black/40 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center space-x-2">
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting || saving}
                 className={cn(
-                  "px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all",
+                  "px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer",
                   confirmDelete 
-                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse" 
+                    ? "bg-red-600 text-white hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/30" 
                     : "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
                 )}
               >
@@ -477,7 +478,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
               <button
                 type="button"
                 onClick={() => setHistoryOpen(true)}
-                className="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-murugan-accent font-semibold text-xs flex items-center gap-1.5 transition-all"
+                className="px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <History className="w-4 h-4" />
                 <span>Audit Trail ({formData.edit_history?.length || 0})</span>
@@ -488,7 +489,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 font-medium text-sm transition-colors"
+                className="px-4 py-2.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/[0.05] font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -496,7 +497,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving || deleting}
-                className="px-6 py-2.5 rounded-xl bg-murugan-accent text-black font-bold text-sm flex items-center gap-2 hover:bg-yellow-400 shadow-lg shadow-murugan-accent/20 transition-all disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-400/20 transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Save className="w-4 h-4" />
                 {saving ? 'Saving...' : 'Save Changes'}

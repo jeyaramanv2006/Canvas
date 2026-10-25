@@ -138,20 +138,20 @@ export default function SchoolSearchPicker({
   return (
     <div className="space-y-3" ref={dropdownRef}>
       <div className="flex justify-between items-center">
-        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+        <label className="text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
           <Building2 className="w-3.5 h-3.5 text-amber-400" />
           Institution / School Search
         </label>
         
         {isFromMasterDb ? (
-          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+          <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-sm">
             <Check className="w-3 h-3" /> Master DB Linked ({masterSchoolId})
           </span>
         ) : isManualEntry ? (
           <button
             type="button"
             onClick={() => { setIsManualEntry(false); setIsOpen(true); }}
-            className="text-[10px] text-amber-400 hover:underline flex items-center gap-1 font-bold"
+            className="text-[10px] text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 font-bold cursor-pointer transition-colors"
           >
             Switch to Master DB Picker
           </button>
@@ -161,7 +161,7 @@ export default function SchoolSearchPicker({
       {!isManualEntry ? (
         <div className="relative">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
               placeholder="Search 2,500+ Tamil Nadu schools by name or area..."
@@ -171,7 +171,7 @@ export default function SchoolSearchPicker({
                 setIsOpen(true);
               }}
               onFocus={() => setIsOpen(true)}
-              className="w-full bg-black/50 border border-white/10 rounded-2xl pl-10 pr-24 py-3 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400"
+              className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-10 pr-28 py-3 text-xs text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner"
             />
             
             {/* District Quick Filter Pill inside input */}
@@ -182,7 +182,7 @@ export default function SchoolSearchPicker({
                   setDistrictFilter(e.target.value);
                   setIsOpen(true);
                 }}
-                className="bg-[#1f2029] text-[10px] text-gray-300 border border-white/10 rounded-lg px-2 py-1 focus:outline-none"
+                className="bg-[#181924] text-[10px] text-white/80 border border-white/10 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-400/50 cursor-pointer"
               >
                 <option value="All">All Districts</option>
                 {TAMIL_NADU_DISTRICTS.map(d => (
@@ -192,9 +192,9 @@ export default function SchoolSearchPicker({
             </div>
           </div>
 
-          {/* Autocomplete Dropdown List */}
+          {/* Autocomplete Dropdown List with Lucid Glass */}
           {isOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#14151c] border border-white/20 rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto divide-y divide-white/5">
+            <div className="absolute left-0 right-0 top-full mt-2 bg-[#0e0f18]/95 backdrop-blur-2xl border border-white/[0.12] rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto divide-y divide-white/[0.06] scrollbar-thin scrollbar-thumb-white/10">
               {isSearching && filteredSchools.length === 0 ? (
                 <div className="p-4 text-center space-y-2">
                   <div className="flex items-center justify-center gap-2 text-xs text-amber-400">
@@ -203,12 +203,12 @@ export default function SchoolSearchPicker({
                   </div>
                 </div>
               ) : filteredSchools.length === 0 ? (
-                <div className="p-4 text-center space-y-2">
-                  <p className="text-xs text-gray-400">No schools matching "{query}" in school directory.</p>
+                <div className="p-4 text-center space-y-2.5">
+                  <p className="text-xs text-white/50">No schools matching "{query}" in school directory.</p>
                   <button
                     type="button"
                     onClick={handleManualSwitch}
-                    className="px-3 py-1.5 bg-amber-400 hover:bg-yellow-400 text-black font-bold text-xs rounded-xl transition"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-black font-extrabold text-xs rounded-xl transition shadow-md shadow-amber-400/20 cursor-pointer"
                   >
                     + Enter School Manually
                   </button>
@@ -218,20 +218,20 @@ export default function SchoolSearchPicker({
                   <div
                     key={school.id}
                     onClick={() => handleSelectSchool(school)}
-                    className="p-3 hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-between text-xs"
+                    className="p-3 hover:bg-white/[0.06] cursor-pointer transition-colors flex items-center justify-between text-xs group"
                   >
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-white text-xs flex items-center gap-1.5">
-                        {school.school_name}
-                        <span className="text-[10px] text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 rounded font-mono">
+                    <div className="space-y-0.5 min-w-0 pr-2">
+                      <p className="font-bold text-white text-xs flex items-center gap-1.5 truncate">
+                        <span className="truncate group-hover:text-amber-300 transition-colors">{school.school_name}</span>
+                        <span className="text-[10px] text-amber-300 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.2 rounded font-mono shrink-0">
                           {school.board}
                         </span>
                       </p>
-                      <p className="text-[11px] text-gray-400">
+                      <p className="text-[11px] text-white/45 truncate">
                         {school.district} • {school.area || school.block_or_cluster || "Tamil Nadu"}
                       </p>
                     </div>
-                    <span className="text-[10px] font-mono text-gray-500">{school.id}</span>
+                    <span className="text-[10px] font-mono text-white/40 shrink-0">{school.id}</span>
                   </div>
                 ))
               )}
@@ -240,18 +240,18 @@ export default function SchoolSearchPicker({
         </div>
       ) : (
         /* Manual fallback entry */
-        <div className="space-y-2 p-3 bg-black/40 border border-amber-500/20 rounded-2xl">
+        <div className="space-y-2.5 p-3.5 bg-black/40 border border-amber-400/30 rounded-2xl backdrop-blur-md">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] text-amber-400 font-bold uppercase">Manual Institution Entry</span>
+            <span className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wide">Manual Institution Entry</span>
             <button
               type="button"
               onClick={() => setIsManualEntry(false)}
-              className="text-[10px] text-gray-400 hover:text-white"
+              className="text-[10px] text-white/50 hover:text-white cursor-pointer transition-colors"
             >
-              Cancel & Pick from DB
+              Cancel &amp; Pick from DB
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <input
               type="text"
               placeholder="Full School Name"
@@ -266,7 +266,7 @@ export default function SchoolSearchPicker({
                   master_school_id: null
                 });
               }}
-              className="bg-[#16171d] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400"
+              className="bg-[#14151f] border border-white/10 focus:border-amber-400/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-amber-400/30 transition-all"
             />
             <select
               value={selectedDistrict || 'Chennai'}
@@ -277,7 +277,7 @@ export default function SchoolSearchPicker({
                 is_from_master_db: false,
                 master_school_id: null
               })}
-              className="bg-[#16171d] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+              className="bg-[#14151f] border border-white/10 focus:border-amber-400/80 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none cursor-pointer"
             >
               {TAMIL_NADU_DISTRICTS.map(d => (
                 <option key={d} value={d}>{d}</option>
