@@ -90,7 +90,10 @@ export default function OperationsModule({ currentUser }) {
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-gray-400 text-sm">Loading operations module...</div>
+        <div className="text-center py-16 flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+          <span className="text-xs font-bold text-white/50">Loading operations &amp; inventory catalog...</span>
+        </div>
       ) : activeTab === 'dispatches' ? (
         /* Dispatches Queue */
         <div className="space-y-4">

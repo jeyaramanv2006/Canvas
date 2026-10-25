@@ -211,6 +211,33 @@ App.jsx (Root Isolation)
 - **Top 3 Podium:** Gold (1st), Silver (2nd), and Bronze (3rd) medal styling with glow accents.
 - **Spacious Aggregate Tiles:** Min-height 114px tiles with uppercase category headers and clear metrics.
 
+### 5.6 Phase 6 — CEO Dashboard Overview (`CEODashboardOverview.jsx`)
+- **Executive Command Header**:
+  - Luminous top catch line and ambient gold background flare.
+  - Apple-grade fluid spring Time Scope segmented control (`Month`, `Q3`, `All`) powered by Framer Motion `layoutId="ceoTimeScopePill"`.
+  - **Dynamic Time-Scoped Live Database Filtering (`useMemo`)**:
+    - Toggling between `This Month`, `Quarter 3`, and `All-Time` is fully active and dynamically recalculates all executive KPIs, sales velocity, finance collections, debt aging, top institutional clients, rep commission slabs, and monthly trends directly from live database entities.
+    - `This Month` scopes to the current calendar month (`now.getMonth()`, `now.getFullYear()`).
+    - `Quarter 3` scopes to calendar Q3 (July, August, September).
+    - `All-Time` evaluates cumulative company lifetime records.
+  - Data integrity breakdown banner separating verified live DB aggregations from modeled benchmarks.
+  - One-click Executive MIS CSV Report generator (`handleExportMIS`) exporting scope-aware telemetry.
+- **Core Executive Financial & Commercial KPIs (8 Hero Cards)**:
+  - Lucid Block cards with top catch rims, font-mono numerical readouts, and live DB vs. Fabricated tags.
+  - Highlighted card variants for Revenue (Amber), Collections (Emerald), and Overdue Debt (Rose).
+  - Explicit mathematical formula annotations (e.g., Gross Profit COGS 52%, EBITDA Opex 24%, Pipeline Lead weights).
+- **10 Unified Domain Modules**:
+  1. *Sales Engine & Pipeline Intelligence*: Live pipeline value, active quote totals, deal sizes, and quarterly goal progress bar.
+  2. *Finance, Cash Flow & Receivables Aging*: Real-time inflow, liabilities, 4 debt aging brackets, and payment settlement log.
+  3. *Operations, Delivery & Follow-Up Deadlines*: Orders in progress, sample velocity, quote backlog, and priority follow-up cards with direct call links and shortcut to Central Follow-Ups Hub.
+  4. *Inventory Catalog & Product Demand*: Category velocity horizontal meter bars with luminous amber-to-yellow gradient fills (`from-amber-500 via-amber-400 to-yellow-300`), amber icon badge, and yellow SKU counter.
+  5. *Institutional Customer Base & Retention*: Territory penetration metrics, top revenue schools table with formatted billed/settled/outstanding readouts, and shortcut to Master Schools Directory.
+  6. *Procurement Economics & Sourcing COGS*: Production cost models, allocation ratios, and blended margin readouts.
+  7. *Marketing Outreach & Lead Qualification*: Hot, warm, and cold lead segmentation and campaign ROI performance.
+  8. *People, Team Leaderboard & Commission Slabs*: Complete rep roster table with Gold, Silver, and Bronze medal initial badges, commission tier indicators (1%–5%), and shortcut to Full Leaderboard.
+  9. *Management Oversight, Decisions & Action Alerts*: Pending governance approvals list with "Review" triggers into `<PendingApprovalsDrawer />`, and critical overdue debt alerts.
+  10. *Reporting, Monthly MIS Trends & Velocity*: Longitudinal monthly billing vs. collection trajectory cards and export trigger.
+
 ---
 
 ## 6. Implementation Blueprint for Upcoming Modules
