@@ -28,6 +28,7 @@ import {
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import { searchMasterSchoolsLocal } from '../data/masterSchools';
+import AestheticSelect from './AestheticSelect';
 
 // ── Indian Number to Words Helper ─────────────────────────────────────────────
 function numberToWordsIndian(num) {
@@ -352,8 +353,8 @@ export default function InvoiceDocumentModal({
   };
 
   // Handle Canvasser Change
-  const handleCanvasserChange = (e) => {
-    const val = e.target.value;
+  const handleCanvasserChange = (valOrEvent) => {
+    const val = typeof valOrEvent === 'object' && valOrEvent?.target ? valOrEvent.target.value : String(valOrEvent);
     setCanvasserId(val);
     if (val === '99') {
       setCanvasserName('Refrens Import');
@@ -364,6 +365,16 @@ export default function InvoiceDocumentModal({
       }
     }
   };
+
+  const canvasserOptions = useMemo(() => [
+    { value: '99', label: 'Unassigned / Refrens Import (System Historical Data)' },
+    ...availableUsers
+      .filter(u => u.status === 'ACTIVE' || !u.status)
+      .map(u => ({
+        value: String(u.id),
+        label: `${u.name} (${u.role_title || u.role || 'Sales Rep'})`
+      }))
+  ], [availableUsers]);
 
   // Save Document
   const handleSaveDocument = async (e) => {
@@ -551,9 +562,9 @@ export default function InvoiceDocumentModal({
           {/* Left Title & Status */}
           <div className="flex items-center gap-3 shrink-0">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
-              isQuoteType ? 'bg-amber-400 text-black shadow-md shadow-amber-400/20' :
-              isProformaType ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20' :
-              'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+              isQuoteType ? 'bg-amber-400 text-black' :
+              isProformaType ? 'bg-purple-600 text-white' :
+              'bg-blue-600 text-white'
             }`}>
               {isQuoteType ? 'QT' : isProformaType ? 'PI' : 'INV'}
             </div>
@@ -572,7 +583,7 @@ export default function InvoiceDocumentModal({
                 <span className={`inline-flex items-center gap-1 font-bold ${
                   isQuoteType ? 'text-amber-400' : isProformaType ? 'text-purple-400' : 'text-blue-400'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  <span className={`w-1.5 h-1.5 rounded-full ${
                     isQuoteType ? 'bg-amber-400' : isProformaType ? 'bg-purple-400' : 'bg-blue-400'
                   }`} /> Step 1: Add Details
                 </span>
@@ -588,8 +599,8 @@ export default function InvoiceDocumentModal({
               type="button"
               onClick={() => handleSwitchCategory('quote')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
-                isQuoteType ? "bg-amber-400 text-black shadow-md shadow-amber-400/20 font-black" : "text-gray-400 hover:text-white"
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap shadow-none",
+                isQuoteType ? "bg-amber-400 text-black font-black" : "text-gray-400 hover:text-white"
               )}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -599,8 +610,8 @@ export default function InvoiceDocumentModal({
               type="button"
               onClick={() => handleSwitchCategory('proforma')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
-                isProformaType ? "bg-purple-500 text-white shadow-md shadow-purple-500/20 font-black" : "text-gray-400 hover:text-white"
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap shadow-none",
+                isProformaType ? "bg-purple-600 text-white font-black" : "text-gray-400 hover:text-white"
               )}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -610,8 +621,8 @@ export default function InvoiceDocumentModal({
               type="button"
               onClick={() => handleSwitchCategory('invoice')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap",
-                isInvoiceType ? "bg-blue-500 text-white shadow-md shadow-blue-500/20 font-black" : "text-gray-400 hover:text-white"
+                "px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap shadow-none",
+                isInvoiceType ? "bg-blue-600 text-white font-black" : "text-gray-400 hover:text-white"
               )}
             >
               <Receipt className="w-3.5 h-3.5" />
@@ -639,7 +650,7 @@ export default function InvoiceDocumentModal({
               <button
                 type="button"
                 onClick={handlePrint}
-                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/30 transition cursor-pointer whitespace-nowrap"
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shadow-none"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Print PDF</span>
@@ -650,10 +661,10 @@ export default function InvoiceDocumentModal({
               type="button"
               onClick={handleSaveDocument}
               disabled={saving}
-              className={`px-4 py-1.5 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg transition cursor-pointer whitespace-nowrap ${
-                isQuoteType ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-400/20' :
-                isProformaType ? 'bg-purple-500 hover:bg-purple-400 text-white shadow-purple-500/20' :
-                'bg-blue-500 hover:bg-blue-400 text-white shadow-blue-500/20'
+              className={`px-4 py-1.5 font-black text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shadow-none ${
+                isQuoteType ? 'bg-amber-400 hover:bg-amber-300 text-black' :
+                isProformaType ? 'bg-purple-600 hover:bg-purple-500 text-white' :
+                'bg-blue-600 hover:bg-blue-500 text-white'
               }`}
             >
               {saving ? (
@@ -934,29 +945,22 @@ export default function InvoiceDocumentModal({
                   </div>
 
                   {/* ── CANVASSER FIELD (CREDITED FOR TEAM LEADERBOARD) ────── */}
-                  <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
+                  <div className="pt-2 mt-2 border-t border-white/10 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>Canvasser (Credited for Team Leaderboard)*</span>
                       </label>
-                      <span className="text-[9px] text-gray-400">Team Commission Link</span>
+                      <span className="text-[9px] text-gray-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">Team Commission Link</span>
                     </div>
 
-                    <select
-                      value={canvasserId}
+                    <AestheticSelect
+                      value={String(canvasserId || '99')}
                       onChange={handleCanvasserChange}
-                      className="w-full px-3 py-1.5 bg-black/80 border border-amber-400/40 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="99">Unassigned / Refrens Import (System Historical Data)</option>
-                      {availableUsers
-                        .filter(u => u.status === 'ACTIVE' || !u.status)
-                        .map(u => (
-                          <option key={u.id} value={u.id}>
-                            {u.name} ({u.role_title || u.role || 'Sales Rep'})
-                          </option>
-                        ))}
-                    </select>
+                      options={canvasserOptions}
+                      size="sm"
+                      placeholder="Select assigned canvasser..."
+                    />
 
                     <div className="text-[10px] text-gray-400 flex items-center gap-1.5 leading-tight pt-0.5">
                       <span className="text-emerald-400 font-bold shrink-0">✓</span>
@@ -1042,12 +1046,12 @@ export default function InvoiceDocumentModal({
                             <select
                               value={item.gst_rate}
                               onChange={(e) => handleItemChange(idx, 'gst_rate', Number(e.target.value))}
-                              className="w-full px-1 py-1 bg-black/80 border border-white/10 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                              className="w-full px-1 py-1 bg-black/60 hover:bg-black/80 border border-white/10 hover:border-white/20 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer transition-colors"
                             >
-                              <option value="0">0%</option>
-                              <option value="5">5%</option>
-                              <option value="12">12%</option>
-                              <option value="18">18%</option>
+                              <option value="0" className="bg-[#101118] text-white">0%</option>
+                              <option value="5" className="bg-[#101118] text-white">5%</option>
+                              <option value="12" className="bg-[#101118] text-white">12%</option>
+                              <option value="18" className="bg-[#101118] text-white">18%</option>
                             </select>
                           </td>
                           <td className="py-2 px-1">
@@ -1063,14 +1067,14 @@ export default function InvoiceDocumentModal({
                             <select
                               value={item.unit}
                               onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
-                              className="w-full px-1 py-1 bg-black/80 border border-white/10 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                              className="w-full px-1 py-1 bg-black/60 hover:bg-black/80 border border-white/10 hover:border-white/20 rounded-lg text-white text-center text-xs focus:outline-none focus:border-amber-400 cursor-pointer transition-colors"
                             >
-                              <option value="prs">prs</option>
-                              <option value="pcs">pcs</option>
-                              <option value="box">box</option>
-                              <option value="set">set</option>
-                              <option value="mtr">mtr</option>
-                              <option value="units">units</option>
+                              <option value="prs" className="bg-[#101118] text-white">prs</option>
+                              <option value="pcs" className="bg-[#101118] text-white">pcs</option>
+                              <option value="box" className="bg-[#101118] text-white">box</option>
+                              <option value="set" className="bg-[#101118] text-white">set</option>
+                              <option value="mtr" className="bg-[#101118] text-white">mtr</option>
+                              <option value="units" className="bg-[#101118] text-white">units</option>
                             </select>
                           </td>
                           <td className="py-2 px-1">

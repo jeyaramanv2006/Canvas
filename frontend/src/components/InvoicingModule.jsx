@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import {
   ResponsiveContainer,
   LineChart,
@@ -15,6 +16,8 @@ import {
 } from 'recharts';
 import { mockApi } from '../mockApi';
 import InvoiceDocumentModal from './InvoiceDocumentModal';
+import AestheticSelect from './AestheticSelect';
+import { cn } from '../lib/utils';
 import {
   FileText,
   Receipt,
@@ -141,15 +144,28 @@ function RefrensFinancialGraph({
     return `₹${val}`;
   };
 
+  const frequencyOptions = [
+    { id: 'Monthly', label: 'Monthly' },
+    { id: 'Weekly', label: 'Weekly' },
+    { id: 'Daily', label: 'Daily' },
+    { id: 'Quarterly', label: 'Quarterly' }
+  ];
+
+  const chartTypeOptions = [
+    { id: 'Line Chart', label: 'Line Chart' },
+    { id: 'Bar Chart', label: 'Bar Chart' },
+    { id: 'Scatter Plot', label: 'Scatter Plot' }
+  ];
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload || !payload.length) return null;
     return (
-      <div className="bg-[#1c1d27] border border-white/20 p-3 rounded-xl shadow-2xl text-xs space-y-1.5 z-50">
-        <p className="font-black text-gray-300 pb-1 border-b border-white/10 uppercase tracking-wider">{label}</p>
+      <div className="bg-[#0f1118]/95 border border-white/20 p-3 rounded-2xl shadow-2xl text-xs space-y-1.5 z-50 backdrop-blur-2xl">
+        <p className="font-black text-amber-300 pb-1 border-b border-white/10 uppercase tracking-wider font-mono">{label}</p>
         {payload.map((entry, idx) => (
           <div key={idx} className="flex items-center justify-between gap-4 font-mono">
             <span className="flex items-center gap-1.5" style={{ color: entry.color || entry.fill }}>
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: entry.color || entry.fill }} />
+              <span className="w-2.5 h-2.5 rounded-full inline-block shadow-sm" style={{ backgroundColor: entry.color || entry.fill }} />
               <span className="font-bold">{entry.name}:</span>
             </span>
             <span className="font-black text-white">₹{Number(entry.value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
@@ -160,46 +176,47 @@ function RefrensFinancialGraph({
   };
 
   return (
-    <div className="bg-[#14151c] border border-white/10 rounded-2xl overflow-hidden shadow-lg transition-all">
+    <div className="bg-[#0c0d15]/85 border border-white/[0.08] rounded-3xl overflow-visible shadow-xl backdrop-blur-2xl transition-all relative">
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent pointer-events-none" />
+
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 gap-3">
         <button
+          type="button"
           onClick={onToggle}
-          className="flex items-center gap-2.5 text-left font-black text-sm text-gray-200 hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-3 text-left font-black text-sm text-white hover:text-amber-300 transition-colors cursor-pointer select-none"
         >
-          {isOpen ? <ChevronDown className="w-4 h-4 text-amber-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-          <span>{title}</span>
+          <div className={cn(
+            "p-1.5 rounded-xl bg-white/[0.04] text-white/50 transition-transform duration-200",
+            isOpen && "rotate-180 text-amber-400"
+          )}>
+            <ChevronDown className="w-4 h-4" />
+          </div>
+          <span className="tracking-tight">{title}</span>
         </button>
 
         {isOpen && (
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap relative z-50">
             {/* Frequency Selector */}
-            <div className="relative">
-              <select
+            <div className="w-28 relative z-50">
+              <AestheticSelect
                 value={frequency}
-                onChange={e => setFrequency(e.target.value)}
-                className="appearance-none bg-black/40 hover:bg-black/60 border border-white/10 text-gray-300 hover:text-white text-xs font-bold rounded-xl pl-3 pr-7 py-1.5 focus:outline-none focus:border-amber-400 cursor-pointer transition-colors"
-              >
-                <option value="Monthly" className="bg-[#181922] text-white">Monthly</option>
-                <option value="Weekly" className="bg-[#181922] text-white">Weekly</option>
-                <option value="Daily" className="bg-[#181922] text-white">Daily</option>
-                <option value="Quarterly" className="bg-[#181922] text-white">Quarterly</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                onChange={setFrequency}
+                options={frequencyOptions}
+                size="sm"
+                buttonClassName="bg-black/40 border-white/[0.1] hover:border-white/20 font-medium py-1.5"
+              />
             </div>
 
             {/* Chart Type Selector */}
-            <div className="relative">
-              <select
+            <div className="w-32 relative z-50">
+              <AestheticSelect
                 value={chartType}
-                onChange={e => setChartType(e.target.value)}
-                className="appearance-none bg-black/40 hover:bg-black/60 border border-white/10 text-gray-300 hover:text-white text-xs font-bold rounded-xl pl-3 pr-7 py-1.5 focus:outline-none focus:border-amber-400 cursor-pointer transition-colors"
-              >
-                <option value="Line Chart" className="bg-[#181922] text-white">Line Chart</option>
-                <option value="Bar Chart" className="bg-[#181922] text-white">Bar Chart</option>
-                <option value="Scatter Plot" className="bg-[#181922] text-white">Scatter Plot</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                onChange={setChartType}
+                options={chartTypeOptions}
+                size="sm"
+                buttonClassName="bg-black/40 border-white/[0.1] hover:border-white/20 font-medium py-1.5"
+              />
             </div>
           </div>
         )}
@@ -207,7 +224,7 @@ function RefrensFinancialGraph({
 
       {/* Collapsible Chart Body */}
       {isOpen && (
-        <div className="p-4 pt-1 border-t border-white/5 space-y-3">
+        <div className="p-4 sm:p-5 pt-0 border-t border-white/[0.06] space-y-4">
           {chartData.length === 0 ? (
             <div className="py-12 text-center text-gray-500 text-xs">
               No financial entries recorded yet to plot graph.
@@ -295,6 +312,13 @@ function RefrensFinancialGraph({
     </div>
   );
 }
+
+const PAY_MODE_OPTIONS = [
+  { value: 'Bank Transfer (NEFT)', label: 'Bank Transfer / NEFT / RTGS' },
+  { value: 'UPI (GPay / PhonePe)', label: 'UPI (GPay / PhonePe)' },
+  { value: 'Cheque', label: 'Cheque' },
+  { value: 'Cash', label: 'Cash' },
+];
 
 export default function InvoicingModule({ currentUser }) {
   // Tabs: 'quotes' | 'proforma' | 'invoices' | 'payments'
@@ -667,6 +691,52 @@ export default function InvoicingModule({ currentUser }) {
       p.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
   }).sort(sortComparator);
 
+  // Status options per tab
+  const currentStatusOptions = useMemo(() => {
+    if (activeTab === 'quotes') {
+      return [
+        { id: 'All', label: 'All Statuses' },
+        { id: 'Draft', label: 'Draft' },
+        { id: 'Quotation Sent', label: 'Quotation Sent' },
+        { id: 'Quotation Seen', label: 'Quotation Seen' },
+        { id: 'Quotation Accepted', label: 'Accepted' },
+        { id: 'Pending', label: 'Pending' }
+      ];
+    } else if (activeTab === 'proforma') {
+      return [
+        { id: 'All', label: 'All Statuses' },
+        { id: 'Draft', label: 'Draft' },
+        { id: 'Pending', label: 'Pending' },
+        { id: 'Paid', label: 'Paid' },
+        { id: 'Overdue', label: 'Overdue' }
+      ];
+    } else if (activeTab === 'invoices') {
+      return [
+        { id: 'All', label: 'All Statuses' },
+        { id: 'Unpaid', label: 'Unpaid' },
+        { id: 'Partially Paid', label: 'Partially Paid' },
+        { id: 'Fully Paid', label: 'Fully Paid' },
+        { id: 'Overdue', label: 'Overdue' }
+      ];
+    }
+    return [
+      { id: 'All', label: 'All Statuses' }
+    ];
+  }, [activeTab]);
+
+  const sortFieldOptions = useMemo(() => {
+    const list = [
+      { id: 'date', label: 'Date' },
+      { id: 'id', label: activeTab === 'quotes' ? 'Quote #' : activeTab === 'proforma' ? 'Proforma #' : activeTab === 'invoices' ? 'Invoice #' : 'Receipt #' },
+      { id: 'subtotal', label: 'Sub Total' },
+      { id: 'grand_total', label: activeTab === 'payments' ? 'Amount Paid' : 'Grand Total' }
+    ];
+    if (activeTab === 'invoices') {
+      list.push({ id: 'balance', label: 'Balance Due' });
+    }
+    return list;
+  }, [activeTab]);
+
   // Calculate Proforma Summary metrics
   const proformaTotal = proformaInvoices.reduce((s, p) => s + (Number(p.grand_total) || 0), 0);
   const proformaPaid = proformaInvoices.filter(p => p.status === 'Paid').reduce((s, p) => s + (Number(p.grand_total) || 0), 0);
@@ -674,40 +744,50 @@ export default function InvoicingModule({ currentUser }) {
   const proformaPending = proformaTotal - proformaPaid;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 selection:bg-amber-400 selection:text-black">
 
-      {/* ── 1. Top Navigation Bar (Refrens-Styled Financials Tabs) ───────────── */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-[#14151c] border border-white/10 p-3 sm:p-4 rounded-3xl shadow-xl">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
+      {/* ── 1. Clean Neat Navigation Bar ───────────────────────────────────── */}
+      <div className="bg-[#0e1017]/90 border border-white/[0.08] p-1.5 sm:p-2 rounded-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
+        {/* Navigation Tabs with Seamless Apple UI Pill Transition */}
+        <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5">
           {[
-            { id: 'quotes', label: 'Quotation & Estimates', count: quotations.length, icon: FileText, color: 'from-blue-500 to-indigo-600' },
-            { id: 'proforma', label: 'Proforma Invoices', count: proformaInvoices.length, icon: Layers, color: 'from-purple-500 to-pink-600' },
-            { id: 'invoices', label: 'Invoices', count: invoices.length, icon: Receipt, color: 'from-amber-400 to-yellow-500' },
-            { id: 'payments', label: 'Payment Receipts', count: payments.length, icon: CreditCard, color: 'from-emerald-400 to-teal-500' }
+            { id: 'quotes', label: 'Quotation', count: quotations.length, icon: FileText },
+            { id: 'proforma', label: 'Proforma invoice', count: proformaInvoices.length, icon: Layers },
+            { id: 'invoices', label: 'Tax invoice', count: invoices.length, icon: Receipt },
+            { id: 'payments', label: 'Payment receipts', count: payments.length, icon: CreditCard }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => {
                   setActiveTab(tab.id);
                   setExpandedRows(new Set());
                   setExpandAll(false);
                   setStatusFilter('All');
                 }}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2.5 whitespace-nowrap shrink-0 ${
+                className={cn(
+                  "relative px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer z-10",
                   isActive
-                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-400/20 font-black'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10'
-                }`}
+                    ? "text-black font-black"
+                    : "text-white/60 hover:text-white hover:bg-white/[0.04]"
+                )}
               >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  isActive ? 'bg-black/30 text-black' : 'bg-white/10 text-gray-300'
-                }`}>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeInvoicingTabPill"
+                    className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-300 rounded-xl -z-10 shadow-sm"
+                    transition={{ type: "spring", stiffness: 450, damping: 35, mass: 0.5 }}
+                  />
+                )}
+                <Icon className={cn("w-3.5 h-3.5 relative z-10 transition-transform duration-200", isActive ? "text-black scale-105" : "text-white/50")} />
+                <span className="relative z-10 tracking-tight">{tab.label}</span>
+                <span className={cn(
+                  "relative z-10 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold",
+                  isActive ? "bg-black/20 text-black" : "bg-white/[0.06] text-white/50"
+                )}>
                   {tab.count}
                 </span>
               </button>
@@ -715,36 +795,15 @@ export default function InvoicingModule({ currentUser }) {
           })}
         </div>
 
-        {/* Action Button */}
-        <div className="flex items-center gap-3">
-          {activeTab === 'quotes' && (
-            <button
-              onClick={() => handleCreateDocument('quote')}
-              className="bg-amber-400 hover:bg-amber-300 text-black font-black text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-400/10 transition-all hover:scale-105 active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Quotation</span>
-            </button>
-          )}
-          {activeTab === 'proforma' && (
-            <button
-              onClick={() => handleCreateDocument('proforma')}
-              className="bg-purple-500 hover:bg-purple-400 text-white font-black text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Proforma Invoice</span>
-            </button>
-          )}
-          {activeTab === 'invoices' && (
-            <button
-              onClick={() => handleCreateDocument('invoice')}
-              className="bg-amber-400 hover:bg-amber-300 text-black font-black text-xs px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-400/10 transition-all hover:scale-105 active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Tax Invoice</span>
-            </button>
-          )}
-        </div>
+        {/* Create new button */}
+        <button
+          type="button"
+          onClick={() => handleCreateDocument(activeTab === 'invoices' ? 'invoice' : activeTab === 'proforma' ? 'proforma' : 'quote')}
+          className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer bg-white/[0.06] hover:bg-white/[0.12] text-white hover:text-amber-300 border border-white/15 hover:border-amber-400/40 active:scale-95 shadow-none"
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.5] text-amber-400" />
+          <span>Create new</span>
+        </button>
       </div>
 
       {/* ── 2. SECTION FINANCIAL GRAPHS (Refrens Interactive Analytics) ────── */}
@@ -776,7 +835,7 @@ export default function InvoicingModule({ currentUser }) {
         />
       )}
 
-      {/* ── 2b. PROFORMA INVOICE COLLAPSIBLE ANALYTICS (As in Refrens Screenshot) ─ */}
+      {/* ── 2b. PROFORMA INVOICE COLLAPSIBLE ANALYTICS (Obsidian Lucid Block) ─ */}
       {activeTab === 'proforma' && (
         <div className="space-y-3">
           <RefrensFinancialGraph
@@ -792,41 +851,47 @@ export default function InvoicingModule({ currentUser }) {
           />
 
           {/* Summary Accordion */}
-          <div className="bg-[#14151c] border border-white/10 rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-[#0c0d15]/85 border border-white/[0.08] rounded-3xl overflow-hidden shadow-xl backdrop-blur-2xl">
             <button
+              type="button"
               onClick={() => setShowProformaSummary(!showProformaSummary)}
-              className="w-full flex items-center justify-between p-4 text-left font-black text-sm text-gray-200 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between p-4 sm:p-5 text-left font-black text-sm text-white hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
             >
-              <div className="flex items-center gap-2.5">
-                {showProformaSummary ? <ChevronDown className="w-4 h-4 text-amber-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "p-1.5 rounded-xl bg-white/[0.04] text-white/50 transition-transform duration-200",
+                  showProformaSummary && "rotate-180 text-amber-400"
+                )}>
+                  <ChevronDown className="w-4 h-4" />
+                </div>
                 <span>Proforma Invoice Summary</span>
               </div>
-              <span className="text-xs text-gray-400 font-normal">
-                {proformaInvoices.length} Documents · {formatINR(proformaTotal)} Total Value
+              <span className="text-xs text-white/50 font-normal font-mono">
+                {proformaInvoices.length} Documents · <strong className="text-white font-bold">{formatINR(proformaTotal)}</strong> Total Value
               </span>
             </button>
 
             {showProformaSummary && (
-              <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-white/5">
-                <div className="bg-black/30 border border-white/5 p-3.5 rounded-xl">
-                  <span className="text-[11px] text-gray-400 font-medium">Total Proforma Value</span>
-                  <div className="text-lg font-black text-white mt-1">{formatINR(proformaTotal)}</div>
-                  <span className="text-[10px] text-gray-500">{proformaInvoices.length} Issued</span>
+              <div className="p-4 sm:p-5 pt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-white/[0.06]">
+                <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl">
+                  <span className="text-[11px] text-white/40 font-medium block">Total Proforma Value</span>
+                  <div className="text-lg font-black text-white font-mono mt-1">{formatINR(proformaTotal)}</div>
+                  <span className="text-[10px] text-white/50">{proformaInvoices.length} Issued</span>
                 </div>
-                <div className="bg-black/30 border border-white/5 p-3.5 rounded-xl">
-                  <span className="text-[11px] text-emerald-400 font-medium">Converted / Paid</span>
-                  <div className="text-lg font-black text-emerald-400 mt-1">{formatINR(proformaPaid)}</div>
-                  <span className="text-[10px] text-gray-500">{proformaInvoices.filter(p => p.status === 'Paid').length} Completed</span>
+                <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl">
+                  <span className="text-[11px] text-emerald-400 font-medium block">Converted / Paid</span>
+                  <div className="text-lg font-black text-emerald-400 font-mono mt-1">{formatINR(proformaPaid)}</div>
+                  <span className="text-[10px] text-white/50">{proformaInvoices.filter(p => p.status === 'Paid').length} Completed</span>
                 </div>
-                <div className="bg-black/30 border border-white/5 p-3.5 rounded-xl">
-                  <span className="text-[11px] text-rose-400 font-medium">Overdue Proforma</span>
-                  <div className="text-lg font-black text-rose-400 mt-1">{formatINR(proformaOverdue)}</div>
-                  <span className="text-[10px] text-gray-500">{proformaInvoices.filter(p => p.status === 'Overdue').length} Awaiting Advance</span>
+                <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl">
+                  <span className="text-[11px] text-rose-400 font-medium block">Overdue Proforma</span>
+                  <div className="text-lg font-black text-rose-400 font-mono mt-1">{formatINR(proformaOverdue)}</div>
+                  <span className="text-[10px] text-white/50">{proformaInvoices.filter(p => p.status === 'Overdue').length} Awaiting Advance</span>
                 </div>
-                <div className="bg-black/30 border border-white/5 p-3.5 rounded-xl">
-                  <span className="text-[11px] text-amber-400 font-medium">Pending Conversion</span>
-                  <div className="text-lg font-black text-amber-400 mt-1">{formatINR(proformaPending)}</div>
-                  <span className="text-[10px] text-gray-500">Pipeline Active</span>
+                <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl">
+                  <span className="text-[11px] text-amber-400 font-medium block">Pending Conversion</span>
+                  <div className="text-lg font-black text-amber-400 font-mono mt-1">{formatINR(proformaPending)}</div>
+                  <span className="text-[10px] text-white/50">Pipeline Active</span>
                 </div>
               </div>
             )}
@@ -834,91 +899,103 @@ export default function InvoicingModule({ currentUser }) {
         </div>
       )}
 
-      {/* ── 3. Search, Filters & Table Toolbar ───────────────────────────────── */}
-      <div className="bg-[#14151c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-gray-300">
-              Showing <span className="text-white font-black">1 to {
-                activeTab === 'quotes' ? filteredQuotes.length :
-                activeTab === 'proforma' ? filteredProforma.length :
-                activeTab === 'invoices' ? filteredInvoices.length : filteredPayments.length
-              }</span> of <span className="text-amber-400 font-black">{
-                activeTab === 'quotes' ? quotations.length :
-                activeTab === 'proforma' ? proformaInvoices.length :
-                activeTab === 'invoices' ? invoices.length : payments.length
-              }</span> {
-                activeTab === 'quotes' ? 'Quotations' :
-                activeTab === 'proforma' ? 'Proforma Invoices' :
-                activeTab === 'invoices' ? 'Invoices' : 'Payment Receipts'
-              }
-            </span>
+      {/* ── 3. Search, Filters & Table Toolbar (Lucid Block) ───────────────── */}
+      <div className="bg-[#0c0d15]/85 border border-white/[0.08] rounded-3xl p-4 sm:p-5 space-y-3.5 shadow-xl backdrop-blur-2xl relative z-30">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2 text-xs text-white/60">
+            <span>Showing <strong className="text-white font-mono font-bold">1 to {
+              activeTab === 'quotes' ? filteredQuotes.length :
+              activeTab === 'proforma' ? filteredProforma.length :
+              activeTab === 'invoices' ? filteredInvoices.length : filteredPayments.length
+            }</strong> of <strong className="text-amber-400 font-mono font-bold">{
+              activeTab === 'quotes' ? quotations.length :
+              activeTab === 'proforma' ? proformaInvoices.length :
+              activeTab === 'invoices' ? invoices.length : payments.length
+            }</strong> {
+              activeTab === 'quotes' ? 'Quotations' :
+              activeTab === 'proforma' ? 'Proforma Invoices' :
+              activeTab === 'invoices' ? 'Tax Invoices' : 'Payment Receipts'
+            }</span>
           </div>
 
-          {/* Search bar & Filter & Sort Controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          {/* Controls Cluster */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Search Input */}
+            <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
               <input
                 type="text"
                 placeholder="Search institution or number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-black/40 border border-white/10 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 w-44 sm:w-56"
+                className="w-full bg-black/40 border border-white/[0.1] hover:border-white/20 focus:border-amber-400/80 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-white/35 focus:outline-none transition-colors"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <div className="w-36 relative z-40">
+              <AestheticSelect
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={currentStatusOptions}
+                size="sm"
+                buttonClassName="bg-black/40 border-white/[0.1] hover:border-white/20 font-medium py-2"
               />
             </div>
 
-            {/* Sort Field & Direction Controls */}
-            <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider pl-1">Sort:</span>
-              <select
+            {/* Sort Field */}
+            <div className="w-36 relative z-40">
+              <AestheticSelect
                 value={sortField}
-                onChange={(e) => setSortField(e.target.value)}
-                className="bg-transparent text-xs text-amber-300 font-semibold focus:outline-none cursor-pointer py-0.5"
-              >
-                <option value="date" className="bg-[#181922] text-white">Date</option>
-                <option value="id" className="bg-[#181922] text-white">
-                  {activeTab === 'quotes' ? 'Quotation #' :
-                   activeTab === 'proforma' ? 'Proforma #' :
-                   activeTab === 'invoices' ? 'Invoice #' : 'Receipt #'}
-                </option>
-                <option value="subtotal" className="bg-[#181922] text-white">Sub Total</option>
-                <option value="grand_total" className="bg-[#181922] text-white">Amount in INR</option>
-                {activeTab === 'invoices' && (
-                  <option value="balance" className="bg-[#181922] text-white">Balance Due</option>
-                )}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                title={`Current: ${sortDirection === 'asc' ? 'Ascending (A-Z, Low to High)' : 'Descending (Z-A, High to Low)'}. Click to switch.`}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-400/20 text-gray-300 hover:text-amber-300 border border-white/10 transition-colors text-[11px] font-bold cursor-pointer"
-              >
-                {sortDirection === 'asc' ? (
-                  <>
-                    <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
-                    <span>ASC</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
-                    <span>DESC</span>
-                  </>
-                )}
-              </button>
+                onChange={setSortField}
+                options={sortFieldOptions}
+                size="sm"
+                buttonClassName="bg-black/40 border-white/[0.1] hover:border-white/20 font-medium py-2"
+              />
             </div>
 
+            {/* Sort Direction Toggle */}
             <button
-              onClick={handleToggleExpandAll}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                expandAll
-                  ? 'bg-amber-400 text-black border-amber-400'
-                  : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'
-              }`}
+              type="button"
+              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              title={`Switch sort order (Current: ${sortDirection === 'asc' ? 'Ascending' : 'Descending'})`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white border border-white/[0.08] hover:border-white/20 transition text-xs font-mono font-bold cursor-pointer"
             >
-              {expandAll ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-              <span>{expandAll ? 'Collapse All Items' : '+ Expand Line Items'}</span>
+              {sortDirection === 'asc' ? (
+                <>
+                  <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ASC</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>DESC</span>
+                </>
+              )}
+            </button>
+
+            {/* Expand / Collapse All Toggle */}
+            <button
+              type="button"
+              onClick={handleToggleExpandAll}
+              className={cn(
+                "px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer",
+                expandAll
+                  ? "bg-amber-400 text-black border-amber-400 font-black shadow-md shadow-amber-400/20"
+                  : "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-white/70 hover:text-white"
+              )}
+            >
+              {expandAll ? <Minus className="w-3.5 h-3.5 stroke-[2.5]" /> : <Plus className="w-3.5 h-3.5 stroke-[2.5]" />}
+              <span>{expandAll ? 'Collapse Items' : 'Expand Items'}</span>
             </button>
           </div>
         </div>
@@ -1639,34 +1716,39 @@ export default function InvoicingModule({ currentUser }) {
       {/* ── 5. Payment Recording Modal ───────────────────────────────────────── */}
       {payModalOpen && selectedInvoiceForPay && createPortal(
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setPayModalOpen(false)}
         >
           <div
-            className="bg-[#181922] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 my-auto relative z-10 transition-all"
+            className="bg-[#0e1017]/95 border border-white/[0.12] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 my-auto relative z-10 transition-all backdrop-blur-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shadow-sm shadow-emerald-500/10">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Record Payment</h3>
-                  <p className="text-xs text-gray-400 font-mono">Invoice: {selectedInvoiceForPay.id}</p>
+                  <h3 className="text-base font-black text-white tracking-tight">Record Payment</h3>
+                  <p className="text-xs text-emerald-400/90 font-mono font-semibold">Invoice: {selectedInvoiceForPay.id}</p>
                 </div>
               </div>
-              <button onClick={() => setPayModalOpen(false)} className="text-gray-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
+              <button 
+                onClick={() => setPayModalOpen(false)} 
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="bg-black/30 border border-white/5 p-3 rounded-2xl space-y-1">
-              <div className="text-xs text-gray-400 font-medium">Billed To</div>
+            <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl space-y-2">
+              <div className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Billed To Client</div>
               <div className="text-sm font-bold text-white">{selectedInvoiceForPay.school_name}</div>
-              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs font-mono">
                 <span className="text-gray-400">Total: {formatINR(selectedInvoiceForPay.grand_total)}</span>
-                <span className="text-rose-400 font-bold">Outstanding: {formatINR(selectedInvoiceForPay.outstanding_balance)}</span>
+                <span className="text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                  Outstanding: {formatINR(selectedInvoiceForPay.outstanding_balance)}
+                </span>
               </div>
             </div>
 
@@ -1679,7 +1761,16 @@ export default function InvoicingModule({ currentUser }) {
 
             <form onSubmit={handleRecordPaymentSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Payment Amount (₹) *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-gray-300">Payment Amount (₹) *</label>
+                  <button
+                    type="button"
+                    onClick={() => setPayAmount(String(selectedInvoiceForPay.outstanding_balance))}
+                    className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-2 py-0.5 rounded-md border border-amber-400/20 transition-all cursor-pointer"
+                  >
+                    Pay Full Balance (₹{Number(selectedInvoiceForPay.outstanding_balance || 0).toLocaleString('en-IN')})
+                  </button>
+                </div>
                 <input
                   type="number"
                   step="any"
@@ -1687,58 +1778,56 @@ export default function InvoicingModule({ currentUser }) {
                   max={selectedInvoiceForPay.outstanding_balance}
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
+                  placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Payment Mode</label>
-                <select
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">Payment Mode</label>
+                <AestheticSelect
                   value={payMode}
-                  onChange={(e) => setPayMode(e.target.value)}
-                  className="w-full bg-[#121318] border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-amber-400"
-                >
-                  <option value="Bank Transfer (NEFT)">Bank Transfer / NEFT / RTGS</option>
-                  <option value="UPI (GPay / PhonePe)">UPI (GPay / PhonePe)</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Cash">Cash</option>
-                </select>
+                  onChange={setPayMode}
+                  options={PAY_MODE_OPTIONS}
+                  size="md"
+                  placeholder="Select payment mode..."
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Transaction Ref / Cheque #</label>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">Transaction Ref / Cheque #</label>
                 <input
                   type="text"
                   placeholder="e.g. UTR192830192 / CHQ-1029"
                   value={payRef}
                   onChange={(e) => setPayRef(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-amber-400"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">Notes (Optional)</label>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5">Notes (Optional)</label>
                 <textarea
                   rows="2"
                   placeholder="Payment receipt remarks..."
                   value={payNotes}
                   onChange={(e) => setPayNotes(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-amber-400 resize-none"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5">
                 <button
                   type="button"
                   onClick={() => setPayModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={paySubmitting}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {paySubmitting ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   <span>Confirm Payment</span>
@@ -1753,11 +1842,11 @@ export default function InvoicingModule({ currentUser }) {
       {/* ── 6. Delete Confirmation Modal (Gapless Renumbering Assurance) ───────── */}
       {deleteModalOpen && itemToDelete && createPortal(
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setDeleteModalOpen(false)}
         >
           <div
-            className="bg-[#181922] border border-rose-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 my-auto relative z-10 transition-all"
+            className="bg-[#0e1017]/95 border border-rose-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 my-auto relative z-10 transition-all backdrop-blur-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
@@ -1774,15 +1863,15 @@ export default function InvoicingModule({ currentUser }) {
               Are you sure you want to delete <span className="font-bold text-white">{itemToDelete.name || itemToDelete.id}</span>?
             </p>
 
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[11px] text-red-300 leading-relaxed">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[11px] text-rose-300/90 leading-relaxed">
               ⚠️ This document will be permanently removed. Remaining document IDs will be retained as-is with no reassignment.
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5">
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition-colors"
               >
                 Cancel
               </button>
@@ -1790,7 +1879,7 @@ export default function InvoicingModule({ currentUser }) {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="px-5 py-2.5 bg-rose-500 hover:bg-rose-400 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 bg-rose-500 hover:bg-rose-400 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {deleting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 <span>Delete Permanently</span>

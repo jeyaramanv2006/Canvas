@@ -380,3 +380,40 @@ When revamping or touching any of the following upcoming screens, adhere to thes
 5. **No Monospace in Headers:** Reserve `font-mono` strictly for tabular numbers, amounts, and codes.
 6. **Modal Stacking & Scroll Lock:** All modals must render via `createPortal` to `document.body` and lock body overflow.
 7. **Commit Constraint:** The AI agent must never run `git commit`. All commits are executed manually by the user.
+
+---
+
+## 8. Phase 11 — Invoicing & Financial Records Suite Completion Record
+
+- **Modules Revamped**: `frontend/src/components/InvoicingModule.jsx` and `frontend/src/components/InvoiceDocumentModal.jsx`.
+- **Roles Inspected & Verified**: Admin Executive, CEO, CFO, and CCO. (Canvasser views remain isolated and unaffected).
+- **Core Presentation & Aesthetic Enhancements**:
+  1. **Clean Neat Navigation Bar with Apple UI Transition**:
+     - Removed redundant large banner header and promotional text ("Financial Records & GST Suite", "Invoicing & Commercial Records", telemetry subtitle).
+     - Clean, minimalist navigation bar featuring: `Quotation`, `Proforma invoice`, `Tax invoice`, `Payment receipts`, and `Create new`.
+     - Seamless Apple UI sliding pill transition powered by Framer Motion (`layoutId="activeInvoicingTabPill"`) with warm gold/yellow and black theme (`bg-gradient-to-r from-amber-400 to-amber-300 text-black font-black`), matching the standard top navbars across other dashboards.
+     - `Create new` directly opens the unified document creation modal where users can toggle between Quotation, Tax Invoice, and Proforma to create whichever document type they need.
+  2. **Refrens Financial Analytics Graph**:
+     - Upgraded to Obsidian Lucid Block container with luminous top rim.
+     - Replaced raw `<select>` elements for frequency (`Monthly`, `Weekly`, `Daily`, `Quarterly`) and chart type (`Line Chart`, `Bar Chart`, `Scatter Plot`) with `<AestheticSelect size="sm" />`.
+     - Upgraded custom tooltip with Obsidian glass styling (`bg-[#0f1118]/95 backdrop-blur-2xl border border-white/10`).
+  3. **Proforma Invoice KPI Summary Accordion**:
+     - 4 Obsidian glass stat tiles for Total Value, Converted/Paid, Overdue, and Pending Conversion with `font-mono` metrics and status pills.
+  4. **Command & Filter Bar**:
+     - Integrated status filter `<AestheticSelect size="sm" />` dynamically tailored per tab (`Draft`, `Sent`, `Paid`, `Overdue`, etc.).
+     - Replaced raw sort field `<select>` with `<AestheticSelect size="sm" />`.
+     - Clean ASC/DESC toggle button and Expand/Collapse line items button.
+  5. **Payment Recording Modal**:
+     - Converted to Obsidian Lucid Block with `backdrop-blur-xl bg-black/80` overlay.
+     - Replaced raw `<select>` for `payMode` with `<AestheticSelect size="md" />` (Bank Transfer, UPI, Cheque, Cash).
+     - Added instant "Pay Full Balance" action pill next to the amount label to autofill outstanding balance.
+     - Upgraded Delete Confirmation Modal with luminous rose accents.
+  6. **Interactive Refrens Document Canvas (`InvoiceDocumentModal.jsx`)**:
+     - Replaced raw `<select>` for Canvasser Attribution with `<AestheticSelect size="sm" />` to seamlessly credit the sales rep for leaderboard commission without breaking backend attribution contracts.
+     - Polished table cell selects for GST rate (0%, 5%, 12%, 18%) and Units (prs, pcs, box, set, mtr, units) with custom dark tokens.
+     - Preserved exact A4 printable GST Tax / Proforma / Quotation white-paper layout and PDF generator.
+- **Contract & Data Preservation**:
+  - Zero changes to backend models, database persistences, or API endpoints.
+  - All mock API calls (`mockApi.getQuotations`, `getProformaInvoices`, `getInvoices`, `getPayments`, `recordPayment`, `deleteQuotation`, etc.) remain 100% active.
+  - All calculations (`subtotal`, `cgst_amount`, `sgst_amount`, `grand_total`, `outstanding_balance`, `numberToWordsIndian`) remain exact and unchanged.
+
