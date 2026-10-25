@@ -108,7 +108,7 @@ export default function Login() {
                 <span className="h-px w-8 bg-amber-400/80" />
                 Canvassing &amp; Financials
               </div>
-              <h1 className="max-w-[12ch] text-[clamp(2rem,5vw,4.7rem)] font-black uppercase leading-[0.92] tracking-[-0.065em] text-white">
+              <h1 className="max-w-[12ch] text-[clamp(2rem,5vw,4.7rem)] font-black uppercase leading-[0.92] tracking-[-0.035em] text-white">
                 One team.<br />One view.
               </h1>
               <div className="mt-5 hidden max-w-sm items-center justify-between border-t border-white/15 pt-4 text-xs text-white/45 lg:flex">
