@@ -29,7 +29,7 @@ export default function Login() {
     <main className="relative isolate min-h-[100dvh] overflow-x-hidden bg-transparent text-white selection:bg-amber-400 selection:text-black">
       {/* Login-only ambient lighting glow that blends with the topographic background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-40 top-24 h-80 w-80 rounded-full bg-emerald-500/10 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
+        <div className="absolute -left-40 top-24 h-80 w-80 rounded-full bg-amber-400/[0.09] blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
         <div className="absolute -right-40 bottom-0 h-80 w-80 rounded-full bg-amber-400/[0.08] blur-[110px] sm:h-[34rem] sm:w-[34rem]" />
       </div>
 
@@ -48,7 +48,7 @@ export default function Login() {
               <div className="absolute -right-7 -top-20 h-48 w-48 rounded-full border border-white/[0.07] lg:right-0 lg:top-[-7rem] lg:h-[22rem] lg:w-[22rem]" />
 
               {/* Diamond with specular shine running along the perimeter edges */}
-              <div className="absolute bottom-[-4rem] left-[-4rem] h-40 w-40 rotate-45 border border-lime-300/20 bg-gradient-to-br from-lime-300/[0.08] to-transparent lg:bottom-12 lg:left-12 lg:h-56 lg:w-56">
+              <div className="absolute bottom-[-4rem] left-[-4rem] h-40 w-40 rotate-45 border border-amber-400/25 bg-gradient-to-br from-amber-400/[0.08] to-transparent lg:bottom-12 lg:left-12 lg:h-56 lg:w-56">
                 <svg className="absolute -inset-[1px] h-[calc(100%+2px)] w-[calc(100%+2px)] overflow-visible" viewBox="0 0 100 100">
                   <defs>
                     <linearGradient id="shine-specular" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -60,7 +60,7 @@ export default function Login() {
                     </linearGradient>
                     <filter id="glow-specular" x="-40%" y="-40%" width="180%" height="180%">
                       <feDropShadow dx="0" dy="0" stdDeviation="0.8" floodColor="#ffffff" floodOpacity="0.95" />
-                      <feDropShadow dx="0" dy="0" stdDeviation="3.0" floodColor="rgba(190, 242, 100, 0.6)" />
+                      <feDropShadow dx="0" dy="0" stdDeviation="3.0" floodColor="rgba(245, 158, 11, 0.65)" />
                     </filter>
                   </defs>
                   <rect
@@ -104,8 +104,8 @@ export default function Login() {
             </motion.div>
 
             <div className="relative z-10 mt-7 lg:mb-8 lg:mt-auto lg:max-w-lg">
-              <div className="mb-4 hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-lime-200/75 lg:flex">
-                <span className="h-px w-8 bg-lime-300/70" />
+              <div className="mb-4 hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/85 lg:flex">
+                <span className="h-px w-8 bg-amber-400/80" />
                 Canvassing &amp; Financials
               </div>
               <h1 className="max-w-[12ch] text-[clamp(2rem,5vw,4.7rem)] font-black uppercase leading-[0.92] tracking-[-0.065em] text-white">
@@ -126,10 +126,10 @@ export default function Login() {
           <section className="flex items-center justify-center p-5 sm:p-9 lg:p-12">
             <div className="w-full max-w-[420px]">
               <div className="mb-7 sm:mb-9">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-lime-200/20 bg-lime-300/[0.08] text-lime-200">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/[0.08] text-amber-300">
                   <Fingerprint className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-lime-200/75">Secure access</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/85">Secure access</p>
                 <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Sign in to continue</h2>
                 <p className="mt-2 text-sm leading-6 text-white/50">Use your assigned account to access your workspace.</p>
               </div>
@@ -149,7 +149,7 @@ export default function Login() {
                     spellCheck="false"
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? 'login-error' : undefined}
-                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-lime-200/70 focus:ring-2 focus:ring-lime-300/20"
+                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20"
                     placeholder="Enter your username"
                   />
                 </div>
@@ -166,7 +166,7 @@ export default function Login() {
                     autoComplete="current-password"
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? 'login-error' : undefined}
-                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-lime-200/70 focus:ring-2 focus:ring-lime-300/20"
+                    className="min-h-[52px] w-full rounded-xl border border-white/[0.14] bg-black/25 px-4 text-base text-white outline-none transition placeholder:text-white/25 hover:border-white/25 focus:border-amber-400/70 focus:ring-2 focus:ring-amber-400/20"
                     placeholder="Enter your password"
                   />
                 </div>
@@ -189,7 +189,7 @@ export default function Login() {
                   whileTap={loading ? undefined : { scale: 0.99 }}
                   disabled={loading}
                   type="submit"
-                  className="mt-2 flex min-h-[54px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-lime-300 px-4 text-sm font-extrabold text-[#11130a] shadow-[0_8px_28px_rgba(190,255,0,0.16)] transition hover:bg-lime-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-100 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101117] disabled:cursor-wait disabled:opacity-65"
+                  className="mt-2 flex min-h-[54px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 text-sm font-extrabold text-black shadow-[0_8px_28px_rgba(245,158,11,0.22)] transition hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101117] disabled:cursor-wait disabled:opacity-65"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <LogIn className="h-4 w-4" aria-hidden="true" />}
                   <span>{loading ? 'Authenticating…' : 'Sign In'}</span>
@@ -199,7 +199,7 @@ export default function Login() {
 
               <div className="mt-7 border-t border-white/10 pt-5 sm:mt-8">
                 <div className="flex items-center gap-2 text-xs font-semibold text-white/65">
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-lime-200/80" aria-hidden="true" />
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-amber-400/85" aria-hidden="true" />
                   <span>Authorized Personnel Only</span>
                 </div>
                 <p className="mt-2 max-w-sm text-xs leading-5 text-white/40">

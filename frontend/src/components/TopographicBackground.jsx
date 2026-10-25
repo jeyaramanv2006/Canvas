@@ -292,36 +292,36 @@ export default function TopographicBackground() {
         }
       }
 
-      // ── 1. Deep Atmospheric Dark Base ──
-      ctx.fillStyle = '#050a08';
+      // ── 1. Deep Atmospheric Dark Base (Warm Obsidian & Gold) ──
+      ctx.fillStyle = '#08080c';
       ctx.fillRect(0, 0, width, height);
 
-      // Radial ambient lighting: kept soft and deep so it remains comfortably in the background
+      // Radial ambient lighting: warm amber and subtle gold bleed
       const gradBg = ctx.createRadialGradient(
         width * 0.46, height * 0.48, 50,
         width * 0.50, height * 0.50, Math.max(width, height) * 0.8
       );
-      gradBg.addColorStop(0, 'rgba(6, 40, 30, 0.28)');
-      gradBg.addColorStop(0.40, 'rgba(4, 22, 17, 0.16)');
-      gradBg.addColorStop(0.75, 'rgba(3, 12, 10, 0.06)');
-      gradBg.addColorStop(1, 'rgba(2, 6, 5, 0.0)');
+      gradBg.addColorStop(0, 'rgba(45, 30, 8, 0.28)');
+      gradBg.addColorStop(0.40, 'rgba(28, 18, 5, 0.16)');
+      gradBg.addColorStop(0.75, 'rgba(15, 10, 3, 0.06)');
+      gradBg.addColorStop(1, 'rgba(8, 6, 2, 0.0)');
       ctx.fillStyle = gradBg;
       ctx.fillRect(0, 0, width, height);
 
-      // Subtle warm amber ambient bloom behind center & bottom-right
+      // Warm amber ambient bloom behind center & bottom-right
       const amberBloom = ctx.createRadialGradient(
         width * 0.44, height * 0.48, 20,
         width * 0.46, height * 0.50, Math.min(width, height) * 0.45
       );
-      amberBloom.addColorStop(0, 'rgba(245, 158, 11, 0.06)');
-      amberBloom.addColorStop(0.6, 'rgba(217, 119, 6, 0.015)');
+      amberBloom.addColorStop(0, 'rgba(245, 158, 11, 0.08)');
+      amberBloom.addColorStop(0.6, 'rgba(217, 119, 6, 0.025)');
       amberBloom.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = amberBloom;
       ctx.fillRect(0, 0, width, height);
 
       // ── 2. Subtle Faint Tactical Matrix Grid ──
       const gridSize = isMobile ? 64 : 52;
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.025)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.035)';
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       for (let x = 0; x < width; x += gridSize) {
@@ -437,28 +437,28 @@ export default function TopographicBackground() {
         }
       });
 
-      // ── Stroke Emerald Contours (Crisp & Luminous for Login) ──
+      // ── Stroke Gold/Amber Contours (Crisp & Luminous for Login) ──
       ctx.lineWidth = 1.1;
-      ctx.strokeStyle = 'rgba(52, 211, 153, 0.36)';
+      ctx.strokeStyle = 'rgba(217, 180, 99, 0.32)';
       ctx.stroke(emeraldPath);
 
       // ── Stroke Amber Ridge Highlights (Hardware-Accelerated Glow without CPU shadowBlur) ──
       // Pass 1: Wider translucent amber glow line
       ctx.lineWidth = isMobile ? 3.4 : 4.5;
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.24)';
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.28)';
       ctx.stroke(amberGlowPath);
 
-      // Pass 2: Sharp luminous amber core line
+      // Pass 2: Sharp luminous gold core line
       ctx.lineWidth = isMobile ? 1.6 : 2.0;
-      ctx.strokeStyle = 'rgba(251, 191, 36, 0.78)';
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.88)';
       ctx.stroke(amberCorePath);
 
       // ── Render Glowing Beacon Nodes ──
       beaconList.forEach((b) => {
         const pulse = 0.85 + 0.22 * Math.sin(elapsed * 2.8 + b.idx);
         const isAmber = b.color === 'amber';
-        const haloColor = isAmber ? 'rgba(245, 158, 11, 0.32)' : 'rgba(52, 211, 153, 0.30)';
-        const coreColor = isAmber ? '#fbbf24' : '#6ee7b7';
+        const haloColor = isAmber ? 'rgba(245, 158, 11, 0.40)' : 'rgba(251, 191, 36, 0.35)';
+        const coreColor = isAmber ? '#fbbf24' : '#fef08a';
 
         // Outer halo
         ctx.beginPath();
@@ -479,7 +479,7 @@ export default function TopographicBackground() {
           mouse.x, mouse.y, 8,
           mouse.x, mouse.y, isMobile ? 140 : 200
         );
-        spotGrad.addColorStop(0, 'rgba(52, 211, 153, 0.10)');
+        spotGrad.addColorStop(0, 'rgba(251, 191, 36, 0.12)');
         spotGrad.addColorStop(0.4, 'rgba(245, 158, 11, 0.05)');
         spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = spotGrad;
@@ -498,7 +498,7 @@ export default function TopographicBackground() {
       }
 
       // ── 5. Recessed Depth Overlay (Subtle scrim for Login) ──
-      ctx.fillStyle = 'rgba(5, 10, 8, 0.12)';
+      ctx.fillStyle = 'rgba(8, 8, 12, 0.14)';
       ctx.fillRect(0, 0, width, height);
 
       // Soft vignette for edge blend
@@ -507,8 +507,8 @@ export default function TopographicBackground() {
         width * 0.5, height * 0.5, Math.max(width, height) * 0.8
       );
       vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vignette.addColorStop(0.7, 'rgba(3, 7, 5, 0.25)');
-      vignette.addColorStop(1, 'rgba(2, 5, 4, 0.70)');
+      vignette.addColorStop(0.7, 'rgba(8, 8, 12, 0.35)');
+      vignette.addColorStop(1, 'rgba(5, 5, 8, 0.78)');
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, width, height);
 
