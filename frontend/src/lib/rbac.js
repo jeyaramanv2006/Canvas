@@ -84,6 +84,39 @@ export const ROLES = {
     canSeeCEODashboard: false,
     canSeeCFODashboard: false,
     canSeeCCODashboard: true,
+    canSeeCSODashboard: false,
+    // Operational Access
+    canSeeCompanyFinancials: false,
+    canSeeInvoicing: true,
+    canSeeAllVisits: true,
+    canManagePricing: false,
+    canSeeLeaderboard: true,
+    canSeeMarketing: false,
+    // Admin Access
+    canManageUsers: true,
+    canAccessAdminPanel: true,
+    isDashboardLocked: false,
+    primaryKPIs: [
+      { key: 'school_visits',  label: 'School Visits',      format: 'number', trend: 'This Month' },
+      { key: 'conversion',     label: 'Conversion Rate',    format: 'percent', trend: 'Visits → Won' },
+      { key: 'orders_won',     label: 'Orders Won',         format: 'number', trend: 'Closed Deals' },
+      { key: 'revenue',        label: 'Sales Generated',    format: 'currency', trend: '+25% vs LM' },
+      { key: 'team_size',      label: 'Active Canvassers',  format: 'number', trend: 'Field Team' }
+    ]
+  },
+
+  CSO: {
+    id: 'cso',
+    name: 'Chief Strategy Officer',
+    shortName: 'CSO',
+    tagline: 'Strategy & Commercial Expansion',
+    description: 'Executive strategy command, commercial pipeline, institutional accounts, and revenue tracking.',
+    accessScope: 'Executive Strategy & Administrative',
+    // Dashboard Access
+    canSeeCEODashboard: false,
+    canSeeCFODashboard: false,
+    canSeeCCODashboard: false,
+    canSeeCSODashboard: true,
     // Operational Access
     canSeeCompanyFinancials: false,
     canSeeInvoicing: true,
@@ -115,6 +148,7 @@ export const ROLES = {
     canSeeCEODashboard: false,
     canSeeCFODashboard: false,
     canSeeCCODashboard: false,
+    canSeeCSODashboard: false,
     // Operational Access
     canSeeCompanyFinancials: false,
     canSeeInvoicing: true,
@@ -146,6 +180,7 @@ export const ROLES = {
     canSeeCEODashboard: false,
     canSeeCFODashboard: false,
     canSeeCCODashboard: false,
+    canSeeCSODashboard: false,
     // Operational Access
     canSeeCompanyFinancials: false,
     canSeeInvoicing: false,
@@ -176,6 +211,7 @@ export function getUserRole(user) {
   if (r === 'ceo' || r === 'super_admin') return 'ceo';
   if (r === 'cfo') return 'cfo';
   if (r === 'cco') return 'cco';
+  if (r === 'cso') return 'cso';
   if (r === 'admin_exec' || r === 'admin' || r === 'manager' || r === 'executive' || r === 'general manager') return 'admin_exec';
   return 'canvasser';
 }
@@ -183,13 +219,14 @@ export function getUserRole(user) {
 export function isCEO(user)       { return getUserRole(user) === 'ceo'; }
 export function isCFO(user)       { return getUserRole(user) === 'cfo'; }
 export function isCCO(user)       { return getUserRole(user) === 'cco'; }
+export function isCSO(user)       { return getUserRole(user) === 'cso'; }
 export function isAdminExec(user) { return getUserRole(user) === 'admin_exec'; }
 export function isCanvasser(user) { return getUserRole(user) === 'canvasser'; }
 
 /** Legacy alias — anything above canvasser is considered "admin" for old code */
 export function isAdmin(user) {
   const role = getUserRole(user);
-  return role === 'ceo' || role === 'cfo' || role === 'cco' || role === 'admin_exec';
+  return role === 'ceo' || role === 'cfo' || role === 'cco' || role === 'cso' || role === 'admin_exec';
 }
 
 export function getRoleConfig(user) {
@@ -221,6 +258,7 @@ export function getHomeRoute(user) {
     case 'ceo':        return '/ceo';
     case 'cfo':        return '/cfo';
     case 'cco':        return '/cco';
+    case 'cso':        return '/cso';
     case 'admin_exec': return '/manager';
     default:           return '/canvasser';
   }

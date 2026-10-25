@@ -16,6 +16,7 @@ const ROLE_OPTIONS = [
   { value: 'admin_exec', label: 'Admin Executive', slug: 'admin', roleTitle: 'Admin & Operations', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
   { value: 'cfo', label: 'Chief Financial Officer', slug: 'cfo', roleTitle: 'Financial Governance', color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
   { value: 'cco', label: 'Chief Coordinating Officer', slug: 'cco', roleTitle: 'Coordinating Strategy', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  { value: 'cso', label: 'Chief Strategy Officer', slug: 'cso', roleTitle: 'Strategy & Expansion', color: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
   { value: 'ceo', label: 'Chief Executive Officer', slug: 'ceo', roleTitle: 'Strategic Command', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' }
 ];
 

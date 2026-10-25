@@ -6,6 +6,7 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import CEODashboard from './pages/CEODashboard';
 import CFODashboard from './pages/CFODashboard';
 import CCODashboard from './pages/CCODashboard';
+import CSODashboard from './pages/CSODashboard';
 import ForcePasswordResetModal from './components/ForcePasswordResetModal';
 import TopographicBackground from './components/TopographicBackground';
 import DynamicDotGridBackground from './components/DynamicDotGridBackground';
@@ -115,6 +116,12 @@ function App() {
             <Route
               path="/cco"
               element={user ? <CCODashboard /> : <Navigate to="/" replace />}
+            />
+
+            {/* Chief Strategy Officer (CSO) */}
+            <Route
+              path="/cso"
+              element={user ? <CSODashboard /> : <Navigate to="/" replace />}
             />
 
             {/* Fallback Catch-all */}

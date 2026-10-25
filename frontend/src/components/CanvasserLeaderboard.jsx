@@ -26,7 +26,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
   // Check if current user is canvasser vs executive
   const userRole = (currentUser?.role || '').toLowerCase();
   const isCanvasser = userRole === 'canvasser';
-  const isExecutive = ['ceo', 'cfo', 'cco', 'manager', 'admin', 'admin_exec'].includes(userRole);
+  const isExecutive = ['ceo', 'cfo', 'cco', 'cso', 'manager', 'admin', 'admin_exec'].includes(userRole);
   const currentUserId = currentUser?.id ?? currentUser?.userId ?? currentUser?._id;
 
   // Helper to format YYYY-MM to readable label
