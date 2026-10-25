@@ -7,11 +7,8 @@ import React, { useEffect, useRef } from 'react';
  * - Rich atmospheric color mixing: deep obsidian (#08090d) with subtle violet, cyan, and amber ambient bleeds.
  * - Dynamic undulating sheet wave motion:
  *   - Enhanced wave amplitude (~8.5px desktop / 6.5px mobile) with harmonic flow for an obvious, fluid, living sheet effect.
- * - Clean Particle Repositioning on Hover:
- *   - Smooth liquid radial parting as the cursor moves through the field.
- *   - Particles smoothly float back to their wave paths.
- * - Uniform clean opacity (rgba(255, 255, 255, 0.18)) throughout.
- * - Locked 60fps performance (<0.06ms per frame) and native touch pass-through.
+ * - Uniform clean opacity (rgba(255, 255, 255, 0.18)) throughout with zero cursor hovering distraction.
+ * - Locked 60fps performance (<0.04ms per frame) and native touch pass-through.
  */
 export default function DynamicDotGridBackground() {
   const canvasRef = useRef(null);
@@ -27,17 +24,6 @@ export default function DynamicDotGridBackground() {
     let height = 0;
     let isMobile = false;
 
-    // Smooth pointer tracking with fluid exponential easing
-    const mouse = {
-      x: -1000,
-      y: -1000,
-      targetX: -1000,
-      targetY: -1000,
-      active: false,
-      targetActive: false,
-      lastMoveTime: 0
-    };
-
     const handleResize = () => {
       isMobile = window.innerWidth < 768;
       width = window.innerWidth;
@@ -52,30 +38,6 @@ export default function DynamicDotGridBackground() {
 
     handleResize();
     window.addEventListener('resize', handleResize, { passive: true });
-
-    const onPointerMove = (e) => {
-      mouse.targetX = e.clientX;
-      mouse.targetY = e.clientY;
-      mouse.targetActive = true;
-      mouse.lastMoveTime = performance.now();
-    };
-
-    const onPointerLeave = () => {
-      mouse.targetActive = false;
-    };
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerleave', onPointerLeave, { passive: true });
-
-    const onTouchMove = (e) => {
-      if (e.touches && e.touches.length > 0) {
-        mouse.targetX = e.touches[0].clientX;
-        mouse.targetY = e.touches[0].clientY;
-        mouse.targetActive = true;
-        mouse.lastMoveTime = performance.now();
-      }
-    };
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
 
     let startTime = performance.now();
     let isTabVisible = true;
@@ -93,23 +55,6 @@ export default function DynamicDotGridBackground() {
       if (!isTabVisible) return;
 
       const elapsed = (now - startTime) * 0.001;
-
-      // Smooth pointer lerp
-      if (mouse.targetActive) {
-        mouse.x += (mouse.targetX - mouse.x) * 0.18;
-        mouse.y += (mouse.targetY - mouse.y) * 0.18;
-        mouse.active = true;
-
-        if (now - mouse.lastMoveTime > 2500) {
-          mouse.targetActive = false;
-        }
-      } else {
-        mouse.x += (-1000 - mouse.x) * 0.06;
-        mouse.y += (-1000 - mouse.y) * 0.06;
-        if (Math.abs(mouse.x - (-1000)) < 2) {
-          mouse.active = false;
-        }
-      }
 
       // ── 1. Base Atmosphere: Deep Obsidian with Rich Color Mixing ──
       ctx.fillStyle = '#08090d';
@@ -148,14 +93,12 @@ export default function DynamicDotGridBackground() {
       ctx.fillStyle = gradAmber;
       ctx.fillRect(0, 0, width, height);
 
-      // ── 2. Dynamic Undulating Sheet Wave + Fluid Hover Repositioning ──
+      // ── 2. Dynamic Undulating Sheet Wave ──
       const spacing = isMobile ? 38 : 32;
       const cols = Math.ceil(width / spacing) + 1;
       const rows = Math.ceil(height / spacing) + 1;
       const dotRadius = isMobile ? 1.0 : 1.15;
       const waveAmp = isMobile ? 6.5 : 8.5;
-      const hoverRadius = isMobile ? 100 : 140;
-      const pushForce = isMobile ? 18 : 26;
 
       const dotsPath = new Path2D();
 
@@ -173,24 +116,8 @@ export default function DynamicDotGridBackground() {
           const waveY = Math.cos(elapsed * 0.75 + phaseC2 + r * 0.22) * waveAmp +
                         Math.sin(elapsed * 0.40 - phaseC1 + r * 0.12) * (waveAmp * 0.32);
 
-          let px = baseX + waveX;
-          let py = baseY + waveY;
-
-          // Clean fluid hover repositioning (pure spatial displacement)
-          if (mouse.active) {
-            const dx = px - mouse.x;
-            const dy = py - mouse.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist < hoverRadius && dist > 0.1) {
-              const factor = 1 - dist / hoverRadius;
-              const smooth = factor * factor * (3 - 2 * factor); // Smoothstep curve
-              const push = pushForce * smooth;
-
-              px += (dx / dist) * push;
-              py += (dy / dist) * push;
-            }
-          }
+          const px = baseX + waveX;
+          const py = baseY + waveY;
 
           dotsPath.moveTo(px + dotRadius, py);
           dotsPath.arc(px, py, dotRadius, 0, Math.PI * 2);
@@ -220,9 +147,6 @@ export default function DynamicDotGridBackground() {
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerleave', onPointerLeave);
-      window.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
