@@ -42,6 +42,16 @@
   background-color: transparent;
 }
 
+/* ── Specular edge shine animation for diamond ── */
+@keyframes stroke-dash-cycle {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-stroke-dash {
+  animation: stroke-dash-cycle 4.5s linear infinite;
+}
+
 /* Custom scrollbar for web view */
 ::-webkit-scrollbar {
   width: 6px;

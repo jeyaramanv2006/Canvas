@@ -43,10 +43,42 @@ export default function Login() {
           {/* Brand panel: compact on mobile, architectural hero on desktop. */}
           <section className="relative flex min-h-[168px] flex-col justify-between overflow-hidden border-b border-white/10 p-5 sm:min-h-[210px] sm:p-8 lg:min-h-full lg:border-b-0 lg:border-r lg:border-white/10 lg:p-11">
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              {/* Clean static architectural circles */}
               <div className="absolute -right-16 -top-28 h-64 w-64 rounded-full border border-white/10 lg:h-[28rem] lg:w-[28rem]" />
               <div className="absolute -right-7 -top-20 h-48 w-48 rounded-full border border-white/[0.07] lg:right-0 lg:top-[-7rem] lg:h-[22rem] lg:w-[22rem]" />
-              <div className="absolute bottom-[-4rem] left-[-4rem] h-40 w-40 rotate-45 border border-lime-300/20 bg-gradient-to-br from-lime-300/[0.08] to-transparent lg:bottom-12 lg:left-12 lg:h-56 lg:w-56" />
-              <div className="absolute right-10 top-10 hidden h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,255,0,0.8)] lg:block" />
+
+              {/* Diamond with specular shine running along the perimeter edges */}
+              <div className="absolute bottom-[-4rem] left-[-4rem] h-40 w-40 rotate-45 border border-lime-300/20 bg-gradient-to-br from-lime-300/[0.08] to-transparent lg:bottom-12 lg:left-12 lg:h-56 lg:w-56">
+                <svg className="absolute -inset-[1px] h-[calc(100%+2px)] w-[calc(100%+2px)] overflow-visible" viewBox="0 0 100 100">
+                  <defs>
+                    <linearGradient id="shine-specular" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+                      <stop offset="35%" stopColor="#ffffff" stopOpacity="0.4" />
+                      <stop offset="50%" stopColor="#ffffff" stopOpacity="1" />
+                      <stop offset="65%" stopColor="#ffffff" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                    </linearGradient>
+                    <filter id="glow-specular" x="-40%" y="-40%" width="180%" height="180%">
+                      <feDropShadow dx="0" dy="0" stdDeviation="0.8" floodColor="#ffffff" floodOpacity="0.95" />
+                      <feDropShadow dx="0" dy="0" stdDeviation="3.0" floodColor="rgba(190, 242, 100, 0.6)" />
+                    </filter>
+                  </defs>
+                  <rect
+                    x="0.5"
+                    y="0.5"
+                    width="99"
+                    height="99"
+                    pathLength="100"
+                    fill="none"
+                    stroke="url(#shine-specular)"
+                    strokeWidth="1.1"
+                    strokeDasharray="4.8 95.2"
+                    strokeLinecap="round"
+                    filter="url(#glow-specular)"
+                    className="animate-stroke-dash"
+                  />
+                </svg>
+              </div>
             </div>
 
             <motion.div
