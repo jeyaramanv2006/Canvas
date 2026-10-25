@@ -23,17 +23,82 @@ export default function DynamicDotGridBackground() {
     let width = 0;
     let height = 0;
     let isMobile = false;
+    let lastFrameTime = 0;
+
+    // Check system preference for reduced motion (e.g., battery saver mode)
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Offscreen canvas to cache the static atmospheric gradient passes
+    // Eliminates 4x createRadialGradient allocations and 5x full-viewport overdraws every frame!
+    const bgCanvas = document.createElement('canvas');
+    const bgCtx = bgCanvas.getContext('2d', { alpha: false });
+
+    const updateBackgroundCache = () => {
+      bgCanvas.width = width;
+      bgCanvas.height = height;
+
+      if (!bgCtx) return;
+
+      // 1. Deep Obsidian Base
+      bgCtx.fillStyle = '#08090d';
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 2. Violet / Purple ambient bleed (upper left)
+      const gradPurple = bgCtx.createRadialGradient(
+        width * 0.15, height * 0.12, 20,
+        width * 0.15, height * 0.12, Math.max(width, height) * 0.65
+      );
+      gradPurple.addColorStop(0, 'rgba(124, 58, 237, 0.13)');
+      gradPurple.addColorStop(0.5, 'rgba(109, 40, 217, 0.04)');
+      gradPurple.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      bgCtx.fillStyle = gradPurple;
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 3. Cyan / Teal ambient bleed (bottom right)
+      const gradCyan = bgCtx.createRadialGradient(
+        width * 0.85, height * 0.85, 30,
+        width * 0.85, height * 0.85, Math.max(width, height) * 0.60
+      );
+      gradCyan.addColorStop(0, 'rgba(6, 182, 212, 0.09)');
+      gradCyan.addColorStop(0.5, 'rgba(14, 116, 144, 0.025)');
+      gradCyan.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      bgCtx.fillStyle = gradCyan;
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 4. Subtle warm amber / gold core bleed (center)
+      const gradAmber = bgCtx.createRadialGradient(
+        width * 0.50, height * 0.50, 40,
+        width * 0.50, height * 0.50, Math.min(width, height) * 0.70
+      );
+      gradAmber.addColorStop(0, 'rgba(245, 158, 11, 0.04)');
+      gradAmber.addColorStop(0.6, 'rgba(99, 102, 241, 0.025)');
+      gradAmber.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      bgCtx.fillStyle = gradAmber;
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 5. Edge Vignette (Soft Perimeter Depth)
+      const vignette = bgCtx.createRadialGradient(
+        width * 0.5, height * 0.5, Math.min(width, height) * 0.45,
+        width * 0.5, height * 0.5, Math.max(width, height) * 0.80
+      );
+      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vignette.addColorStop(0.70, 'rgba(4, 5, 8, 0.20)');
+      vignette.addColorStop(1, 'rgba(3, 4, 6, 0.60)');
+      bgCtx.fillStyle = vignette;
+      bgCtx.fillRect(0, 0, width, height);
+    };
 
     const handleResize = () => {
       isMobile = window.innerWidth < 768;
       width = window.innerWidth;
       height = window.innerHeight;
 
-      // 1x DPR with hardware subpixel anti-aliasing for buttery-smooth 60fps
       canvas.width = width;
       canvas.height = height;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+
+      updateBackgroundCache();
     };
 
     handleResize();
@@ -46,6 +111,7 @@ export default function DynamicDotGridBackground() {
       isTabVisible = !document.hidden;
       if (isTabVisible) {
         startTime = performance.now();
+        lastFrameTime = performance.now();
         animationFrameId = requestAnimationFrame(render);
       }
     };
@@ -54,51 +120,29 @@ export default function DynamicDotGridBackground() {
     const render = (now) => {
       if (!isTabVisible) return;
 
+      // On mobile devices, clamp frame rate to ~30-35 FPS to save battery and GPU cycles.
+      // 30ms delta provides fluid ambient wave perception with zero mobile throttling heat.
+      if (isMobile) {
+        const delta = now - lastFrameTime;
+        if (delta < 28) {
+          animationFrameId = requestAnimationFrame(render);
+          return;
+        }
+      }
+      lastFrameTime = now;
+
       const elapsed = (now - startTime) * 0.001;
 
-      // ── 1. Base Atmosphere: Deep Obsidian with Rich Color Mixing ──
-      ctx.fillStyle = '#08090d';
-      ctx.fillRect(0, 0, width, height);
-
-      // Violet / Purple ambient bleed (upper left)
-      const gradPurple = ctx.createRadialGradient(
-        width * 0.15, height * 0.12, 20,
-        width * 0.15, height * 0.12, Math.max(width, height) * 0.65
-      );
-      gradPurple.addColorStop(0, 'rgba(124, 58, 237, 0.13)');
-      gradPurple.addColorStop(0.5, 'rgba(109, 40, 217, 0.04)');
-      gradPurple.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradPurple;
-      ctx.fillRect(0, 0, width, height);
-
-      // Cyan / Teal ambient bleed (bottom right)
-      const gradCyan = ctx.createRadialGradient(
-        width * 0.85, height * 0.85, 30,
-        width * 0.85, height * 0.85, Math.max(width, height) * 0.60
-      );
-      gradCyan.addColorStop(0, 'rgba(6, 182, 212, 0.09)');
-      gradCyan.addColorStop(0.5, 'rgba(14, 116, 144, 0.025)');
-      gradCyan.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradCyan;
-      ctx.fillRect(0, 0, width, height);
-
-      // Subtle warm amber / gold core bleed (center)
-      const gradAmber = ctx.createRadialGradient(
-        width * 0.50, height * 0.50, 40,
-        width * 0.50, height * 0.50, Math.min(width, height) * 0.70
-      );
-      gradAmber.addColorStop(0, 'rgba(245, 158, 11, 0.04)');
-      gradAmber.addColorStop(0.6, 'rgba(99, 102, 241, 0.025)');
-      gradAmber.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradAmber;
-      ctx.fillRect(0, 0, width, height);
+      // ── 1. Blit Pre-Rendered Static Atmospheric Canvas (Single Fast Memory Transfer) ──
+      ctx.drawImage(bgCanvas, 0, 0);
 
       // ── 2. Dynamic Undulating Sheet Wave ──
-      const spacing = isMobile ? 38 : 32;
+      // Optimized grid density: 44px on mobile (~140-160 dots total vs 320+), 32px on desktop
+      const spacing = isMobile ? 44 : 32;
       const cols = Math.ceil(width / spacing) + 1;
       const rows = Math.ceil(height / spacing) + 1;
-      const dotRadius = isMobile ? 1.0 : 1.15;
-      const waveAmp = isMobile ? 6.5 : 8.5;
+      const dotRadius = isMobile ? 0.95 : 1.15;
+      const waveAmp = isMobile ? 5.5 : 8.5;
 
       const dotsPath = new Path2D();
 
@@ -110,11 +154,19 @@ export default function DynamicDotGridBackground() {
         for (let r = 0; r < rows; r++) {
           const baseY = r * spacing;
 
-          // Dynamic undulating sheet wave with primary & secondary undulating harmonics
-          const waveX = Math.sin(elapsed * 0.85 + phaseC1 + r * 0.14) * waveAmp +
-                        Math.cos(elapsed * 0.45 + phaseC2 - r * 0.18) * (waveAmp * 0.32);
-          const waveY = Math.cos(elapsed * 0.75 + phaseC2 + r * 0.22) * waveAmp +
-                        Math.sin(elapsed * 0.40 - phaseC1 + r * 0.12) * (waveAmp * 0.32);
+          let waveX, waveY;
+
+          if (isMobile) {
+            // Highly optimized single harmonic on mobile (cuts trig operations in half)
+            waveX = Math.sin(elapsed * 0.85 + phaseC1 + r * 0.14) * waveAmp;
+            waveY = Math.cos(elapsed * 0.75 + phaseC2 + r * 0.22) * waveAmp;
+          } else {
+            // Full multi-harmonic flow on desktop
+            waveX = Math.sin(elapsed * 0.85 + phaseC1 + r * 0.14) * waveAmp +
+                    Math.cos(elapsed * 0.45 + phaseC2 - r * 0.18) * (waveAmp * 0.32);
+            waveY = Math.cos(elapsed * 0.75 + phaseC2 + r * 0.22) * waveAmp +
+                    Math.sin(elapsed * 0.40 - phaseC1 + r * 0.12) * (waveAmp * 0.32);
+          }
 
           const px = baseX + waveX;
           const py = baseY + waveY;
@@ -124,22 +176,14 @@ export default function DynamicDotGridBackground() {
         }
       }
 
-      // ── 3. Render All Dots at Uniform, Consistent Clean Opacity ──
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      // ── 3. Render All Dots at Clean Uniform Opacity ──
+      ctx.fillStyle = isMobile ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.18)';
       ctx.fill(dotsPath);
 
-      // ── 4. Edge Vignette (Soft Perimeter Depth) ──
-      const vignette = ctx.createRadialGradient(
-        width * 0.5, height * 0.5, Math.min(width, height) * 0.45,
-        width * 0.5, height * 0.5, Math.max(width, height) * 0.80
-      );
-      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      vignette.addColorStop(0.70, 'rgba(4, 5, 8, 0.20)');
-      vignette.addColorStop(1, 'rgba(3, 4, 6, 0.60)');
-      ctx.fillStyle = vignette;
-      ctx.fillRect(0, 0, width, height);
-
-      animationFrameId = requestAnimationFrame(render);
+      // If user has reduced motion preference, render one beautiful static frame and sleep
+      if (!prefersReducedMotion) {
+        animationFrameId = requestAnimationFrame(render);
+      }
     };
 
     animationFrameId = requestAnimationFrame(render);
@@ -148,6 +192,8 @@ export default function DynamicDotGridBackground() {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      bgCanvas.width = 0;
+      bgCanvas.height = 0;
     };
   }, []);
 
