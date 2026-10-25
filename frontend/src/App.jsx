@@ -7,6 +7,8 @@ import CEODashboard from './pages/CEODashboard';
 import CFODashboard from './pages/CFODashboard';
 import CCODashboard from './pages/CCODashboard';
 import ForcePasswordResetModal from './components/ForcePasswordResetModal';
+import TopographicBackground from './components/TopographicBackground';
+import DynamicDotGridBackground from './components/DynamicDotGridBackground';
 import { getHomeRoute } from './lib/rbac';
 import { getToken, setToken } from './api/client';
 import { mockApi } from './mockApi';
@@ -69,7 +71,8 @@ function App() {
   return (
     <AuthContext.Provider value={{ user, setUser }}>
       <Router>
-        <div className="min-h-screen bg-murugan-dark text-white font-sans selection:bg-murugan-accent selection:text-black">
+        <div className="min-h-screen bg-transparent text-white font-sans selection:bg-amber-400 selection:text-black relative isolate">
+          {!user ? <TopographicBackground /> : <DynamicDotGridBackground />}
           <ForcePasswordResetModal />
           <Routes>
             {/* Root — redirect based on role */}

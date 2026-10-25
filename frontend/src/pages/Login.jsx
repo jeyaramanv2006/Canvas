@@ -26,13 +26,11 @@ export default function Login() {
   };
 
   return (
-    <main className="relative isolate min-h-[100dvh] overflow-x-hidden bg-[#090a0e] text-white selection:bg-lime-300 selection:text-black">
-      {/* Login-only ambient field; the global app shell is intentionally untouched. */}
+    <main className="relative isolate min-h-[100dvh] overflow-x-hidden bg-transparent text-white selection:bg-amber-400 selection:text-black">
+      {/* Login-only ambient lighting glow that blends with the topographic background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_16%_18%,rgba(98,72,255,0.16),transparent_42%),radial-gradient(ellipse_at_88%_82%,rgba(0,180,155,0.10),transparent_38%),linear-gradient(145deg,#0b0c12_0%,#090a0e_55%,#0b0c11_100%)]" />
-        <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle,rgba(147,119,255,0.72)_1px,transparent_1.45px),radial-gradient(circle,rgba(70,218,199,0.58)_0.8px,transparent_1.35px)] [background-position:0_0,11px_13px] [background-size:24px_24px,31px_31px] [mask-image:radial-gradient(ellipse_at_center,black_12%,transparent_82%)] sm:opacity-45 sm:[background-size:26px_26px,34px_34px]" />
-        <div className="absolute -left-40 top-24 h-80 w-80 rounded-full bg-violet-500/10 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
-        <div className="absolute -right-40 bottom-0 h-80 w-80 rounded-full bg-emerald-400/[0.07] blur-[110px] sm:h-[34rem] sm:w-[34rem]" />
+        <div className="absolute -left-40 top-24 h-80 w-80 rounded-full bg-emerald-500/10 blur-[100px] sm:h-[30rem] sm:w-[30rem]" />
+        <div className="absolute -right-40 bottom-0 h-80 w-80 rounded-full bg-amber-400/[0.08] blur-[110px] sm:h-[34rem] sm:w-[34rem]" />
       </div>
 
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1440px] items-center px-4 py-5 sm:px-8 sm:py-10 lg:px-12">
