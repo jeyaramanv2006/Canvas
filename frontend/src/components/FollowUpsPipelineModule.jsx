@@ -10,7 +10,8 @@ import {
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import ProductBadge from './ProductBadge';
-import SchoolPortfolioModal from './SchoolPortfolioModal';
+import AestheticSelect from './AestheticSelect';
+import AestheticDatePicker from './AestheticDatePicker';
 
 export default function FollowUpsPipelineModule({ currentUser, canvasserScoped = false }) {
   const isCanvasser = canvasserScoped || ['canvasser', 'cvs'].includes((currentUser?.role || '').toLowerCase());
@@ -20,10 +21,6 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
   const [selectedBucket, setSelectedBucket] = useState('tomorrow'); // 'tomorrow', 'today', 'overdue', 'upcoming_week', 'all'
   const [selectedCanvasser, setSelectedCanvasser] = useState('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
-
-  // School Portfolio Modal
-  const [portfolioSchool, setPortfolioSchool] = useState(null);
-  const [inspectVisit, setInspectVisit] = useState(null);
 
   // Reschedule / Clear Follow-up Modal State
   const [rescheduleVisit, setRescheduleVisit] = useState(null);
@@ -128,7 +125,11 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
 
     followUpVisits.forEach(v => {
       const fDate = v.follow_up_date.slice(0, 10);
-      counts.all++;
+      
+      // All open only counts upcoming and current follow-ups (not overdue)
+      if (fDate >= today) {
+        counts.all++;
+      }
 
       if (fDate === tomorrow) {
         counts.tomorrow++;
@@ -155,6 +156,17 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
     return list.sort();
   }, [followUpVisits]);
 
+  // Options for AestheticSelect dropdowns
+  const canvasserOptions = useMemo(() => [
+    { id: 'all', label: `All Canvassers (${availableCanvassers.length})` },
+    ...availableCanvassers.map(name => ({ id: name, label: name }))
+  ], [availableCanvassers]);
+
+  const districtOptions = useMemo(() => [
+    { id: 'all', label: `All Districts (${availableDistricts.length})` },
+    ...availableDistricts.map(dist => ({ id: dist, label: dist }))
+  ], [availableDistricts]);
+
   // Filtered & Chronologically Sorted Visits
   const displayedFollowUps = useMemo(() => {
     const { today, tomorrow, in7Days } = dateStrings;
@@ -163,7 +175,8 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
     const filtered = followUpVisits.filter(v => {
       const fDate = v.follow_up_date.slice(0, 10);
 
-      // Bucket filter
+      // Bucket filter: 'all' shows open follow-ups not yet expired; 'overdue' shows past dates only
+      if (selectedBucket === 'all' && fDate < today) return false;
       if (selectedBucket === 'tomorrow' && fDate !== tomorrow) return false;
       if (selectedBucket === 'today' && fDate !== today) return false;
       if (selectedBucket === 'overdue' && fDate >= today) return false;
@@ -239,31 +252,35 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#171822] via-[#14151c] to-[#121319] p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="bg-gradient-to-r from-[#161420]/90 via-[#0e1017]/90 to-[#0c0d15]/90 p-5 sm:p-6 rounded-3xl border border-white/[0.08] shadow-2xl relative overflow-hidden backdrop-blur-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Luminous Top Catch */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+        <div className="absolute right-0 top-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 tracking-wider">
-              Field Coordination Center
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400/10 text-amber-300 border border-amber-400/25 tracking-wider">
+              Priority Queue
             </span>
-            <span className="text-xs text-gray-400">Chronological Priority Queue</span>
+            <span className="text-[11px] text-white/40 font-mono">Live Timeline</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-            <CalendarCheck className="w-6 h-6 text-amber-400" />
-            Executive Priority Follow-ups
+          <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
+            <CalendarCheck className="w-5 h-5 text-amber-400" />
+            Scheduled Follow-ups
           </h2>
-          <p className="text-xs text-gray-400 mt-1 max-w-2xl">
-            Proactively monitor upcoming client commitments and tomorrow's pipeline meetings without having to search through historical visit records.
+          <p className="text-xs text-white/50 mt-0.5 max-w-xl">
+            Upcoming client commitments and scheduled visits.
           </p>
         </div>
 
         <button
           onClick={loadVisits}
-          className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+          className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white/80 hover:text-white border border-white/[0.1] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer backdrop-blur-md relative z-10"
         >
           <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin text-amber-400")} />
-          <span>Refresh Pipeline</span>
+          <span>Refresh</span>
         </button>
       </div>
 
@@ -274,23 +291,23 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
           type="button"
           onClick={() => setSelectedBucket('tomorrow')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer",
+            "p-4 rounded-3xl border text-left transition-all duration-200 relative overflow-hidden cursor-pointer backdrop-blur-xl group",
             selectedBucket === 'tomorrow'
-              ? "bg-amber-500/15 border-amber-400 shadow-xl shadow-amber-400/10 ring-1 ring-amber-400/50"
-              : "bg-[#161721] border-white/10 hover:border-amber-400/40"
+              ? "bg-amber-500/15 border-amber-400 shadow-xl shadow-amber-400/15 ring-1 ring-amber-400/50 scale-[1.01]"
+              : "bg-[#0c0d15]/85 border-white/[0.08] hover:border-amber-400/40 hover:bg-[#121420]/85"
           )}
         >
-          <div className="flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center justify-between text-xs text-white/50">
             <span className="font-bold flex items-center gap-1.5 text-amber-400">
-              <Clock className="w-4 h-4 text-amber-400" />
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
               Due Tomorrow
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-300">
+            <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/25">
               Next Day
             </span>
           </div>
-          <p className="text-3xl font-black text-white font-mono mt-2">{bucketCounts.tomorrow}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Visits scheduled for next day action</p>
+          <p className="text-3xl font-black text-white font-mono mt-2 group-hover:text-amber-300 transition-colors">{bucketCounts.tomorrow}</p>
+          <p className="text-[11px] text-white/40 mt-0.5 font-medium">Tomorrow's commitments</p>
         </button>
 
         {/* Due Today */}
@@ -298,23 +315,23 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
           type="button"
           onClick={() => setSelectedBucket('today')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+            "p-4 rounded-3xl border text-left transition-all duration-200 cursor-pointer backdrop-blur-xl group",
             selectedBucket === 'today'
-              ? "bg-rose-500/15 border-rose-500 shadow-xl shadow-rose-500/10 ring-1 ring-rose-500/50"
-              : "bg-[#161721] border-white/10 hover:border-rose-400/40"
+              ? "bg-rose-500/15 border-rose-500 shadow-xl shadow-rose-500/15 ring-1 ring-rose-500/50 scale-[1.01]"
+              : "bg-[#0c0d15]/85 border-white/[0.08] hover:border-rose-400/40 hover:bg-[#121420]/85"
           )}
         >
-          <div className="flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center justify-between text-xs text-white/50">
             <span className="font-bold flex items-center gap-1.5 text-rose-400">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
               Due Today
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-rose-400/10 text-rose-300">
-              Immediate
+            <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-rose-400/15 text-rose-300 border border-rose-400/25">
+              Urgent
             </span>
           </div>
-          <p className="text-3xl font-black text-white font-mono mt-2">{bucketCounts.today}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Commitments due before end of day</p>
+          <p className="text-3xl font-black text-white font-mono mt-2 group-hover:text-rose-300 transition-colors">{bucketCounts.today}</p>
+          <p className="text-[11px] text-white/40 mt-0.5 font-medium">Due before day-end</p>
         </button>
 
         {/* Overdue */}
@@ -322,23 +339,23 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
           type="button"
           onClick={() => setSelectedBucket('overdue')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+            "p-4 rounded-3xl border text-left transition-all duration-200 cursor-pointer backdrop-blur-xl group",
             selectedBucket === 'overdue'
-              ? "bg-rose-500/15 border-rose-500 shadow-xl shadow-rose-500/10 ring-1 ring-rose-500/50"
-              : "bg-[#161721] border-white/10 hover:border-rose-400/40"
+              ? "bg-red-500/15 border-red-500 shadow-xl shadow-red-500/15 ring-1 ring-red-500/50 scale-[1.01]"
+              : "bg-[#0c0d15]/85 border-white/[0.08] hover:border-red-400/40 hover:bg-[#121420]/85"
           )}
         >
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span className="font-bold flex items-center gap-1.5 text-rose-300">
-              <AlertCircle className="w-4 h-4 text-rose-400" />
-              Overdue Follow-ups
+          <div className="flex items-center justify-between text-xs text-white/50">
+            <span className="font-bold flex items-center gap-1.5 text-red-300">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+              Overdue
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-rose-400/10 text-rose-300">
-              Escalation
+            <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-red-400/15 text-red-300 border border-red-400/25">
+              Pending
             </span>
           </div>
-          <p className="text-3xl font-black text-rose-300 font-mono mt-2">{bucketCounts.overdue}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Missed follow-up deadlines</p>
+          <p className="text-3xl font-black text-red-400 font-mono mt-2">{bucketCounts.overdue}</p>
+          <p className="text-[11px] text-white/40 mt-0.5 font-medium">Past target deadline</p>
         </button>
 
         {/* All Scheduled Follow-ups */}
@@ -346,70 +363,66 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
           type="button"
           onClick={() => setSelectedBucket('all')}
           className={cn(
-            "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+            "p-4 rounded-3xl border text-left transition-all duration-200 cursor-pointer backdrop-blur-xl group",
             selectedBucket === 'all'
-              ? "bg-purple-500/15 border-purple-500 shadow-xl shadow-purple-500/10 ring-1 ring-purple-500/50"
-              : "bg-[#161721] border-white/10 hover:border-purple-400/40"
+              ? "bg-purple-500/15 border-purple-500 shadow-xl shadow-purple-500/15 ring-1 ring-purple-500/50 scale-[1.01]"
+              : "bg-[#0c0d15]/85 border-white/[0.08] hover:border-purple-400/40 hover:bg-[#121420]/85"
           )}
         >
-          <div className="flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center justify-between text-xs text-white/50">
             <span className="font-bold flex items-center gap-1.5 text-purple-400">
-              <Calendar className="w-4 h-4 text-purple-400" />
-              All Open Follow-ups
+              <Calendar className="w-3.5 h-3.5 text-purple-400" />
+              All Open
             </span>
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-purple-400/10 text-purple-300">
-              Entire Pipeline
+            <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-purple-400/15 text-purple-300 border border-purple-400/25">
+              Total
             </span>
           </div>
-          <p className="text-3xl font-black text-white font-mono mt-2">{bucketCounts.all}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Total scheduled follow-ups logged</p>
+          <p className="text-3xl font-black text-white font-mono mt-2 group-hover:text-purple-300 transition-colors">{bucketCounts.all}</p>
+          <p className="text-[11px] text-white/40 mt-0.5 font-medium">All active follow-ups</p>
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-[#161721] p-3 rounded-2xl border border-white/10">
+      {/* Filter and Search Bar with AestheticSelect */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-[#0c0d15]/85 p-3 rounded-2xl border border-white/[0.08] shadow-xl backdrop-blur-xl items-center relative z-30 overflow-visible">
         <div className={cn("relative", isCanvasser ? "sm:col-span-8" : "sm:col-span-6")}>
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder={isCanvasser ? "Search school name, contact person, phone..." : "Search school name, canvasser, phone, or notes..."}
+            placeholder={isCanvasser ? "Search school, contact, or phone..." : "Search school, canvasser, phone..."}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-[#121319] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400"
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-amber-400/60 focus:bg-white/[0.06] transition-all"
           />
         </div>
 
         {!isCanvasser && (
           <div className="sm:col-span-3">
-            <select
+            <AestheticSelect
               value={selectedCanvasser}
-              onChange={e => setSelectedCanvasser(e.target.value)}
-              className="w-full bg-[#121319] border border-white/10 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
-            >
-              <option value="all">All Canvassers ({availableCanvassers.length})</option>
-              {availableCanvassers.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+              onChange={setSelectedCanvasser}
+              options={canvasserOptions}
+              searchable
+              size="md"
+              dropdownClassName="z-[1000] left-0 sm:left-auto sm:right-0 min-w-[210px]"
+            />
           </div>
         )}
 
         <div className={cn(isCanvasser ? "sm:col-span-4" : "sm:col-span-3")}>
-          <select
+          <AestheticSelect
             value={selectedDistrict}
-            onChange={e => setSelectedDistrict(e.target.value)}
-            className="w-full bg-[#121319] border border-white/10 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-amber-400 cursor-pointer"
-          >
-            <option value="all">All Districts ({availableDistricts.length})</option>
-            {availableDistricts.map(dist => (
-              <option key={dist} value={dist}>{dist}</option>
-            ))}
-          </select>
+            onChange={setSelectedDistrict}
+            options={districtOptions}
+            searchable
+            size="md"
+            dropdownClassName="z-[1000] right-0 min-w-[210px]"
+          />
         </div>
       </div>
 
       {actionSuccessMsg && (
-        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
+        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-2 backdrop-blur-xl shadow-lg">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{actionSuccessMsg}</span>
         </div>
@@ -443,255 +456,201 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
           </div>
         ) : (
           displayedFollowUps.map(visit => {
-            return (
-              <div
-                key={visit.id}
-                className="p-5 rounded-3xl bg-gradient-to-br from-[#181924] via-[#14151d] to-[#101117] border border-white/10 hover:border-amber-400/30 transition-all shadow-lg space-y-3"
-              >
-                {/* Header Row: School Name & Urgency Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setPortfolioSchool({ id: visit.master_school_id || visit.id, school_name: visit.school_name })}
-                        className="text-base sm:text-lg font-black text-white hover:text-amber-400 transition text-left flex items-center gap-2 group cursor-pointer"
-                        title="Click to view full school portfolio"
-                      >
-                        <span className="group-hover:underline">{visit.school_name}</span>
-                        <Briefcase className="w-4 h-4 text-emerald-400 opacity-70 group-hover:opacity-100 shrink-0" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                      <span className="flex items-center gap-1 text-gray-300">
-                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                        {visit.district} {visit.cluster_or_block ? `• ${visit.cluster_or_block}` : ''}
-                      </span>
-                      <span className="flex items-center gap-1 text-amber-300 font-medium">
-                        <User className="w-3.5 h-3.5 text-amber-400" />
-                        Canvasser: <strong className="text-white">{visit.canvasser_name}</strong>
-                      </span>
-                    </div>
+          return (
+            <div
+              key={visit.id}
+              className="p-5 sm:p-6 rounded-3xl bg-[#0c0d15]/85 border border-white/[0.08] hover:border-amber-400/35 transition-all duration-200 shadow-xl backdrop-blur-2xl space-y-4 hover:shadow-2xl"
+            >
+              {/* Header Row: School Name & Urgency Badge */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base sm:text-lg font-black text-white text-left tracking-tight">
+                      {visit.school_name}
+                    </h3>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {getStatusBadge(visit)}
-
-                    {/* Interest Level Pill */}
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wide border",
-                      visit.interest_level === 'Hot' ? "bg-rose-500/20 text-rose-300 border-rose-500/30" :
-                      visit.interest_level === 'Warm' ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
-                      "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                    )}>
-                      {visit.interest_level === 'Hot' && <Flame className="w-3 h-3 inline mr-1 text-rose-400" />}
-                      {visit.interest_level}
+                  <div className="flex items-center gap-3 text-xs text-white/50 flex-wrap">
+                    <span className="flex items-center gap-1.5 text-white/70">
+                      <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                      {visit.district} {visit.cluster_or_block ? `• ${visit.cluster_or_block}` : ''}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-amber-300/90 font-medium">
+                      <User className="w-3.5 h-3.5 text-amber-400" />
+                      Canvasser: <strong className="text-white font-bold">{visit.canvasser_name}</strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Contact & Status Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-black/30 p-3 rounded-2xl border border-white/5 text-xs text-gray-300">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Decision Maker / Contact</span>
-                    <p className="font-semibold text-white">{visit.contact_person || 'School Management'}</p>
-                    {visit.phone && (
-                      <a
-                        href={`tel:${visit.phone}`}
-                        className="text-amber-400 font-mono flex items-center gap-1 hover:underline text-[11px]"
-                      >
-                        <Phone className="w-3 h-3" /> {visit.phone}
-                      </a>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {getStatusBadge(visit)}
 
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Funnel Outcome</span>
-                    <p className="font-semibold text-emerald-300">{visit.outcome_status || 'Open'}</p>
-                    <p className="text-[10px] text-gray-400">
-                      Logged: {new Date(visit.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Follow-up Target Date</span>
-                    <p className="font-mono font-bold text-amber-300 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                      {visit.follow_up_date}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Product Interests */}
-                {Array.isArray(visit.product_interests) && visit.product_interests.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-semibold text-gray-400">Products Discussed:</span>
-                    {visit.product_interests.map(p => (
-                      <ProductBadge key={p} product={p} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Meeting Notes */}
-                {visit.notes && (
-                  <p className="text-xs text-gray-300 bg-white/5 p-2.5 rounded-xl border border-white/5 italic">
-                    "{visit.notes}"
-                  </p>
-                )}
-
-                {/* Action Buttons */}
-                <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[10px] font-mono text-gray-500">
-                    Visit Ref #{visit.id}
+                  {/* Interest Level Pill */}
+                  <span className={cn(
+                    "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide border",
+                    visit.interest_level === 'Hot' ? "bg-rose-500/20 text-rose-300 border-rose-500/30 shadow-sm" :
+                    visit.interest_level === 'Warm' ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
+                    "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                  )}>
+                    {visit.interest_level === 'Hot' && <Flame className="w-3 h-3 inline mr-1 text-rose-400" />}
+                    {visit.interest_level}
                   </span>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {visit.phone && (
-                      <a
-                        href={`tel:${visit.phone}`}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Phone className="w-3 h-3 text-emerald-400" />
-                        <span>Call</span>
-                      </a>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRescheduleVisit(visit);
-                        setNewFollowUpDate(visit.follow_up_date || '');
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                      title="Reschedule follow-up or mark as done"
-                    >
-                      <Calendar className="w-3 h-3 text-blue-400" />
-                      <span>Reschedule / Done</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioSchool({ id: visit.master_school_id || visit.id, school_name: visit.school_name })}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Briefcase className="w-3 h-3 text-amber-400" />
-                      <span>School Portfolio</span>
-                    </button>
-                  </div>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+
+              {/* Contact & Status Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-black/40 p-3 rounded-2xl border border-white/[0.06] text-xs text-white/70">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider block">Contact</span>
+                  <p className="font-semibold text-white truncate">{visit.contact_person || 'School Management'}</p>
+                  {visit.phone && (
+                    <a
+                      href={`tel:${visit.phone}`}
+                      className="text-amber-400 font-mono flex items-center gap-1 hover:underline text-[11px] mt-0.5"
+                    >
+                      <Phone className="w-3 h-3" /> {visit.phone}
+                    </a>
+                  )}
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider block">Stage</span>
+                  <p className="font-semibold text-emerald-300">{visit.outcome_status || 'Open'}</p>
+                  <p className="text-[10px] text-white/40 mt-0.5 font-mono">
+                    Logged: {new Date(visit.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider block">Due Date</span>
+                  <p className="font-mono font-bold text-amber-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                    {visit.follow_up_date}
+                  </p>
+                </div>
+              </div>
+
+              {/* Product Interests */}
+              {Array.isArray(visit.product_interests) && visit.product_interests.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold text-white/40">Interests:</span>
+                  {visit.product_interests.map(p => (
+                    <ProductBadge key={p} product={p} />
+                  ))}
+                </div>
+              )}
+
+              {/* Meeting Notes */}
+              {visit.notes && (
+                <p className="text-xs text-white/70 bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.06] italic leading-relaxed">
+                  "{visit.notes}"
+                </p>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-2.5">
+                <span className="text-[10px] font-mono text-white/30">
+                  Ref #{visit.id}
+                </span>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {visit.phone && (
+                    <a
+                      href={`tel:${visit.phone}`}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Call</span>
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRescheduleVisit(visit);
+                      setNewFollowUpDate(visit.follow_up_date || '');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-[1.02]"
+                    title="Reschedule follow-up or mark as done"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Reschedule</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
 
       {/* Viewport-Centered Reschedule / Done Popup Modal via Portal */}
       {rescheduleVisit && createPortal(
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
           onClick={() => setRescheduleVisit(null)}
         >
           <div
-            className="bg-[#141520] border border-white/15 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95 my-auto"
+            className="bg-[#0c0d15]/95 border border-white/[0.12] rounded-3xl p-6 sm:p-7 max-w-lg w-full space-y-4 shadow-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 my-auto relative overflow-visible"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            {/* Luminous Top Catch */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  <Calendar className="w-5 h-5" />
+                <span className="p-2 rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                  <Calendar className="w-4 h-4" />
                 </span>
                 <div>
-                  <h3 className="text-base font-black text-white">Reschedule Follow-up</h3>
-                  <p className="text-xs text-gray-400 font-medium">{rescheduleVisit.school_name}</p>
+                  <h3 className="text-sm font-black text-white tracking-tight">Reschedule Follow-up</h3>
+                  <p className="text-[11px] text-white/50 font-medium truncate max-w-[280px]">{rescheduleVisit.school_name}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setRescheduleVisit(null)}
-                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 text-sm cursor-pointer"
+                className="text-white/40 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-black/30 border border-white/5 rounded-2xl p-3.5 text-xs text-gray-300 flex items-center justify-between">
-              <span className="text-gray-400">Current Scheduled Date:</span>
-              <span className="font-mono font-bold text-amber-400">{rescheduleVisit.follow_up_date || 'No Date Assigned'}</span>
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2 text-xs text-white/70 flex items-center justify-between">
+              <span className="text-white/40 font-medium">Current Date:</span>
+              <span className="font-mono font-bold text-amber-400">
+                {rescheduleVisit.follow_up_date || 'No Date Assigned'}
+              </span>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-gray-200 block mb-1.5">
-                  Pick New Target Follow-up Date
-                </label>
-                <input
-                  type="date"
-                  value={newFollowUpDate}
-                  onChange={e => setNewFollowUpDate(e.target.value)}
-                  className="w-full bg-[#0d0e14] border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-300 block mb-1.5">
-                  Quick One-Click Presets
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() + 1);
-                      setNewFollowUpDate(d.toISOString().slice(0, 10));
-                    }}
-                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
-                  >
-                    Tomorrow (+1d)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() + 3);
-                      setNewFollowUpDate(d.toISOString().slice(0, 10));
-                    }}
-                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
-                  >
-                    In 3 Days
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() + 7);
-                      setNewFollowUpDate(d.toISOString().slice(0, 10));
-                    }}
-                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-200 border border-white/10 cursor-pointer text-center transition-colors"
-                  >
-                    In 1 Week (+7d)
-                  </button>
-                </div>
-              </div>
+            {/* Custom Aesthetic Date Picker */}
+            <div className="space-y-1">
+              <AestheticDatePicker
+                value={newFollowUpDate}
+                onChange={setNewFollowUpDate}
+                label="New Target Date"
+                placeholder="Choose calendar date..."
+                allowClear={true}
+              />
             </div>
 
-            <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="pt-3 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-2.5">
               <button
                 type="button"
                 disabled={isUpdatingFollowUp}
                 onClick={() => handleUpdateFollowUp(rescheduleVisit.id, null)}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Mark follow-up as complete and remove from priority section"
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Mark follow-up as complete"
               >
-                <CheckCircle2 className="w-4 h-4 text-rose-400" />
-                <span>Mark Done / Clear (None)</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>Mark Done</span>
               </button>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
                   onClick={() => setRescheduleVisit(null)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold transition cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/70 hover:text-white text-xs font-bold transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -700,26 +659,16 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
                   type="button"
                   disabled={isUpdatingFollowUp || !newFollowUpDate}
                   onClick={() => handleUpdateFollowUp(rescheduleVisit.id, newFollowUpDate)}
-                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black shadow-lg shadow-amber-400/20 transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black text-xs font-black shadow-md shadow-amber-400/20 transition flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer"
                 >
-                  <Calendar className="w-4 h-4" />
-                  <span>{isUpdatingFollowUp ? 'Saving...' : 'Save New Date'}</span>
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>{isUpdatingFollowUp ? 'Saving...' : 'Save Date'}</span>
                 </button>
               </div>
             </div>
           </div>
         </div>,
         document.body
-      )}
-
-      {/* School Portfolio Modal */}
-      {portfolioSchool && (
-        <SchoolPortfolioModal
-          isOpen={!!portfolioSchool}
-          onClose={() => setPortfolioSchool(null)}
-          schoolId={portfolioSchool.id}
-          schoolName={portfolioSchool.school_name}
-        />
       )}
     </div>
   );

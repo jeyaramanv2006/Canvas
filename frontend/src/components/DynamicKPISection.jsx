@@ -69,25 +69,28 @@ export default function DynamicKPISection({ currentUser, refreshTrigger }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
-        <div>
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-murugan-accent animate-pulse" />
-            {isUserAdmin ? 'Executive Performance' : 'Field Sales Performance'}
+        <div className="flex items-center gap-2.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-pulse" />
+          <h2 className="text-sm sm:text-base font-black text-white tracking-tight">
+            {isUserAdmin ? 'Executive Performance Telemetry' : 'Field Sales Performance'}
           </h2>
-          <p className="text-xs text-gray-400">
-            {roleConfig.description}
-          </p>
+          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-white/60 border border-white/[0.08]">
+            Live KPI
+          </span>
         </div>
+        <p className="text-[11px] text-white/40 font-medium">
+          {roleConfig.description}
+        </p>
       </div>
 
       {/* Dynamic KPI Cards Grid */}
       {loading || !kpiData ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3, 4, 5, 6].map(n => (
-            <div key={n} className="bg-murugan-card/60 border border-white/5 p-4 rounded-2xl h-28 animate-pulse" />
+            <div key={n} className="bg-[#0c0d15]/80 border border-white/[0.06] p-4 rounded-3xl h-28 animate-pulse backdrop-blur-xl" />
           ))}
         </div>
       ) : (
@@ -103,34 +106,34 @@ export default function DynamicKPISection({ currentUser, refreshTrigger }) {
                 key={kpi.key}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.04 }}
+                transition={{ delay: idx * 0.04, duration: 0.3 }}
                 className={cn(
-                  "p-4 sm:p-5 rounded-2xl border bg-gradient-to-br transition-all duration-300 relative overflow-hidden group shadow-lg hover:shadow-2xl hover:scale-[1.01] flex flex-col justify-between",
-                  "bg-murugan-card/90 backdrop-blur-md border-white/10 hover:border-white/20"
+                  "p-4 sm:p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden group flex flex-col justify-between",
+                  "bg-[#0c0d15]/85 backdrop-blur-2xl border-white/[0.08] hover:border-amber-400/40 shadow-xl hover:shadow-2xl hover:scale-[1.01]"
                 )}
               >
-                {/* Subtle Ambient Glow */}
-                <div className="absolute -right-8 -top-8 w-24 h-24 bg-murugan-accent/5 rounded-full blur-2xl group-hover:bg-murugan-accent/10 transition-all pointer-events-none" />
+                {/* Luminous Ambient Glow */}
+                <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-400/5 group-hover:bg-amber-400/12 rounded-full blur-2xl transition-all duration-300 pointer-events-none" />
 
                 <div className="flex justify-between items-start mb-2 relative z-10">
                   <div className="pr-2">
-                    <span className="text-[11px] sm:text-xs font-semibold text-gray-300 block leading-snug">
+                    <span className="text-xs sm:text-[13px] font-bold text-white/70 group-hover:text-white transition-colors block leading-snug">
                       {kpi.label}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-medium mt-0.5 inline-block">
+                    <span className="text-[10px] text-white/40 font-mono font-medium mt-0.5 inline-block">
                       {kpi.trend}
                     </span>
                   </div>
                   <div className={cn(
-                    "p-2 sm:p-2.5 rounded-xl border bg-black/40 flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-6",
+                    "p-2.5 rounded-2xl border bg-black/40 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-inner",
                     colorClass
                   )}>
                     <IconComponent className="w-4 h-4" />
                   </div>
                 </div>
 
-                <div className="mt-2 relative z-10">
-                  <h3 className="text-base sm:text-2xl lg:text-3xl font-black font-mono tracking-tight text-white group-hover:text-murugan-accent transition-colors truncate whitespace-nowrap">
+                <div className="mt-3 relative z-10">
+                  <h3 className="text-lg sm:text-2xl lg:text-3xl font-black font-mono tracking-tight text-white group-hover:text-amber-300 transition-colors truncate whitespace-nowrap">
                     {displayVal}
                   </h3>
                 </div>

@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import EditHistoryModal from './EditHistoryModal';
 import CompanyProductSelector from './CompanyProductSelector';
+import AestheticDatePicker from './AestheticDatePicker';
 
 const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
@@ -419,15 +420,11 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                   </button>
                 )}
               </div>
-              <div className="relative">
-                <Calendar className="absolute left-3.5 top-3.5 w-5 h-5 text-white/40" />
-                <input
-                  type="date"
-                  value={formData.follow_up_date || ''}
-                  onChange={e => setFormData({ ...formData, follow_up_date: e.target.value })}
-                  className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-11 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 [color-scheme:dark] transition-all text-sm"
-                />
-              </div>
+              <AestheticDatePicker
+                value={formData.follow_up_date || ''}
+                onChange={val => setFormData({ ...formData, follow_up_date: val })}
+                placeholder="Select scheduled follow-up date..."
+              />
 
               <textarea
                 placeholder="Notes / Detailed school requirements / Sample feedback"

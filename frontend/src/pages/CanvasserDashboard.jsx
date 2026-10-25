@@ -22,6 +22,8 @@ import { COMPANY_DIVISIONS } from '../lib/companyProducts';
 import { getRoleConfig, isCanvasser } from '../lib/rbac';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
+import AestheticSelect from '../components/AestheticSelect';
+import AestheticDatePicker from '../components/AestheticDatePicker';
 
 const DEFAULT_PRODUCTS = ["Socks", "Belts", "Ties", "Shoes", "Uniforms", "Bags", "Track Pants"];
 const INTEREST_LEVELS = [
@@ -309,11 +311,12 @@ export default function CanvasserDashboard() {
                 />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-sm sm:text-base font-black tracking-wider text-white uppercase leading-none">
                     The One
                   </h1>
-                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30 whitespace-nowrap tracking-wide">
+                  <span className="text-white/20 hidden sm:inline">/</span>
+                  <span className="text-[11px] font-semibold text-amber-400/90 whitespace-nowrap tracking-wide">
                     {user?.roleTitle || 'Canvasser'}
                   </span>
                 </div>
@@ -321,7 +324,7 @@ export default function CanvasserDashboard() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                   <span className="truncate">{user?.name || 'Field Canvasser'}</span>
                   <span className="text-white/20">·</span>
-                  <span className="text-white/40 font-mono text-[10px]">Field Operations</span>
+                  <span className="text-white/40 text-[10px]">Field Operations</span>
                 </p>
               </div>
             </div>
@@ -392,179 +395,227 @@ export default function CanvasserDashboard() {
           >
             {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
             {activeTab === 'dashboard' && (
-              <div className="space-y-5">
-              {/* Quick Action Banner */}
-              <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/20 via-murugan-card to-murugan-card border border-amber-500/30 shadow-xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="relative z-10">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                    Field Sales Workspace
-                  </span>
-                  <h2 className="text-xl font-extrabold text-white mt-2">Ready to log today's visits?</h2>
-                  <p className="text-xs text-gray-300 mt-1 max-w-xs">
-                    Capture school details, tag apparel interests, and issue instant formal quotations.
-                  </p>
-                  <div className="flex gap-2.5 mt-4 flex-wrap">
-                    <button
-                      onClick={() => setActiveTab('new')}
-                      className="px-4 py-2.5 bg-murugan-accent hover:bg-yellow-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-murugan-accent/20 flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Log New Visit
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('followups')}
-                      className="px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-bold text-xs rounded-xl border border-blue-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <CalendarClock className="w-4 h-4 text-blue-400" />
-                      Follow-ups
-                      {followUpStats.attentionCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
-                          {followUpStats.attentionCount}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('leaderboard')}
-                      className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Trophy className="w-4 h-4 text-murugan-accent" />
-                      Leaderboard
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <div className="space-y-6">
+                {/* Quick Action Banner */}
+                <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#161420]/90 via-[#0e1017]/90 to-[#0c0d15]/90 border border-amber-500/30 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+                  {/* Luminous Top Catch & Accent Radial Light */}
+                  <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+                  <div className="absolute right-0 top-0 w-80 h-80 bg-gradient-to-bl from-amber-500/15 via-yellow-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
 
-              {/* Dynamic Field Performance KPI Cards */}
-              <DynamicKPISection currentUser={user} refreshTrigger={visits.length} />
-
-              {/* Priority Follow-ups Quick Tracker Widget */}
-              <div className="bg-[#171822] p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <CalendarClock className="w-4 h-4 text-amber-400" />
-                    Priority Follow-ups Queue
-                  </h3>
-                  <button 
-                    onClick={() => setActiveTab('followups')}
-                    className="text-xs text-amber-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    Open Queue ({followUpStats.totalScheduled})
-                    <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('followups')}
-                    className="p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 rounded-2xl text-left transition cursor-pointer"
-                  >
-                    <span className="text-[11px] font-bold text-rose-300 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 text-rose-400" />
-                      Due Today
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-rose-400 mt-1 block">{followUpStats.dueToday}</span>
-                    <span className="text-[10px] text-gray-400 block mt-0.5">Urgent client calls</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('followups')}
-                    className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 rounded-2xl text-left transition cursor-pointer"
-                  >
-                    <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-400" />
-                      Tomorrow
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-amber-400 mt-1 block">{followUpStats.dueTomorrow}</span>
-                    <span className="text-[10px] text-gray-400 block mt-0.5">Upcoming next day</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('followups')}
-                    className="p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 rounded-2xl text-left transition cursor-pointer"
-                  >
-                    <span className="text-[11px] font-bold text-red-300 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 text-red-400" />
-                      Overdue
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-red-400 mt-1 block">{followUpStats.overdue}</span>
-                    <span className="text-[10px] text-gray-400 block mt-0.5">Needs reschedule</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Pipeline Quick Summary */}
-              <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Target className="w-4 h-4 text-murugan-accent" />
-                    Lead Pipeline Breakdown
-                  </h3>
-                  <button 
-                    onClick={() => setActiveTab('list')}
-                    className="text-xs text-murugan-accent font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    View All ({visits.length})
-                    <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                    <span className="text-[11px] font-semibold text-red-300 block">Hot Leads</span>
-                    <span className="text-2xl font-black text-red-400 mt-1 block">{hotVisits.length}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">Ready for sample/quote</span>
-                  </div>
-                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-                    <span className="text-[11px] font-semibold text-emerald-300 block">Deals Won</span>
-                    <span className="text-2xl font-black text-emerald-400 mt-1 block">{wonVisits.length}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">Converted orders</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent School Visits */}
-              <div className="bg-murugan-card p-5 rounded-3xl border border-white/10 shadow-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-murugan-accent" />
-                    Recent Field Activity
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab('list')}
-                    className="text-xs text-gray-400 hover:text-white font-medium"
-                  >
-                    See all
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {visits.slice(0, 3).map((visit) => (
-                    <div 
-                      key={visit.id}
-                      onClick={() => setActiveTab('list')}
-                      className="p-3 bg-black/40 hover:bg-black/60 border border-white/5 hover:border-white/15 rounded-2xl cursor-pointer transition-all flex items-center justify-between"
-                    >
-                      <div>
-                        <h4 className="text-xs font-bold text-white">{visit.school_name}</h4>
-                        <p className="text-[11px] text-gray-400 mt-0.5">{visit.district} • {visit.contact_person}</p>
-                      </div>
-                      <span className={cn(
-                        "text-[10px] px-2 py-0.5 rounded-full font-bold",
-                        visit.interest_level === 'Hot' ? 'bg-red-500/20 text-red-400' :
-                        visit.interest_level === 'Warm' ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-400'
-                      )}>
-                        {visit.outcome_status}
-                      </span>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-white/70">Field Sales Terminal</span>
+                      <span className="text-white/20">·</span>
+                      <span className="text-[11px] text-white/40">Live</span>
                     </div>
-                  ))}
+
+                    <h2 className="text-lg sm:text-xl font-black text-white mt-2 tracking-tight">
+                      Log Today's School Visits
+                    </h2>
+                    <p className="text-xs sm:text-sm text-white/50 mt-1 max-w-md leading-relaxed">
+                      Record school interactions and configure apparel requirements.
+                    </p>
+
+                    <div className="flex gap-3 sm:gap-4 mt-5 flex-wrap items-center">
+                      <button
+                        onClick={() => setActiveTab('new')}
+                        className="h-12 px-6 sm:px-7 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] cursor-pointer min-w-[170px] tracking-wide"
+                      >
+                        <Plus className="w-4 h-4 stroke-[2.8]" />
+                        <span>Log New Visit</span>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('followups')}
+                        className="h-12 px-5 sm:px-6 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 font-bold text-xs sm:text-sm rounded-2xl border border-blue-500/30 flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] cursor-pointer backdrop-blur-md min-w-[170px]"
+                      >
+                        <CalendarClock className="w-4 h-4 text-blue-400" />
+                        <span>Follow-ups Queue</span>
+                        {followUpStats.attentionCount > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-md shadow-rose-500/40 animate-pulse ml-1">
+                            {followUpStats.attentionCount}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('leaderboard')}
+                        className="h-12 px-5 sm:px-6 bg-white/[0.06] hover:bg-white/[0.12] text-white font-bold text-xs sm:text-sm rounded-2xl border border-white/[0.1] flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] cursor-pointer backdrop-blur-md min-w-[150px]"
+                      >
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <span>Leaderboard</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dynamic Field Performance KPI Cards */}
+                <DynamicKPISection currentUser={user} refreshTrigger={visits.length} />
+
+                {/* Priority Follow-ups Quick Tracker Widget */}
+                <div className="bg-[#0c0d15]/85 p-5 sm:p-6 rounded-3xl border border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400">
+                        <CalendarClock className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white tracking-tight">
+                          Priority Follow-ups Queue
+                        </h3>
+                        <p className="text-[11px] text-white/40">Actionable appointments scheduled across accounts</p>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setActiveTab('followups')}
+                      className="text-xs text-amber-400 font-bold hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer bg-amber-400/10 px-3 py-1.5 rounded-xl border border-amber-400/20"
+                    >
+                      <span>Open Queue ({followUpStats.totalScheduled})</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('followups')}
+                      className="p-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 hover:border-rose-500/40 rounded-2xl text-left transition-all duration-200 hover:scale-[1.01] cursor-pointer relative overflow-hidden group shadow-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-rose-300 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                          Due Today
+                        </span>
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                      </div>
+                      <span className="text-2xl sm:text-3xl font-black text-rose-400 mt-2 block">{followUpStats.dueToday}</span>
+                      <span className="text-[11px] text-white/50 block mt-1 font-medium">Urgent client visits & calls</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('followups')}
+                      className="p-4 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 hover:border-amber-400/40 rounded-2xl text-left transition-all duration-200 hover:scale-[1.01] cursor-pointer relative overflow-hidden group shadow-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-amber-300 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-400" />
+                          Tomorrow
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-300 uppercase font-semibold">
+                          Next Day
+                        </span>
+                      </div>
+                      <span className="text-2xl sm:text-3xl font-black text-amber-400 mt-2 block">{followUpStats.dueTomorrow}</span>
+                      <span className="text-[11px] text-white/50 block mt-1 font-medium">Upcoming scheduled reviews</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('followups')}
+                      className="p-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 rounded-2xl text-left transition-all duration-200 hover:scale-[1.01] cursor-pointer relative overflow-hidden group shadow-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-red-300 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                          Overdue
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 uppercase font-semibold">
+                          Action req.
+                        </span>
+                      </div>
+                      <span className="text-2xl sm:text-3xl font-black text-red-400 mt-2 block">{followUpStats.overdue}</span>
+                      <span className="text-[11px] text-white/50 block mt-1 font-medium">Missed target dates</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pipeline Quick Summary Bento Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Lead Pipeline Breakdown */}
+                  <div className="bg-[#0c0d15]/85 p-5 rounded-3xl border border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-amber-400/10 text-amber-400">
+                          <Target className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-black text-white">Lead Pipeline Breakdown</h3>
+                      </div>
+                      <button 
+                        onClick={() => setActiveTab('list')}
+                        className="text-xs text-amber-400 font-bold hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>View All ({visits.length})</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="p-4 bg-gradient-to-br from-red-500/15 to-transparent border border-red-500/25 rounded-2xl relative overflow-hidden">
+                        <span className="text-xs font-bold text-red-300 block">Hot Leads</span>
+                        <span className="text-2xl sm:text-3xl font-black text-red-400 mt-1.5 block">{hotVisits.length}</span>
+                        <span className="text-[10px] text-white/50 mt-1 block">Ready for quotation / samples</span>
+                      </div>
+                      <div className="p-4 bg-gradient-to-br from-emerald-500/15 to-transparent border border-emerald-500/25 rounded-2xl relative overflow-hidden">
+                        <span className="text-xs font-bold text-emerald-300 block">Deals Won</span>
+                        <span className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1.5 block">{wonVisits.length}</span>
+                        <span className="text-[10px] text-white/50 mt-1 block">Successfully converted accounts</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recent School Visits */}
+                  <div className="bg-[#0c0d15]/85 p-5 rounded-3xl border border-white/[0.08] shadow-2xl backdrop-blur-2xl space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-white/[0.06] text-white/70">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-black text-white">Recent Field Activity</h3>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('list')}
+                        className="text-xs text-white/50 hover:text-white font-medium transition-colors"
+                      >
+                        See all records
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {visits.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-white/40">
+                          No recent visits logged yet
+                        </div>
+                      ) : (
+                        visits.slice(0, 3).map((visit) => (
+                          <div 
+                            key={visit.id}
+                            onClick={() => setActiveTab('list')}
+                            className="p-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] hover:border-amber-400/30 rounded-2xl cursor-pointer transition-all duration-200 flex items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-white truncate">{visit.school_name}</h4>
+                              <p className="text-[11px] text-white/40 mt-0.5 truncate">{visit.district} • {visit.contact_person}</p>
+                            </div>
+                            <span className={cn(
+                              "text-[10px] px-2.5 py-1 rounded-full font-bold whitespace-nowrap shrink-0",
+                              visit.interest_level === 'Hot' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                              visit.interest_level === 'Warm' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 
+                              'bg-white/[0.06] text-white/60 border border-white/[0.08]'
+                            )}>
+                              {visit.outcome_status}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* ================= TAB 2: CLEAN NEW VISIT FORM ================= */}
           {activeTab === 'new' && (
@@ -575,11 +626,14 @@ export default function CanvasserDashboard() {
               <div className="flex justify-between items-center pb-4 border-b border-white/[0.08]">
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">Log School Visit</h2>
-                  <p className="text-xs text-white/50 mt-0.5">Enter visit outcome, requirements, and next action</p>
+                  <p className="text-xs text-white/50 mt-0.5">Record school interaction and configure quotation requirements</p>
                 </div>
-                <span className="text-[11px] font-extrabold bg-amber-400/10 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full tracking-wide">
-                  Field Entry
-                </span>
+                <div className="flex items-center gap-2 text-right">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                    New Entry
+                  </span>
+                </div>
               </div>
             
               {/* Institution Selection via Master Database Picker */}
@@ -806,15 +860,11 @@ export default function CanvasserDashboard() {
                 </div>
 
                 {!formData.noFollowUp && (
-                  <div className="relative">
-                    <Calendar className="absolute left-3.5 top-3.5 w-4 h-4 text-white/40" />
-                    <input 
-                      type="date" 
-                      value={formData.follow_up_date} 
-                      onChange={e => setFormData({...formData, follow_up_date: e.target.value})} 
-                      className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-400/20 [color-scheme:dark] transition-all" 
-                    />
-                  </div>
+                  <AestheticDatePicker
+                    value={formData.follow_up_date || ''}
+                    onChange={(val) => setFormData(prev => ({ ...prev, follow_up_date: val }))}
+                    placeholder="Select scheduled follow-up date..."
+                  />
                 )}
 
                 <textarea 
@@ -886,31 +936,33 @@ export default function CanvasserDashboard() {
                   />
                 </div>
 
-                <div className="flex gap-2 text-xs">
-                  <select
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <AestheticSelect
                     value={filterInterest}
-                    onChange={e => setFilterInterest(e.target.value)}
-                    className="flex-1 bg-[#0c0d15]/80 border border-white/[0.08] hover:border-white/20 rounded-2xl p-2.5 text-white/80 focus:ring-1 focus:ring-amber-400/40 text-xs cursor-pointer backdrop-blur-xl"
-                  >
-                    <option value="all">All Interests</option>
-                    <option value="Hot">Hot</option>
-                    <option value="Warm">Warm</option>
-                    <option value="Cold">Cold</option>
-                    <option value="Not Interested">Not Interested</option>
-                  </select>
+                    onChange={setFilterInterest}
+                    size="sm"
+                    options={[
+                      { id: 'all', label: 'All Interests' },
+                      { id: 'Hot', label: 'Hot' },
+                      { id: 'Warm', label: 'Warm' },
+                      { id: 'Cold', label: 'Cold' },
+                      { id: 'Not Interested', label: 'Not Interested' }
+                    ]}
+                  />
 
-                  <select
+                  <AestheticSelect
                     value={filterStatus}
-                    onChange={e => setFilterStatus(e.target.value)}
-                    className="flex-1 bg-[#0c0d15]/80 border border-white/[0.08] hover:border-white/20 rounded-2xl p-2.5 text-white/80 focus:ring-1 focus:ring-amber-400/40 text-xs cursor-pointer backdrop-blur-xl"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="Order Won">Order Won</option>
-                    <option value="Sample Submitted">Sample Submitted</option>
-                    <option value="Follow-up Needed">Follow-up Needed</option>
-                    <option value="Pending Decision">Pending Decision</option>
-                    <option value="Lost">Lost</option>
-                  </select>
+                    onChange={setFilterStatus}
+                    size="sm"
+                    options={[
+                      { id: 'all', label: 'All Statuses' },
+                      { id: 'Order Won', label: 'Order Won' },
+                      { id: 'Sample Submitted', label: 'Sample Submitted' },
+                      { id: 'Follow-up Needed', label: 'Follow-up Needed' },
+                      { id: 'Pending Decision', label: 'Pending Decision' },
+                      { id: 'Lost', label: 'Lost' }
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -937,131 +989,176 @@ export default function CanvasserDashboard() {
                   
                   return (
                     <motion.div 
-                      initial={{ opacity: 0, y: 15 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.04 }}
+                      transition={{ delay: idx * 0.03 }}
                       key={visit.id} 
-                      className="bg-[#0c0d15]/80 hover:bg-[#0c0d15]/95 p-5 rounded-3xl border border-white/[0.08] hover:border-white/20 shadow-xl space-y-3.5 relative overflow-hidden transition-all backdrop-blur-xl"
+                      className="bg-[#0f1118] hover:bg-[#131622] p-5 sm:p-6 rounded-3xl border border-white/[0.08] hover:border-amber-400/30 shadow-xl space-y-3.5 relative transition-all duration-200"
                     >
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1 space-y-1">
+                      {/* Header: School Name, Sub-info, and Clean Status Group */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-black text-sm text-white">{visit.school_name}</h3>
+                            <h3 className="font-bold text-base text-white tracking-tight truncate">{visit.school_name}</h3>
                             {visit.is_from_master_db ? (
-                              <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 shadow-sm">
-                                🏛️ DB School
+                              <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                Verified DB
                               </span>
                             ) : (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 shadow-sm">
-                                🆕 New Discovery
+                              <span className="text-[11px] text-amber-400/90 flex items-center gap-1 font-medium">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                New Discovery
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/50">{visit.district} • {visit.institution_type}</p>
+
+                          <div className="flex items-center gap-2 text-xs text-white/50 flex-wrap">
+                            <span>{visit.district}</span>
+                            {visit.institution_type && (
+                              <>
+                                <span className="text-white/20">·</span>
+                                <span>{visit.institution_type}</span>
+                              </>
+                            )}
+                            {visit.student_strength && (
+                              <>
+                                <span className="text-white/20">·</span>
+                                <span className="text-white/70">{visit.student_strength} students</span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+
+                        {/* Elegant Status Indicators (Uncluttered) */}
+                        <div className="flex items-center gap-3 shrink-0 text-xs">
+                          {/* Interest Level */}
                           <span className={cn(
-                            "text-[10px] px-2.5 py-0.5 rounded-full font-bold",
-                            visit.interest_level === 'Hot' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                            visit.interest_level === 'Warm' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                            visit.interest_level === 'Cold' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 
-                            'bg-gray-500/20 text-gray-400'
+                            "flex items-center gap-1.5 font-bold tracking-wide",
+                            visit.interest_level === 'Hot' ? 'text-rose-400' :
+                            visit.interest_level === 'Warm' ? 'text-amber-400' :
+                            visit.interest_level === 'Cold' ? 'text-blue-400' : 'text-white/40'
                           )}>
+                            <span className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              visit.interest_level === 'Hot' ? 'bg-rose-400 animate-pulse' :
+                              visit.interest_level === 'Warm' ? 'bg-amber-400' :
+                              visit.interest_level === 'Cold' ? 'bg-blue-400' : 'bg-white/40'
+                            )} />
                             {visit.interest_level}
                           </span>
+
+                          <span className="text-white/20">|</span>
+
+                          {/* Outcome Status */}
                           <span className={cn(
-                            "text-[10px] px-2.5 py-0.5 rounded-full font-bold",
-                            visit.outcome_status === 'Won' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            visit.outcome_status === 'Lost' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                            'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                            "font-bold tracking-tight",
+                            visit.outcome_status === 'Won' ? 'text-emerald-400' :
+                            visit.outcome_status === 'Lost' ? 'text-rose-400' :
+                            'text-purple-300'
                           )}>
                             {visit.outcome_status}
                           </span>
                         </div>
                       </div>
-                      
-                      {/* Contact & Products */}
-                      <div className="flex items-center gap-2 text-xs text-white/60">
-                        <Phone className="w-3.5 h-3.5 text-white/40" />
-                        <span>{visit.contact_person} ({visit.phone})</span>
-                      </div>
 
-                      <div className="flex flex-wrap gap-1.5">
-                        {Array.isArray(visit.product_interests) && visit.product_interests.map(p => (
-                          <ProductBadge key={p} product={p} size="sm" />
-                        ))}
-                      </div>
-
-                      {visit.product_specifications && (
-                        <div className="p-3 bg-amber-400/5 border border-amber-400/20 rounded-2xl space-y-1">
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
-                            <FileText className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Product Specifications:</span>
-                          </div>
-                          <p className="text-xs text-white/80 leading-relaxed">{visit.product_specifications}</p>
+                      {/* Contact Person & Direct Phone Call */}
+                      <div className="flex items-center justify-between text-xs text-white/70 flex-wrap gap-2 pt-1 border-t border-white/[0.04]">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-white/40" />
+                          <span className="font-medium text-white/90">{visit.contact_person || 'Management'}</span>
+                          {visit.phone && (
+                            <>
+                              <span className="text-white/20">·</span>
+                              <a href={`tel:${visit.phone}`} className="text-amber-400/90 hover:text-amber-300 hover:underline flex items-center gap-1 font-semibold">
+                                <Phone className="w-3 h-3 text-amber-400/70" />
+                                {visit.phone}
+                              </a>
+                            </>
+                          )}
                         </div>
-                      )}
 
-                      {/* Photo Attachments */}
-                      {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1">
-                            <Camera className="w-3 h-3 text-amber-400" />
-                            Sample Photos ({visit.attachments.length})
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {visit.attachments.map((att, i) => (
-                              <div 
-                                key={att.id || i} 
-                                onClick={() => setPreviewImage(att.url)}
-                                className="w-14 h-14 rounded-2xl overflow-hidden border border-white/15 cursor-pointer hover:border-amber-400 hover:scale-105 transition-all shadow-md bg-black"
-                              >
-                                <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
-                              </div>
+                        {/* Product Badges (Inline) */}
+                        {Array.isArray(visit.product_interests) && visit.product_interests.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {visit.product_interests.map(p => (
+                              <ProductBadge key={p} product={p} size="sm" />
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
-                      {visit.notes && (
-                        <p className="text-xs text-white/70 bg-black/30 p-3 rounded-2xl border border-white/[0.06] italic">
-                          "{visit.notes}"
-                        </p>
-                      )}
-
-                      {/* Audit Trail Metadata */}
-                      {visit.last_edited_by_name && (
-                        <div className="flex items-center justify-between text-[10px] text-white/50 bg-white/[0.03] px-3 py-2 rounded-xl border border-white/[0.05]">
-                          <span>Modified by <strong className="text-white/80">{visit.last_edited_by_name}</strong></span>
-                          <button
-                            type="button"
-                            onClick={() => setInspectHistoryVisit(visit)}
-                            className="text-amber-400 hover:text-amber-300 font-bold hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <History className="w-3 h-3" />
-                            Audit History ({visit.edit_history?.length || 0})
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Action Footer */}
-                      <div className="pt-3 border-t border-white/[0.06] flex justify-between items-center text-xs">
-                        <div className="text-white/50 text-[11px]">
-                          Follow-up: <span className={cn("font-bold", isOverdue ? "text-red-400" : "text-white/80")}>
-                            {visit.follow_up_date || 'None scheduled'}
-                            {isOverdue && ' (Due)'}
+                      {/* Product Specifications (Minimalist Left Accent - No Clunky Box) */}
+                      {visit.product_specifications && (
+                        <div className="border-l-2 border-amber-400/40 pl-3.5 py-1 text-xs text-white/80 space-y-0.5">
+                          <span className="text-[10px] uppercase tracking-wider text-amber-400/90 block font-bold">
+                            Requirements &amp; Specifications
                           </span>
+                          <p className="leading-relaxed text-white/75">{visit.product_specifications}</p>
                         </div>
-                        
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setEditingVisit(visit)}
-                            className="px-3.5 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer shadow-sm"
-                          >
-                            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                            Edit Visit
-                          </button>
+                      )}
+
+                      {/* Meeting Notes (Clean Left Border Quote) */}
+                      {visit.notes && (
+                        <div className="border-l-2 border-white/20 pl-3.5 py-0.5 text-xs text-white/60 italic leading-relaxed">
+                          "{visit.notes}"
                         </div>
+                      )}
+
+                      {/* Photo Thumbnails */}
+                      {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                          <span className="text-[10px] uppercase text-white/40 flex items-center gap-1 mr-1 font-semibold">
+                            <Camera className="w-3 h-3 text-amber-400" />
+                            Photos ({visit.attachments.length}):
+                          </span>
+                          {visit.attachments.map((att, i) => (
+                            <div 
+                              key={att.id || i} 
+                              onClick={() => setPreviewImage(att.url)}
+                              className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-amber-400 hover:scale-105 transition-all shadow-md bg-black"
+                              title="Click to view full photo"
+                            >
+                              <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Card Footer: Follow-up & Audit & Actions */}
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs flex-wrap gap-2">
+                        <div className="flex items-center gap-3 text-[11px] text-white/50">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                            Follow-up: <strong className={cn(isOverdue ? "text-rose-400 font-bold" : "text-white/80")}>
+                              {visit.follow_up_date || 'None'}
+                              {isOverdue && ' (Overdue)'}
+                            </strong>
+                          </span>
+
+                          {visit.last_edited_by_name && (
+                            <>
+                              <span className="text-white/20 hidden sm:inline">·</span>
+                              <button
+                                type="button"
+                                onClick={() => setInspectHistoryVisit(visit)}
+                                className="text-white/40 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer text-[10px] font-medium"
+                                title="Inspect audit history"
+                              >
+                                <History className="w-3 h-3 text-white/30" />
+                                <span>Edited by {visit.last_edited_by_name} ({visit.edit_history?.length || 0})</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => setEditingVisit(visit)}
+                          className="px-3.5 py-1.5 bg-white/[0.05] hover:bg-amber-400/15 text-white/80 hover:text-amber-300 border border-white/10 hover:border-amber-400/40 rounded-xl font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Edit Visit</span>
+                        </button>
                       </div>
                     </motion.div>
                   );

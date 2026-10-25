@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Building2, MapPin, Check, Plus, X, Sparkles, Loader2 } from 'lucide-react';
 import { MASTER_SCHOOLS_DATABASE, TAMIL_NADU_DISTRICTS } from '../data/masterSchools';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
+import AestheticSelect from './AestheticSelect';
 
 export default function SchoolSearchPicker({
   selectedSchoolName,
@@ -61,6 +62,11 @@ export default function SchoolSearchPicker({
       clearTimeout(timer);
     };
   }, [query, districtFilter]);
+
+  const districtOptions = useMemo(() => [
+    { value: 'All', label: 'All Districts' },
+    ...TAMIL_NADU_DISTRICTS.map(d => ({ value: d, label: d }))
+  ], []);
 
   // Combine live database results with local database
   const filteredSchools = React.useMemo(() => {
@@ -164,31 +170,31 @@ export default function SchoolSearchPicker({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
-              placeholder="Search 2,500+ Tamil Nadu schools by name or area..."
+              placeholder="Search school..."
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setIsOpen(true);
               }}
               onFocus={() => setIsOpen(true)}
-              className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-10 pr-28 py-3 text-xs text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner"
+              className="w-full bg-black/40 border border-white/[0.08] hover:border-white/20 focus:border-amber-400/80 rounded-2xl pl-10 pr-40 sm:pr-48 py-3 text-xs text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all shadow-inner"
             />
             
-            {/* District Quick Filter Pill inside input */}
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <select
+            {/* District Quick Filter Pill inside input using AestheticSelect */}
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-36 sm:w-44 z-20">
+              <AestheticSelect
                 value={districtFilter}
-                onChange={(e) => {
-                  setDistrictFilter(e.target.value);
+                onChange={(val) => {
+                  setDistrictFilter(val);
                   setIsOpen(true);
                 }}
-                className="bg-[#181924] text-[10px] text-white/80 border border-white/10 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-400/50 cursor-pointer"
-              >
-                <option value="All">All Districts</option>
-                {TAMIL_NADU_DISTRICTS.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+                options={districtOptions}
+                searchable
+                size="sm"
+                placeholder="All Districts"
+                buttonClassName="py-1.5 px-3 rounded-xl bg-[#141622]/95 border-white/10 hover:border-amber-400/40 text-[11px] shadow-none"
+                dropdownClassName="z-[1000] right-0 min-w-[210px]"
+              />
             </div>
           </div>
 

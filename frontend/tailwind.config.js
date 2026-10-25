@@ -19,7 +19,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"Google Sans Flex"', '"Google Sans"', '"Google Sans Text"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"Google Sans Flex"', '"Google Sans"', '"Google Sans Text"', 'Inter', 'system-ui', 'sans-serif'],
       }
     },
   },
