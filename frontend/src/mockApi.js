@@ -151,9 +151,38 @@ export function formatUsername(name, role) {
   return `${cleanName}@${cleanRole}`;
 }
 
+// ── Session Cache Store (in-memory per browser tab session) ───────────────────
+const sessionCache = new Map();
+
+export function invalidateSessionCache(prefix) {
+  if (!prefix) {
+    sessionCache.clear();
+    return;
+  }
+  for (const key of sessionCache.keys()) {
+    if (key.startsWith(prefix)) {
+      sessionCache.delete(key);
+    }
+  }
+}
+
+async function cachedGet(key, fetcher, forceRefresh = false) {
+  if (!forceRefresh && sessionCache.has(key)) {
+    return sessionCache.get(key);
+  }
+  const result = await fetcher();
+  sessionCache.set(key, result);
+  return result;
+}
+
 export const mockApi = {
+  clearCache(prefix) {
+    invalidateSessionCache(prefix);
+  },
+
   // ── Authentication ─────────────────────────────────────────────────────────
   async login(identifier, password) {
+    invalidateSessionCache(); // Clear any stale session cache on login
     const res = await api.post('/login', {
       username: identifier,
       password: password
@@ -184,15 +213,20 @@ export const mockApi = {
   },
 
   // ── Users ──────────────────────────────────────────────────────────────────
-  async getUsers() {
-    return await api.get('/users');
+  async getUsers(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('users', async () => {
+      return await api.get('/users');
+    }, forceRefresh);
   },
 
   async createUser(userData) {
+    invalidateSessionCache('users');
     return await api.post('/users', userData);
   },
 
   async updateUserRole(userId, newRole, newRoleTitle) {
+    invalidateSessionCache('users');
     return await api.put(`/users/${userId}/role`, {
       new_role: newRole,
       new_role_title: newRoleTitle
@@ -200,14 +234,17 @@ export const mockApi = {
   },
 
   async deleteUser(userId) {
+    invalidateSessionCache('users');
     return await api.delete(`/users/${userId}`);
   },
 
   async pauseUser(userId) {
+    invalidateSessionCache('users');
     return await api.post(`/users/${userId}/pause`, {});
   },
 
   async resumeUser(userId) {
+    invalidateSessionCache('users');
     return await api.post(`/users/${userId}/resume`, {});
   },
 
@@ -228,12 +265,14 @@ export const mockApi = {
   },
 
   // ── Visits ─────────────────────────────────────────────────────────────────
-  async getVisits(filters = {}) {
+  async getVisits(filters = {}, options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh || filters?.forceRefresh);
     let params = {};
     if (typeof filters === 'number' || typeof filters === 'string') {
       params.canvasser_id = filters;
     } else if (filters && typeof filters === 'object') {
       params = { ...filters };
+      delete params.forceRefresh;
     }
 
     const query = new URLSearchParams();
@@ -244,8 +283,12 @@ export const mockApi = {
     if (params.canvasser_id) query.append('canvasser_id', params.canvasser_id);
 
     const queryString = query.toString();
-    const res = await api.get(`/visits${queryString ? `?${queryString}` : ''}`);
-    return Array.isArray(res) ? res : (res?.visits || []);
+    const cacheKey = `visits:${queryString || 'all'}`;
+
+    return cachedGet(cacheKey, async () => {
+      const res = await api.get(`/visits${queryString ? `?${queryString}` : ''}`);
+      return Array.isArray(res) ? res : (res?.visits || []);
+    }, forceRefresh);
   },
 
   async getVisitById(id) {
@@ -253,10 +296,20 @@ export const mockApi = {
   },
 
   async createVisit(visitData) {
+    invalidateSessionCache('visits');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     return await api.post('/visits', visitData);
   },
 
   async addVisit(visitData, canvasserId, canvasserName) {
+    invalidateSessionCache('visits');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const payload = {
       ...visitData,
       canvasser_id: canvasserId || visitData.canvasser_id,
@@ -266,14 +319,27 @@ export const mockApi = {
   },
 
   async updateVisit(id, updateData) {
+    invalidateSessionCache('visits');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     return await api.put(`/visits/${id}`, updateData);
   },
 
   async deleteVisit(id) {
+    invalidateSessionCache('visits');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     return await api.delete(`/visits/${id}`);
   },
 
   async verifySchoolDiscovery(visitId, verificationData) {
+    invalidateSessionCache('visits');
+    invalidateSessionCache('master_schools');
+    invalidateSessionCache('dashboard_stats');
     return await api.post(`/visits/${visitId}/verify-discovery`, verificationData);
   },
 
@@ -283,21 +349,29 @@ export const mockApi = {
   },
 
   // ── Master Schools Catalog ─────────────────────────────────────────────────
-  async getMasterSchools(params = {}) {
+  async getMasterSchools(params = {}, options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh || params?.forceRefresh);
+    const safeParams = { ...params };
+    delete safeParams.forceRefresh;
     const query = new URLSearchParams();
-    if (params.q) query.append('q', params.q);
-    if (params.district && params.district.toLowerCase() !== 'all') query.append('district', params.district);
-    if (params.zone && params.zone.toLowerCase() !== 'all') query.append('zone', params.zone);
-    if (params.board && params.board.toLowerCase() !== 'all') query.append('board', params.board);
-    if (params.limit) query.append('limit', params.limit);
-    if (params.page) query.append('page', params.page);
+    if (safeParams.q) query.append('q', safeParams.q);
+    if (safeParams.district && safeParams.district.toLowerCase() !== 'all') query.append('district', safeParams.district);
+    if (safeParams.zone && safeParams.zone.toLowerCase() !== 'all') query.append('zone', safeParams.zone);
+    if (safeParams.board && safeParams.board.toLowerCase() !== 'all') query.append('board', safeParams.board);
+    if (safeParams.limit) query.append('limit', safeParams.limit);
+    if (safeParams.page) query.append('page', safeParams.page);
 
     const qs = query.toString();
-    return await api.get(`/master-schools${qs ? `?${qs}` : ''}`);
+    const cacheKey = `master_schools:${qs || 'default'}`;
+
+    return cachedGet(cacheKey, async () => {
+      return await api.get(`/master-schools${qs ? `?${qs}` : ''}`);
+    }, forceRefresh);
   },
 
-  async getAllMasterSchools(params = {}) {
-    const res = await this.getMasterSchools({ ...params, limit: 'all' });
+  async getAllMasterSchools(params = {}, options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh || params?.forceRefresh);
+    const res = await this.getMasterSchools({ ...params, limit: 'all' }, { forceRefresh });
     if (Array.isArray(res)) return res;
     if (res && Array.isArray(res.schools)) return res.schools;
     return [];
@@ -316,14 +390,17 @@ export const mockApi = {
   },
 
   async createMasterSchool(schoolData) {
+    invalidateSessionCache('master_schools');
     return await api.post('/master-schools', schoolData);
   },
 
   async updateMasterSchool(id, schoolData) {
+    invalidateSessionCache('master_schools');
     return await api.put(`/master-schools/${id}`, schoolData);
   },
 
   async deleteMasterSchool(id) {
+    invalidateSessionCache('master_schools');
     return await api.delete(`/master-schools/${id}`);
   },
 
@@ -384,22 +461,28 @@ export const mockApi = {
   },
 
   // ── Quotations ─────────────────────────────────────────────────────────────
-  async getQuotations() {
-    const res = await api.get('/quotations');
-    const list = Array.isArray(res) ? res : (res?.quotations || []);
-    return list.map(q => ({
-      ...q,
-      date: q.date || (q.created_at ? q.created_at.split('T')[0] : ''),
-      grand_total: Number(q.grand_total || 0),
-      subtotal: Number(q.subtotal || 0),
-      tax_amount: Number(q.tax_amount || 0),
-      discount_amount: Number(q.discount_amount || 0),
-      tags: typeof q.tags === 'string' ? JSON.parse(q.tags || '[]') : (q.tags || []),
-      items: typeof q.items === 'string' ? JSON.parse(q.items || '[]') : (q.items || [])
-    }));
+  async getQuotations(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('quotations', async () => {
+      const res = await api.get('/quotations');
+      const list = Array.isArray(res) ? res : (res?.quotations || []);
+      return list.map(q => ({
+        ...q,
+        date: q.date || (q.created_at ? q.created_at.split('T')[0] : ''),
+        grand_total: Number(q.grand_total || 0),
+        subtotal: Number(q.subtotal || 0),
+        tax_amount: Number(q.tax_amount || 0),
+        discount_amount: Number(q.discount_amount || 0),
+        tags: typeof q.tags === 'string' ? JSON.parse(q.tags || '[]') : (q.tags || []),
+        items: typeof q.items === 'string' ? JSON.parse(q.items || '[]') : (q.items || [])
+      }));
+    }, forceRefresh);
   },
 
   async createQuotation(quoteData) {
+    invalidateSessionCache('quotations');
+    invalidateSessionCache('cfo_analytics');
+    invalidateSessionCache('ceo_mis');
     return await api.post('/quotations', quoteData);
   },
 
@@ -413,33 +496,43 @@ export const mockApi = {
   },
 
   async updateQuotation(id, quoteData) {
+    invalidateSessionCache('quotations');
+    invalidateSessionCache('cfo_analytics');
+    invalidateSessionCache('ceo_mis');
     const encId = encodeURIComponent(id);
     return await api.put(`/quotations/${encId}`, { ...quoteData, id });
   },
 
   async deleteQuotation(id) {
+    invalidateSessionCache('quotations');
+    invalidateSessionCache('cfo_analytics');
+    invalidateSessionCache('ceo_mis');
     const encId = encodeURIComponent(id);
     return await api.delete(`/quotations/${encId}`, { body: { id } });
   },
 
   // ── Proforma Invoices ──────────────────────────────────────────────────────
-  async getProformaInvoices() {
-    const res = await api.get('/proforma-invoices');
-    const list = Array.isArray(res) ? res : (res?.proforma_invoices || []);
-    return list.map(p => ({
-      ...p,
-      date: p.date || (p.created_at ? p.created_at.split('T')[0] : ''),
-      grand_total: Number(p.grand_total || 0),
-      subtotal: Number(p.subtotal || 0),
-      tax_amount: Number(p.tax_amount || 0),
-      discount_amount: Number(p.discount_amount || 0),
-      due_date: p.due_date || '',
-      tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || []),
-      items: typeof p.items === 'string' ? JSON.parse(p.items || '[]') : (p.items || [])
-    }));
+  async getProformaInvoices(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('proforma', async () => {
+      const res = await api.get('/proforma-invoices');
+      const list = Array.isArray(res) ? res : (res?.proforma_invoices || []);
+      return list.map(p => ({
+        ...p,
+        date: p.date || (p.created_at ? p.created_at.split('T')[0] : ''),
+        grand_total: Number(p.grand_total || 0),
+        subtotal: Number(p.subtotal || 0),
+        tax_amount: Number(p.tax_amount || 0),
+        discount_amount: Number(p.discount_amount || 0),
+        due_date: p.due_date || '',
+        tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || []),
+        items: typeof p.items === 'string' ? JSON.parse(p.items || '[]') : (p.items || [])
+      }));
+    }, forceRefresh);
   },
 
   async createProformaInvoice(proformaData) {
+    invalidateSessionCache('proforma');
     return await api.post('/proforma-invoices', proformaData);
   },
 
@@ -453,42 +546,52 @@ export const mockApi = {
   },
 
   async updateProformaInvoice(id, proformaData) {
+    invalidateSessionCache('proforma');
     const encId = encodeURIComponent(id);
     return await api.put(`/proforma-invoices/${encId}`, { ...proformaData, id });
   },
 
   async deleteProformaInvoice(id) {
+    invalidateSessionCache('proforma');
     const encId = encodeURIComponent(id);
     return await api.delete(`/proforma-invoices/${encId}`, { body: { id } });
   },
 
   // ── Invoices & Payments ────────────────────────────────────────────────────
-  async getInvoices() {
-    const res = await api.get('/invoices');
-    const list = Array.isArray(res) ? res : (res?.invoices || []);
-    return list.map(inv => {
-      const grandTotal = Number(inv.grand_total || 0);
-      const paidAmount = Number(inv.paid_amount || 0);
-      const outstanding = inv.outstanding_balance !== undefined ? Number(inv.outstanding_balance) : Math.max(0, grandTotal - paidAmount);
-      const status = inv.payment_status || inv.status || (outstanding === 0 ? 'Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid');
-      return {
-        ...inv,
-        status: status === 'Fully Paid' ? 'Paid' : status,
-        payment_status: inv.payment_status || status,
-        grand_total: grandTotal,
-        subtotal: Number(inv.subtotal || 0),
-        tax_amount: Number(inv.tax_amount || 0),
-        paid_amount: paidAmount,
-        outstanding_balance: outstanding,
-        pending_balance: outstanding,
-        due_date: inv.due_date || '',
-        tags: typeof inv.tags === 'string' ? JSON.parse(inv.tags || '[]') : (inv.tags || []),
-        items: typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || [])
-      };
-    });
+  async getInvoices(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('invoices', async () => {
+      const res = await api.get('/invoices');
+      const list = Array.isArray(res) ? res : (res?.invoices || []);
+      return list.map(inv => {
+        const grandTotal = Number(inv.grand_total || 0);
+        const paidAmount = Number(inv.paid_amount || 0);
+        const outstanding = inv.outstanding_balance !== undefined ? Number(inv.outstanding_balance) : Math.max(0, grandTotal - paidAmount);
+        const status = inv.payment_status || inv.status || (outstanding === 0 ? 'Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid');
+        return {
+          ...inv,
+          status: status === 'Fully Paid' ? 'Paid' : status,
+          payment_status: inv.payment_status || status,
+          grand_total: grandTotal,
+          subtotal: Number(inv.subtotal || 0),
+          tax_amount: Number(inv.tax_amount || 0),
+          paid_amount: paidAmount,
+          outstanding_balance: outstanding,
+          pending_balance: outstanding,
+          due_date: inv.due_date || '',
+          tags: typeof inv.tags === 'string' ? JSON.parse(inv.tags || '[]') : (inv.tags || []),
+          items: typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || [])
+        };
+      });
+    }, forceRefresh);
   },
 
   async createInvoice(invoiceData) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     return await api.post('/invoices', invoiceData);
   },
 
@@ -502,16 +605,32 @@ export const mockApi = {
   },
 
   async updateInvoice(id, invoiceData) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const encId = encodeURIComponent(id);
     return await api.put(`/invoices/${encId}`, { ...invoiceData, id });
   },
 
   async deleteInvoice(id) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const encId = encodeURIComponent(id);
     return await api.delete(`/invoices/${encId}`, { body: { id } });
   },
 
   async recordPayment(invoiceId, paymentData) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('payments');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const encId = encodeURIComponent(invoiceId);
     const payload = {
       amount: Number(paymentData.amount || 0),
@@ -525,341 +644,371 @@ export const mockApi = {
   },
 
   async deletePayment(id) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('payments');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const encId = encodeURIComponent(id);
     return await api.delete(`/payments/${encId}`, { body: { id } });
   },
 
   async updatePayment(id, paymentData) {
+    invalidateSessionCache('invoices');
+    invalidateSessionCache('payments');
+    invalidateSessionCache('dashboard_stats');
+    invalidateSessionCache('leaderboard');
+    invalidateSessionCache('ceo_mis');
+    invalidateSessionCache('cfo_analytics');
     const encId = encodeURIComponent(id);
     return await api.put(`/payments/${encId}`, { ...paymentData, id });
   },
 
-  async getPayments() {
-    const res = await api.get('/payments');
-    const list = Array.isArray(res) ? res : (res?.payments || []);
-    return list.map(p => ({
-      ...p,
-      amount: Number(p.amount || 0),
-      mode: p.payment_method || p.mode || 'Bank Transfer',
-      payment_method: p.payment_method || p.mode || 'Bank Transfer',
-      reference_id: p.reference_number || p.reference_id || '-',
-      reference_number: p.reference_number || p.reference_id || '-',
-      notes: p.notes || '',
-      date: p.date || (p.recorded_at ? p.recorded_at.split('T')[0] : ''),
-      tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || [])
-    }));
+  async getPayments(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('payments', async () => {
+      const res = await api.get('/payments');
+      const list = Array.isArray(res) ? res : (res?.payments || []);
+      return list.map(p => ({
+        ...p,
+        amount: Number(p.amount || 0),
+        mode: p.payment_method || p.mode || 'Bank Transfer',
+        payment_method: p.payment_method || p.mode || 'Bank Transfer',
+        reference_id: p.reference_number || p.reference_id || '-',
+        reference_number: p.reference_number || p.reference_id || '-',
+        notes: p.notes || '',
+        date: p.date || (p.recorded_at ? p.recorded_at.split('T')[0] : ''),
+        tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || [])
+      }));
+    }, forceRefresh);
   },
 
   // ── Leaderboard & Dashboards ───────────────────────────────────────────────
-  async getCanvasserLeaderboard(params = {}) {
+  async getCanvasserLeaderboard(params = {}, options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh || params?.forceRefresh);
+    const safeParams = { ...params };
+    delete safeParams.forceRefresh;
     const query = new URLSearchParams();
-    if (params.sort_by) query.append('sort_by', params.sort_by);
-    if (params.order) query.append('order', params.order);
-    if (params.month) query.append('month', params.month);
+    if (safeParams.sort_by) query.append('sort_by', safeParams.sort_by);
+    if (safeParams.order) query.append('order', safeParams.order);
+    if (safeParams.month) query.append('month', safeParams.month);
     const qs = query.toString();
+    const cacheKey = `leaderboard:${qs || 'default'}`;
 
-    const rankings = await api.get(`/leaderboard${qs ? `?${qs}` : ''}`);
+    return cachedGet(cacheKey, async () => {
+      const rankings = await api.get(`/leaderboard${qs ? `?${qs}` : ''}`);
 
-    const safeRankings = Array.isArray(rankings) ? rankings : (rankings?.rankings || []);
-    const teamTotalInvoiced = safeRankings.reduce((sum, c) => sum + (Number(c.totalInvoiced) || 0), 0);
-    const teamTotalWon = safeRankings.reduce((sum, c) => sum + (Number(c.wonOrders || c.invoicesConverted) || 0), 0);
-    const teamTotalVisits = safeRankings.reduce((sum, c) => sum + (Number(c.totalVisits || c.schoolsCanvassed) || 0), 0);
-    const teamTotalPay = safeRankings.reduce((sum, c) => sum + (Number(c.commissionEarned || c.payEarned) || 0), 0);
-    const teamConversionRate = teamTotalVisits > 0 ? Math.round((teamTotalWon / teamTotalVisits) * 100) : 0;
+      const safeRankings = Array.isArray(rankings) ? rankings : (rankings?.rankings || []);
+      const teamTotalInvoiced = safeRankings.reduce((sum, c) => sum + (Number(c.totalInvoiced) || 0), 0);
+      const teamTotalWon = safeRankings.reduce((sum, c) => sum + (Number(c.wonOrders || c.invoicesConverted) || 0), 0);
+      const teamTotalVisits = safeRankings.reduce((sum, c) => sum + (Number(c.totalVisits || c.schoolsCanvassed) || 0), 0);
+      const teamTotalPay = safeRankings.reduce((sum, c) => sum + (Number(c.commissionEarned || c.payEarned) || 0), 0);
+      const teamConversionRate = teamTotalVisits > 0 ? Math.round((teamTotalWon / teamTotalVisits) * 100) : 0;
 
-    const teamStats = {
-      teamTotalInvoiced,
-      formattedTeamInvoiced: `₹${(teamTotalInvoiced / 100000).toFixed(2)}L`,
-      teamTotalWon,
-      teamTotalVisits,
-      teamTotalPay,
-      formattedTeamTotalPay: `₹${teamTotalPay.toLocaleString('en-IN')}`,
-      teamConversionRate,
-      activeCanvassersCount: safeRankings.length
-    };
-
-    return {
-      rankings: safeRankings,
-      teamStats
-    };
-  },
-
-  async getDashboardStats() {
-    return await api.get('/dashboard/stats');
-  },
-
-  async getCFOAnalytics() {
-    try {
-      return await api.get('/cfo/analytics');
-    } catch (err) {
-      console.warn('Backend /cfo/analytics endpoint unreachable, calculating from active entities:', err);
-      const [invoices, payments, quotations] = await Promise.all([
-        this.getInvoices().catch(() => []),
-        this.getPayments().catch(() => []),
-        this.getQuotations().catch(() => [])
-      ]);
-
-      const safeInvoices = Array.isArray(invoices) ? invoices : [];
-      const safePayments = Array.isArray(payments) ? payments : [];
-      const safeQuotes = Array.isArray(quotations) ? quotations : [];
-
-      const totalInvoiced = safeInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
-      const totalCollected = safeInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
-      const totalOutstanding = safeInvoices.reduce((sum, i) => sum + (Number(i.outstanding_balance) || 0), 0);
-
-      const now = new Date();
-      let overdueCount = 0;
-      let overdueAmount = 0;
-
-      const agingBuckets = {
-        current: { label: '0-30 Days', count: 0, amount: 0, color: '#8b5cf6' },
-        days31_60: { label: '31-60 Days', count: 0, amount: 0, color: '#a855f7' },
-        days61_90: { label: '61-90 Days', count: 0, amount: 0, color: '#6366f1' },
-        days90Plus: { label: '90+ Days', count: 0, amount: 0, color: '#ef4444' }
+      const teamStats = {
+        teamTotalInvoiced,
+        formattedTeamInvoiced: `₹${(teamTotalInvoiced / 100000).toFixed(2)}L`,
+        teamTotalWon,
+        teamTotalVisits,
+        teamTotalPay,
+        formattedTeamTotalPay: `₹${teamTotalPay.toLocaleString('en-IN')}`,
+        teamConversionRate,
+        activeCanvassersCount: safeRankings.length
       };
 
-      safeInvoices.forEach(inv => {
-        const balance = Number(inv.outstanding_balance) || 0;
-        if (balance > 0) {
-          const createdDate = new Date(inv.created_at || Date.now());
-          const ageInDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
-
-          if (inv.due_date && new Date(inv.due_date) < now) {
-            overdueCount++;
-            overdueAmount += balance;
-          }
-
-          if (ageInDays <= 30) {
-            agingBuckets.current.count++;
-            agingBuckets.current.amount += balance;
-          } else if (ageInDays <= 60) {
-            agingBuckets.days31_60.count++;
-            agingBuckets.days31_60.amount += balance;
-          } else if (ageInDays <= 90) {
-            agingBuckets.days61_90.count++;
-            agingBuckets.days61_90.amount += balance;
-          } else {
-            agingBuckets.days90Plus.count++;
-            agingBuckets.days90Plus.amount += balance;
-          }
-        }
-      });
-
-      const estimatedCOGS = Math.round(totalInvoiced * 0.66);
-      const grossProfit = Math.max(0, totalInvoiced - estimatedCOGS);
-      const grossProfitMargin = totalInvoiced > 0 ? ((grossProfit / totalInvoiced) * 100).toFixed(1) : 34.0;
-      const collectionRate = totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : 0;
-      const dsoDays = totalInvoiced > 0 ? Math.round((totalOutstanding / totalInvoiced) * 90) : 24;
-
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-      const monthlyDataMap = {};
-      months.forEach((m, idx) => {
-        monthlyDataMap[idx] = { month: m, billed: 0, collected: 0, target: 15 + (idx * 3) };
-      });
-
-      safeInvoices.forEach(inv => {
-        const d = new Date(inv.created_at || Date.now());
-        const mIdx = d.getMonth() % 6;
-        if (monthlyDataMap[mIdx]) {
-          monthlyDataMap[mIdx].billed += (Number(inv.grand_total) || 0) / 100000;
-        }
-      });
-
-      safePayments.forEach(p => {
-        const d = new Date(p.recorded_at || p.payment_date || Date.now());
-        const mIdx = d.getMonth() % 6;
-        if (monthlyDataMap[mIdx]) {
-          monthlyDataMap[mIdx].collected += (Number(p.amount || p.amount_paid) || 0) / 100000;
-        }
-      });
-
-      const monthlyTrend = Object.values(monthlyDataMap).map(item => ({
-        month: item.month,
-        sales: Number(item.billed.toFixed(2)),
-        collections: Number(item.collected.toFixed(2)),
-        target: item.target
-      }));
-
       return {
-        summary: {
-          totalInvoiced,
-          totalCollected,
-          totalOutstanding,
-          grossProfit,
-          grossProfitMargin: Number(grossProfitMargin),
-          collectionRate: Number(collectionRate),
-          dsoDays,
-          overdueCount,
-          overdueAmount,
-          invoicesCount: safeInvoices.length,
-          quotationsCount: safeQuotes.length,
-          paymentsCount: safePayments.length
-        },
-        agingBuckets,
-        monthlyTrend
+        rankings: safeRankings,
+        teamStats
       };
-    }
+    }, forceRefresh);
   },
 
-  async getCEODashboardHubData() {
-    try {
-      return await api.get('/ceo/mis');
-    } catch (err) {
-      console.warn('Backend /ceo/mis endpoint unreachable, calculating from active entities:', err);
-      const [invoices, visits, quotations, payments, users] = await Promise.all([
-        this.getInvoices().catch(() => []),
-        this.getVisits().catch(() => []),
-        this.getQuotations().catch(() => []),
-        this.getPayments().catch(() => []),
-        this.getUsers().catch(() => [])
-      ]);
+  async getDashboardStats(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('dashboard_stats', async () => {
+      return await api.get('/dashboard/stats');
+    }, forceRefresh);
+  },
 
-      const safeInvoices = Array.isArray(invoices) ? invoices : [];
-      const safeVisits = Array.isArray(visits) ? visits : [];
-      const safeQuotes = Array.isArray(quotations) ? quotations : [];
-      const safePayments = Array.isArray(payments) ? payments : [];
-      const safeUsers = Array.isArray(users) ? users : [];
+  async getCFOAnalytics(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('cfo_analytics', async () => {
+      try {
+        return await api.get('/cfo/analytics');
+      } catch (err) {
+        console.warn('Backend /cfo/analytics endpoint unreachable, calculating from active entities:', err);
+        const [invoices, payments, quotations] = await Promise.all([
+          this.getInvoices().catch(() => []),
+          this.getPayments().catch(() => []),
+          this.getQuotations().catch(() => [])
+        ]);
 
-      const totalInvoiced = safeInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
-      const totalCollected = safeInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
-      const totalReceivables = safeInvoices.reduce((sum, i) => sum + (Number(i.outstanding_balance) || 0), 0);
-      const estCOGS = Math.round(totalInvoiced * 0.52);
-      const grossProfit = Math.max(0, totalInvoiced - estCOGS);
-      const netProfit = Math.max(0, Math.round(grossProfit * 0.45));
+        const safeInvoices = Array.isArray(invoices) ? invoices : [];
+        const safePayments = Array.isArray(payments) ? payments : [];
+        const safeQuotes = Array.isArray(quotations) ? quotations : [];
 
-      const ordersWon = safeVisits.filter(v => (v.outcome_status || '').toLowerCase() === 'won').length;
-      const hotLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'hot').length;
-      const warmLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'warm').length;
-      const coldLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'cold').length;
-      const activeQuotesValue = safeQuotes.reduce((sum, q) => sum + (Number(q.grand_total || q.total_amount) || 0), 0);
-      const totalPipelineValue = activeQuotesValue + (hotLeads * 18000) + (warmLeads * 8000);
+        const totalInvoiced = safeInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
+        const totalCollected = safeInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+        const totalOutstanding = safeInvoices.reduce((sum, i) => sum + (Number(i.outstanding_balance) || 0), 0);
 
-      const formatL = (val) => `₹${((Number(val) || 0) / 100000).toFixed(2)}L`;
+        const now = new Date();
+        let overdueCount = 0;
+        let overdueAmount = 0;
 
-      return {
-        executiveKPIs: [
-          { id: 'kpi_rev', title: 'Total Revenue (Billed)', value: formatL(totalInvoiced), rawValue: totalInvoiced, change: '+18.4% vs LM', trend: 'up', subtext: `${safeInvoices.length} Invoices Billed (Live DB)`, status: 'success' },
-          { id: 'kpi_gp', title: 'Gross Profit & Margin', value: formatL(grossProfit), rawValue: grossProfit, change: '48.0% Gross Margin', trend: 'up', subtext: `₹${(estCOGS / 100000).toFixed(2)}L Production COGS (52%)`, status: 'success' },
-          { id: 'kpi_np', title: 'Net Profit (EBITDA)', value: formatL(netProfit), rawValue: netProfit, change: '21.6% Net Margin', trend: 'up', subtext: 'Operating profit after sales commission', status: 'success' },
-          { id: 'kpi_cash', title: 'Cash Inflow (Collections)', value: formatL(totalCollected), rawValue: totalCollected, change: totalInvoiced > 0 ? `${((totalCollected / totalInvoiced) * 100).toFixed(1)}% Cleared` : '0% Cleared', trend: 'up', subtext: `${safePayments.length} Payments Logged (Live DB)`, status: 'success' },
-          { id: 'kpi_ar', title: 'Accounts Receivable', value: formatL(totalReceivables), rawValue: totalReceivables, change: totalReceivables > 0 ? 'Pending Settlement' : 'Nil Balance', trend: totalReceivables > 0 ? 'down' : 'up', subtext: `Outstanding school balances`, status: totalReceivables > 0 ? 'warning' : 'success' },
-          { id: 'kpi_orders', title: 'Orders Won & Invoiced', value: `${ordersWon} Accounts`, rawValue: ordersWon, change: safeVisits.length > 0 ? `${Math.round((ordersWon / safeVisits.length) * 100)}% Win Rate` : '0% Win Rate', trend: 'up', subtext: `${safeVisits.length} Total Visits Logged`, status: 'success' },
-          { id: 'kpi_pipeline', title: 'Live Sales Pipeline', value: formatL(totalPipelineValue), rawValue: totalPipelineValue, change: `${safeQuotes.length} Quotes Issued`, trend: 'up', subtext: `${hotLeads} Hot Leads, ${warmLeads} Warm Leads`, status: 'success' }
-        ],
-        sales: {
-          totalPipelineValue,
-          activeQuotesValue,
-          quotationsCount: safeQuotes.length,
-          visitedCustomers: new Set(safeVisits.map(v => v.school_name || v.school_id)).size,
-          convertedCustomers: safeInvoices.length,
-          avgDealValue: safeInvoices.length > 0 ? Math.round(totalInvoiced / safeInvoices.length) : 0,
-          highestDealValue: safeInvoices.reduce((max, i) => Math.max(max, Number(i.grand_total) || 0), 0),
-          winRate: safeVisits.length > 0 ? Math.round((ordersWon / safeVisits.length) * 100) : 0,
-          quarterlyTarget: 3500000,
-          targetProgress: totalInvoiced > 0 ? Math.min(100, Math.round((totalInvoiced / 3500000) * 100)) : 0
-        },
-        finance: {
-          totalInvoiced,
-          totalCollected,
-          totalReceivables,
-          collectionRate: totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : '0',
-          commissionsPayable: Math.round(totalInvoiced * 0.03),
-          estimatedCOGS: estCOGS,
-          grossMarginPct: '48.0',
-          netMarginPct: '21.6',
-          agingBuckets: {
-            current: { label: '0 - 30 Days', amount: Math.round(totalReceivables * 0.65), count: 2 },
-            days31_60: { label: '31 - 60 Days', amount: Math.round(totalReceivables * 0.25), count: 1 },
-            days61_90: { label: '61 - 90 Days', amount: Math.round(totalReceivables * 0.10), count: 1 },
-            days90Plus: { label: '90+ Days', amount: 0, count: 0 }
-          },
-          overdueCount: 0,
-          overdueAmount: 0,
-          recentPayments: safePayments.slice(0, 5)
-        },
-        operations: {
-          totalOrders: ordersWon,
-          sampleSentCount: safeVisits.filter(v => (v.outcome_status || '').toLowerCase().includes('sample')).length,
-          quoteGivenCount: safeVisits.filter(v => (v.outcome_status || '').toLowerCase().includes('quote')).length,
-          activeInvoices: safeInvoices.length,
-          overdueFollowUpsCount: 0,
-          overdueFollowUps: []
-        },
-        inventory: {
-          productsCatalogCount: 6,
-          categories: ['Hosiery', 'Apparel', 'Accessories', 'Footwear', 'Bags'],
-          demandDistribution: [
-            { product: 'Cotton Combed Socks', count: 18 },
-            { product: 'School Uniform Sets', count: 14 },
-            { product: 'Sublimation Crest Ties', count: 11 },
-            { product: 'School Belts with Metal Crest', count: 9 },
-            { product: 'Sports Running Shoes', count: 8 },
-            { product: 'School Backpacks', count: 6 }
-          ],
-          products: []
-        },
-        customers: {
-          masterSchoolsTotal: 2480,
-          visitedCount: new Set(safeVisits.map(v => v.school_name || v.school_id)).size,
-          penetrationRate: ((new Set(safeVisits.map(v => v.school_name || v.school_id)).size / 2480) * 100).toFixed(1),
-          topCustomers: safeInvoices.slice(0, 6).map(i => ({
-            name: i.school_name || 'School Client',
-            district: i.district || 'Chennai',
-            totalBilled: Number(i.grand_total) || 0,
-            totalPaid: Number(i.paid_amount) || 0,
-            outstanding: Number(i.outstanding_balance) || 0
-          }))
-        },
-        procurement: {
-          estCOGS,
-          cogsRatio: '52%',
-          avgMarginPerUnit: '48%',
-          topCategories: ['Apparel', 'Hosiery', 'Footwear', 'Accessories']
-        },
-        marketing: {
-          totalVisits: safeVisits.length,
-          hotLeads,
-          warmLeads,
-          coldLeads,
-          leadConversionRate: safeVisits.length > 0 ? Math.round((ordersWon / safeVisits.length) * 100) : 0,
-          campaigns: [
-            { id: 1, name: 'Q3 Academic Season Drive', status: 'Active', roi: '5.4x ROI', target: 'Matriculation & CBSE Schools', leads: 42 },
-            { id: 2, name: 'Direct Canvassing Blitz', status: 'Active', roi: '4.8x ROI', target: 'Tier-2 District Private Schools', leads: 28 }
-          ],
-          estCAC: '₹1,450 / School',
-          estROI: '5.2x'
-        },
-        people: {
-          totalUsers: safeUsers.length,
-          activeUsers: safeUsers.filter(u => u.status === 'ACTIVE').length,
-          canvassersCount: safeUsers.filter(u => (u.role || '').toLowerCase() === 'cvs' || (u.role || '').toLowerCase() === 'canvasser').length,
-          canvasserRoster: []
-        },
-        management: {
-          pendingApprovalsCount: 0,
-          pendingApprovals: [],
-          overdueInvoicesCount: 0,
-          overdueInvoices: [],
-          alertsCount: 0
-        },
-        reporting: {
-          monthlyTrend: [
-            { month: 'Jun', billed: Math.round(totalInvoiced * 0.15), collected: Math.round(totalCollected * 0.15), visits: 12 },
-            { month: 'Jul', billed: Math.round(totalInvoiced * 0.25), collected: Math.round(totalCollected * 0.22), visits: 24 },
-            { month: 'Aug', billed: Math.round(totalInvoiced * 0.35), collected: Math.round(totalCollected * 0.38), visits: 31 },
-            { month: 'Sep', billed: Math.round(totalInvoiced * 0.25), collected: Math.round(totalCollected * 0.25), visits: 18 }
-          ],
+        const agingBuckets = {
+          current: { label: '0-30 Days', count: 0, amount: 0, color: '#8b5cf6' },
+          days31_60: { label: '31-60 Days', count: 0, amount: 0, color: '#a855f7' },
+          days61_90: { label: '61-90 Days', count: 0, amount: 0, color: '#6366f1' },
+          days90Plus: { label: '90+ Days', count: 0, amount: 0, color: '#ef4444' }
+        };
+
+        safeInvoices.forEach(inv => {
+          const balance = Number(inv.outstanding_balance) || 0;
+          if (balance > 0) {
+            const createdDate = new Date(inv.created_at || Date.now());
+            const ageInDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+
+            if (inv.due_date && new Date(inv.due_date) < now) {
+              overdueCount++;
+              overdueAmount += balance;
+            }
+
+            if (ageInDays <= 30) {
+              agingBuckets.current.count++;
+              agingBuckets.current.amount += balance;
+            } else if (ageInDays <= 60) {
+              agingBuckets.days31_60.count++;
+              agingBuckets.days31_60.amount += balance;
+            } else if (ageInDays <= 90) {
+              agingBuckets.days61_90.count++;
+              agingBuckets.days61_90.amount += balance;
+            } else {
+              agingBuckets.days90Plus.count++;
+              agingBuckets.days90Plus.amount += balance;
+            }
+          }
+        });
+
+        const estimatedCOGS = Math.round(totalInvoiced * 0.66);
+        const grossProfit = Math.max(0, totalInvoiced - estimatedCOGS);
+        const grossProfitMargin = totalInvoiced > 0 ? ((grossProfit / totalInvoiced) * 100).toFixed(1) : 34.0;
+        const collectionRate = totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : 0;
+        const dsoDays = totalInvoiced > 0 ? Math.round((totalOutstanding / totalInvoiced) * 90) : 24;
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const monthlyDataMap = {};
+        months.forEach((m, idx) => {
+          monthlyDataMap[idx] = { month: m, billed: 0, collected: 0, target: 15 + (idx * 3) };
+        });
+
+        safeInvoices.forEach(inv => {
+          const d = new Date(inv.created_at || Date.now());
+          const mIdx = d.getMonth() % 6;
+          if (monthlyDataMap[mIdx]) {
+            monthlyDataMap[mIdx].billed += (Number(inv.grand_total) || 0) / 100000;
+          }
+        });
+
+        safePayments.forEach(p => {
+          const d = new Date(p.recorded_at || p.payment_date || Date.now());
+          const mIdx = d.getMonth() % 6;
+          if (monthlyDataMap[mIdx]) {
+            monthlyDataMap[mIdx].collected += (Number(p.amount || p.amount_paid) || 0) / 100000;
+          }
+        });
+
+        const monthlyTrend = Object.values(monthlyDataMap).map(item => ({
+          month: item.month,
+          sales: Number(item.billed.toFixed(2)),
+          collections: Number(item.collected.toFixed(2)),
+          target: item.target
+        }));
+
+        return {
           summary: {
-            totalBilled: totalInvoiced,
+            totalInvoiced,
             totalCollected,
-            totalOutstanding: totalReceivables,
+            totalOutstanding,
             grossProfit,
-            netProfit,
-            visitsTotal: safeVisits.length
+            grossProfitMargin: Number(grossProfitMargin),
+            collectionRate: Number(collectionRate),
+            dsoDays,
+            overdueCount,
+            overdueAmount,
+            invoicesCount: safeInvoices.length,
+            quotationsCount: safeQuotes.length,
+            paymentsCount: safePayments.length
+          },
+          agingBuckets,
+          monthlyTrend
+        };
+      }
+    }, forceRefresh);
+  },
+
+  async getCEODashboardHubData(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    return cachedGet('ceo_mis', async () => {
+      try {
+        return await api.get('/ceo/mis');
+      } catch (err) {
+        console.warn('Backend /ceo/mis endpoint unreachable, calculating from active entities:', err);
+        const [invoices, visits, quotations, payments, users] = await Promise.all([
+          this.getInvoices().catch(() => []),
+          this.getVisits().catch(() => []),
+          this.getQuotations().catch(() => []),
+          this.getPayments().catch(() => []),
+          this.getUsers().catch(() => [])
+        ]);
+
+        const safeInvoices = Array.isArray(invoices) ? invoices : [];
+        const safeVisits = Array.isArray(visits) ? visits : [];
+        const safeQuotes = Array.isArray(quotations) ? quotations : [];
+        const safePayments = Array.isArray(payments) ? payments : [];
+        const safeUsers = Array.isArray(users) ? users : [];
+
+        const totalInvoiced = safeInvoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
+        const totalCollected = safeInvoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
+        const totalReceivables = safeInvoices.reduce((sum, i) => sum + (Number(i.outstanding_balance) || 0), 0);
+        const estCOGS = Math.round(totalInvoiced * 0.52);
+        const grossProfit = Math.max(0, totalInvoiced - estCOGS);
+        const netProfit = Math.max(0, Math.round(grossProfit * 0.45));
+
+        const ordersWon = safeVisits.filter(v => (v.outcome_status || '').toLowerCase() === 'won').length;
+        const hotLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'hot').length;
+        const warmLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'warm').length;
+        const coldLeads = safeVisits.filter(v => (v.interest_level || '').toLowerCase() === 'cold').length;
+        const activeQuotesValue = safeQuotes.reduce((sum, q) => sum + (Number(q.grand_total || q.total_amount) || 0), 0);
+        const totalPipelineValue = activeQuotesValue + (hotLeads * 18000) + (warmLeads * 8000);
+
+        const formatL = (val) => `₹${((Number(val) || 0) / 100000).toFixed(2)}L`;
+
+        return {
+          executiveKPIs: [
+            { id: 'kpi_rev', title: 'Total Revenue (Billed)', value: formatL(totalInvoiced), rawValue: totalInvoiced, change: '+18.4% vs LM', trend: 'up', subtext: `${safeInvoices.length} Invoices Billed (Live DB)`, status: 'success' },
+            { id: 'kpi_gp', title: 'Gross Profit & Margin', value: formatL(grossProfit), rawValue: grossProfit, change: '48.0% Gross Margin', trend: 'up', subtext: `₹${(estCOGS / 100000).toFixed(2)}L Production COGS (52%)`, status: 'success' },
+            { id: 'kpi_np', title: 'Net Profit (EBITDA)', value: formatL(netProfit), rawValue: netProfit, change: '21.6% Net Margin', trend: 'up', subtext: 'Operating profit after sales commission', status: 'success' },
+            { id: 'kpi_cash', title: 'Cash Inflow (Collections)', value: formatL(totalCollected), rawValue: totalCollected, change: totalInvoiced > 0 ? `${((totalCollected / totalInvoiced) * 100).toFixed(1)}% Cleared` : '0% Cleared', trend: 'up', subtext: `${safePayments.length} Payments Logged (Live DB)`, status: 'success' },
+            { id: 'kpi_ar', title: 'Accounts Receivable', value: formatL(totalReceivables), rawValue: totalReceivables, change: totalReceivables > 0 ? 'Pending Settlement' : 'Nil Balance', trend: totalReceivables > 0 ? 'down' : 'up', subtext: `Outstanding school balances`, status: totalReceivables > 0 ? 'warning' : 'success' },
+            { id: 'kpi_orders', title: 'Orders Won & Invoiced', value: `${ordersWon} Accounts`, rawValue: ordersWon, change: safeVisits.length > 0 ? `${Math.round((ordersWon / safeVisits.length) * 100)}% Win Rate` : '0% Win Rate', trend: 'up', subtext: `${safeVisits.length} Total Visits Logged`, status: 'success' },
+            { id: 'kpi_pipeline', title: 'Live Sales Pipeline', value: formatL(totalPipelineValue), rawValue: totalPipelineValue, change: `${safeQuotes.length} Quotes Issued`, trend: 'up', subtext: `${hotLeads} Hot Leads, ${warmLeads} Warm Leads`, status: 'success' }
+          ],
+          sales: {
+            totalPipelineValue,
+            activeQuotesValue,
+            quotationsCount: safeQuotes.length,
+            visitedCustomers: new Set(safeVisits.map(v => v.school_name || v.school_id)).size,
+            convertedCustomers: safeInvoices.length,
+            avgDealValue: safeInvoices.length > 0 ? Math.round(totalInvoiced / safeInvoices.length) : 0,
+            highestDealValue: safeInvoices.reduce((max, i) => Math.max(max, Number(i.grand_total) || 0), 0),
+            winRate: safeVisits.length > 0 ? Math.round((ordersWon / safeVisits.length) * 100) : 0,
+            quarterlyTarget: 3500000,
+            targetProgress: totalInvoiced > 0 ? Math.min(100, Math.round((totalInvoiced / 3500000) * 100)) : 0
+          },
+          finance: {
+            totalInvoiced,
+            totalCollected,
+            totalReceivables,
+            collectionRate: totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : '0',
+            commissionsPayable: Math.round(totalInvoiced * 0.03),
+            estimatedCOGS: estCOGS,
+            grossMarginPct: '48.0',
+            netMarginPct: '21.6',
+            agingBuckets: {
+              current: { label: '0 - 30 Days', amount: Math.round(totalReceivables * 0.65), count: 2 },
+              days31_60: { label: '31 - 60 Days', amount: Math.round(totalReceivables * 0.25), count: 1 },
+              days61_90: { label: '61 - 90 Days', amount: Math.round(totalReceivables * 0.10), count: 1 },
+              days90Plus: { label: '90+ Days', amount: 0, count: 0 }
+            },
+            overdueCount: 0,
+            overdueAmount: 0,
+            recentPayments: safePayments.slice(0, 5)
+          },
+          operations: {
+            totalOrders: ordersWon,
+            sampleSentCount: safeVisits.filter(v => (v.outcome_status || '').toLowerCase().includes('sample')).length,
+            quoteGivenCount: safeVisits.filter(v => (v.outcome_status || '').toLowerCase().includes('quote')).length,
+            activeInvoices: safeInvoices.length,
+            overdueFollowUpsCount: 0,
+            overdueFollowUps: []
+          },
+          inventory: {
+            productsCatalogCount: 6,
+            categories: ['Hosiery', 'Apparel', 'Accessories', 'Footwear', 'Bags'],
+            demandDistribution: [
+              { product: 'Cotton Combed Socks', count: 18 },
+              { product: 'School Uniform Sets', count: 14 },
+              { product: 'Sublimation Crest Ties', count: 11 },
+              { product: 'School Belts with Metal Crest', count: 9 },
+              { product: 'Sports Running Shoes', count: 8 },
+              { product: 'School Backpacks', count: 6 }
+            ],
+            products: []
+          },
+          customers: {
+            masterSchoolsTotal: 2480,
+            visitedCount: new Set(safeVisits.map(v => v.school_name || v.school_id)).size,
+            penetrationRate: ((new Set(safeVisits.map(v => v.school_name || v.school_id)).size / 2480) * 100).toFixed(1),
+            topCustomers: safeInvoices.slice(0, 6).map(i => ({
+              name: i.school_name || 'School Client',
+              district: i.district || 'Chennai',
+              totalBilled: Number(i.grand_total) || 0,
+              totalPaid: Number(i.paid_amount) || 0,
+              outstanding: Number(i.outstanding_balance) || 0
+            }))
+          },
+          procurement: {
+            estCOGS,
+            cogsRatio: '52%',
+            avgMarginPerUnit: '48%',
+            topCategories: ['Apparel', 'Hosiery', 'Footwear', 'Accessories']
+          },
+          marketing: {
+            totalVisits: safeVisits.length,
+            hotLeads,
+            warmLeads,
+            coldLeads,
+            leadConversionRate: safeVisits.length > 0 ? Math.round((ordersWon / safeVisits.length) * 100) : 0,
+            campaigns: [
+              { id: 1, name: 'Q3 Academic Season Drive', status: 'Active', roi: '5.4x ROI', target: 'Matriculation & CBSE Schools', leads: 42 },
+              { id: 2, name: 'Direct Canvassing Blitz', status: 'Active', roi: '4.8x ROI', target: 'Tier-2 District Private Schools', leads: 28 }
+            ],
+            estCAC: '₹1,450 / School',
+            estROI: '5.2x'
+          },
+          people: {
+            totalUsers: safeUsers.length,
+            activeUsers: safeUsers.filter(u => u.status === 'ACTIVE').length,
+            canvassersCount: safeUsers.filter(u => (u.role || '').toLowerCase() === 'cvs' || (u.role || '').toLowerCase() === 'canvasser').length,
+            canvasserRoster: []
+          },
+          management: {
+            pendingApprovalsCount: 0,
+            pendingApprovals: [],
+            overdueInvoicesCount: 0,
+            overdueInvoices: [],
+            alertsCount: 0
+          },
+          reporting: {
+            monthlyTrend: [
+              { month: 'Jun', billed: Math.round(totalInvoiced * 0.15), collected: Math.round(totalCollected * 0.15), visits: 12 },
+              { month: 'Jul', billed: Math.round(totalInvoiced * 0.25), collected: Math.round(totalCollected * 0.22), visits: 24 },
+              { month: 'Aug', billed: Math.round(totalInvoiced * 0.35), collected: Math.round(totalCollected * 0.38), visits: 31 },
+              { month: 'Sep', billed: Math.round(totalInvoiced * 0.25), collected: Math.round(totalCollected * 0.25), visits: 18 }
+            ],
+            summary: {
+              totalBilled: totalInvoiced,
+              totalCollected,
+              totalOutstanding: totalReceivables,
+              grossProfit,
+              netProfit,
+              visitsTotal: safeVisits.length
+            }
           }
-        }
-      };
-    }
+        };
+      }
+    }, forceRefresh);
   },
 
   async getFinancialStats(userId, role, currentUser) {

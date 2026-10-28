@@ -52,7 +52,8 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 // ── Refrens Style Interactive Financial Analytics Graph Component ───────────
@@ -395,17 +396,17 @@ export default function InvoicingModule({ currentUser }) {
     loadAllFinancialData();
   }, [currentUser]);
 
-  const loadAllFinancialData = async () => {
+  const loadAllFinancialData = async (force = false) => {
     setLoading(true);
     try {
       const uId = currentUser?.id;
       const role = currentUser?.role;
       const [statsData, quotesData, proformaData, invsData, paysData] = await Promise.all([
-        mockApi.getCFOAnalytics().catch(() => null),
-        mockApi.getQuotations(),
-        mockApi.getProformaInvoices(),
-        mockApi.getInvoices(),
-        mockApi.getPayments()
+        mockApi.getCFOAnalytics({ forceRefresh: force }).catch(() => null),
+        mockApi.getQuotations({ forceRefresh: force }),
+        mockApi.getProformaInvoices({ forceRefresh: force }),
+        mockApi.getInvoices({ forceRefresh: force }),
+        mockApi.getPayments({ forceRefresh: force })
       ]);
 
       setStats(statsData?.summary || { totalInvoiced: 0, totalCollected: 0, totalOutstanding: 0 });
@@ -795,15 +796,29 @@ export default function InvoicingModule({ currentUser }) {
           })}
         </div>
 
-        {/* Create new button */}
-        <button
-          type="button"
-          onClick={() => handleCreateDocument(activeTab === 'invoices' ? 'invoice' : activeTab === 'proforma' ? 'proforma' : 'quote')}
-          className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer bg-white/[0.06] hover:bg-white/[0.12] text-white hover:text-amber-300 border border-white/15 hover:border-amber-400/40 active:scale-95 shadow-none"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[2.5] text-amber-400" />
-          <span>Create new</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Sync Button */}
+          <button
+            type="button"
+            onClick={() => loadAllFinancialData(true)}
+            disabled={loading}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer bg-white/[0.04] hover:bg-white/[0.08] text-white/80 hover:text-white border border-white/10 hover:border-amber-400/30 active:scale-95 disabled:opacity-50"
+            title="Sync and pull latest financial records from database"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
+            <span>{loading ? "Syncing..." : "Sync"}</span>
+          </button>
+
+          {/* Create new button */}
+          <button
+            type="button"
+            onClick={() => handleCreateDocument(activeTab === 'invoices' ? 'invoice' : activeTab === 'proforma' ? 'proforma' : 'quote')}
+            className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer bg-white/[0.06] hover:bg-white/[0.12] text-white hover:text-amber-300 border border-white/15 hover:border-amber-400/40 active:scale-95 shadow-none"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5] text-amber-400" />
+            <span>Create new</span>
+          </button>
+        </div>
       </div>
 
       {/* ── 2. SECTION FINANCIAL GRAPHS (Refrens Interactive Analytics) ────── */}

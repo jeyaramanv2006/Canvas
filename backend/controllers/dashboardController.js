@@ -131,7 +131,7 @@ export function calculateCommissionSlab(amount, newSchoolsCount = 0) {
 
 export async function getDashboardStats(req, res) {
   try {
-    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
+    const visits = (await db.prepare('SELECT id, district, outcome_status, interest_level, product_interests, canvasser_id, canvasser_name FROM visits').all()) || [];
 
     const totalVisits = visits.length;
     const hotLeads = visits.filter(v => v.interest_level === 'Hot').length;
@@ -219,9 +219,9 @@ function safeToMonthKey(val) {
 export async function getCanvasserLeaderboard(req, res) {
   try {
     const { sort_by = 'pay', order = 'desc', month = '' } = req.query;
-    const allVisits = (await db.prepare('SELECT * FROM visits').all()) || [];
-    const allInvoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
-    const canvassers = (await db.prepare("SELECT * FROM users WHERE role IN ('canvasser', 'cvs') AND status = 'ACTIVE'").all()) || [];
+    const allVisits = (await db.prepare('SELECT id, canvasser_id, canvasser_name, school_name, outcome_status, interest_level, is_from_master_db, discovery_bonus_awarded, discovery_bonus_amount, created_at FROM visits').all()) || [];
+    const allInvoices = (await db.prepare('SELECT id, canvasser_id, canvasser_name, visit_id, school_name, district, grand_total, paid_amount, created_at FROM invoices').all()) || [];
+    const canvassers = (await db.prepare("SELECT id, name, email, role_title FROM users WHERE role IN ('canvasser', 'cvs') AND status = 'ACTIVE'").all()) || [];
 
     // Collect available months from both visits and invoices
     const allMonthsSet = new Set();
@@ -395,13 +395,13 @@ export async function getCanvasserLeaderboard(req, res) {
 
 export async function getCEOExecutiveMIS(req, res) {
   try {
-    const visits = (await db.prepare('SELECT * FROM visits').all()) || [];
-    const invoices = (await db.prepare('SELECT * FROM invoices').all()) || [];
-    const quotations = (await db.prepare('SELECT * FROM quotations').all()) || [];
-    const payments = (await db.prepare('SELECT * FROM payments').all()) || [];
+    const visits = (await db.prepare('SELECT id, school_name, district, outcome_status, interest_level, product_interests, canvasser_id, canvasser_name, follow_up_date, contact_person, phone, created_at FROM visits').all()) || [];
+    const invoices = (await db.prepare('SELECT id, school_name, district, canvasser_name, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices').all()) || [];
+    const quotations = (await db.prepare('SELECT id, status, grand_total FROM quotations').all()) || [];
+    const payments = (await db.prepare('SELECT id, amount, recorded_at FROM payments').all()) || [];
     const users = (await db.prepare("SELECT id, name, role, role_title, status FROM users WHERE status != 'DELETED'").all()) || [];
-    const products = (await db.prepare('SELECT * FROM products').all()) || [];
-    const pendingApprovals = (await db.prepare("SELECT * FROM pending_user_actions WHERE status = 'PENDING'").all()) || [];
+    const products = (await db.prepare('SELECT id, name, category, unit_price FROM products').all()) || [];
+    const pendingApprovals = (await db.prepare("SELECT id, action_type, status, requested_by_name, created_at FROM pending_user_actions WHERE status = 'PENDING'").all()) || [];
     const masterCountRow = await db.prepare("SELECT COUNT(*) as count FROM master_schools").get();
     const totalMasterSchools = masterCountRow ? Number(masterCountRow.count) : 2561;
 

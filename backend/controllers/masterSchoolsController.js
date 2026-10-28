@@ -1,11 +1,31 @@
 import { db } from '../database/db.js';
 
+let schoolsCache = null;
+let schoolsCacheTime = 0;
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15-minute cache to prevent repeatedly pulling 2,610 rows over Neon
+
+export function invalidateSchoolsCache() {
+  schoolsCache = null;
+  schoolsCacheTime = 0;
+}
+
 // ── GET /api/master-schools ──────────────────────────────────────────────────
 export async function getMasterSchools(req, res) {
   try {
     const { q, district, zone, board, limit, page = 1 } = req.query;
     const parsedLimit = limit === 'all' || !limit ? 10000 : parseInt(limit, 10);
     const offset = (Math.max(1, parseInt(page, 10)) - 1) * parsedLimit;
+
+    const isUnfilteredAll = !q && (!district || district.toLowerCase() === 'all') && (!zone || zone.toLowerCase() === 'all') && (!board || board.toLowerCase() === 'all') && (limit === 'all' || !limit);
+    if (isUnfilteredAll && schoolsCache && (Date.now() - schoolsCacheTime < CACHE_TTL_MS)) {
+      return res.json({
+        total: schoolsCache.length,
+        page: 1,
+        limit: parsedLimit,
+        totalPages: 1,
+        schools: schoolsCache
+      });
+    }
 
     let whereClauses = ["status = 'ACTIVE'"];
     let params = [];
@@ -45,6 +65,11 @@ export async function getMasterSchools(req, res) {
       ORDER BY district ASC, school_name ASC
       LIMIT ? OFFSET ?
     `).all(...queryParams);
+
+    if (isUnfilteredAll && schools) {
+      schoolsCache = schools;
+      schoolsCacheTime = Date.now();
+    }
 
     return res.json({
       total,
@@ -357,6 +382,7 @@ export async function createMasterSchool(req, res) {
         schoolData.priority
       );
 
+      invalidateSchoolsCache();
       const created = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(schoolData.id);
       return res.status(201).json({
         success: true,
@@ -456,6 +482,7 @@ export async function updateMasterSchool(req, res) {
         id
       );
 
+      invalidateSchoolsCache();
       const school = await db.prepare('SELECT * FROM master_schools WHERE id = ?').get(id);
       return res.json({
         success: true,
@@ -508,6 +535,7 @@ export async function deleteMasterSchool(req, res) {
     // If CEO, delete directly
     if (req.user.role === 'ceo') {
       await db.prepare('DELETE FROM master_schools WHERE id = ?').run(id);
+      invalidateSchoolsCache();
       return res.json({
         success: true,
         message: `School "${existing.school_name}" deleted directly by CEO`,

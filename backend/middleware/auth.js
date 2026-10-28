@@ -42,7 +42,7 @@ export function authenticateToken(req, res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  const adminRoles = ['admin', 'admin_exec', 'manager', 'ceo', 'cfo', 'cco'];
+  const adminRoles = ['admin', 'admin_exec', 'manager', 'ceo', 'cfo', 'cco', 'cso'];
   if (!req.user || !adminRoles.includes(req.user.role)) {
     return res.status(403).json({ error: 'Access denied: Executive / Admin role required' });
   }

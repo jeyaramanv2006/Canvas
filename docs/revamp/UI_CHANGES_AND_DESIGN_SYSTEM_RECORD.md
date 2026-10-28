@@ -85,9 +85,14 @@ App.jsx (Root Isolation)
 
 ### 3.2 Authenticated Dashboard Canvas: `DynamicDotGridBackground.jsx`
 - **Visual Style:** Uniform, clean white micro-dots (`rgba(255, 255, 255, 0.18)` / radius 1.15px) arranged in an ambient matrix.
-- **Fluid Sheet Wave:** Continuous undulating harmonic wave with `8.5px` amplitude (`6.5px` mobile) and dual phase multipliers (`0.22`, `0.14`), creating an organic living sheet.
-- **Hover Interaction:** Smooth liquid radial parting as the cursor moves through the field. Dots physically displace away from the cursor and smoothly return to their wave paths. **No color shifts or opacity changes** on hover to keep the background subtle and non-distracting.
-- **Ambient Bleeds:** Very subtle dark radial gradients (purple in top-left, teal in bottom-right, amber in center) at low opacity (<13%) beneath the dots.
+- **Fluid Sheet Wave:** Continuous undulating harmonic wave with `8.5px` amplitude (`5.5px` mobile).
+- **Hover Interaction:** Removed completely to keep the canvas calm, non-distracting, and lightweight across all authenticated views.
+- **Ambient Bleeds (Pre-rendered Offscreen):** Cached on resize to an offscreen canvas. Completely eliminates 4 dynamic `createRadialGradient` allocations and 5 full-screen overdraws every single frame.
+- **Mobile Heavy Optimizations:**
+  - Grid spacing widened to `44px` on mobile (~140-160 dots vs. 320+), reducing geometry and calculations by >50%.
+  - Single harmonic calculation per axis on mobile, cutting trigonometry calls in half.
+  - Frame rate throttled to ~30-35 FPS on mobile (`delta < 28ms` drop), eliminating GPU/battery drain while preserving liquid smooth perception.
+  - Instant sleep on `prefers-reduced-motion` (renders one frame and stops animation loop).
 
 ---
 
@@ -416,4 +421,27 @@ When revamping or touching any of the following upcoming screens, adhere to thes
   - Zero changes to backend models, database persistences, or API endpoints.
   - All mock API calls (`mockApi.getQuotations`, `getProformaInvoices`, `getInvoices`, `getPayments`, `recordPayment`, `deleteQuotation`, etc.) remain 100% active.
   - All calculations (`subtotal`, `cgst_amount`, `sgst_amount`, `grand_total`, `outstanding_balance`, `numberToWordsIndian`) remain exact and unchanged.
+
+---
+
+## 10. Chief Strategy Officer (CSO) Executive Role Standard
+
+- **Role Identifier**: `cso`
+- **Username Convention**: `<name>@cso` (e.g. `shamita@cso`, `cso@cso`)
+- **Seeded Essential Account**: `shamita@cso` (Password: `password`)
+- **Backend Access & Database Connectivity**:
+  - Added `'cso'` to `adminRoles` in `backend/middleware/auth.js`.
+  - Full read/write executive access to real database endpoints:
+    - Central Visit Registry (`/visits`)
+    - Invoicing & Commercial Suite (`/quotations`, `/proforma-invoices`, `/invoices`, `/payments`)
+    - Team Leaderboard (`/leaderboard`)
+  - Updated `formatUsername` in `userManagementController.js` and `mockApi.js` to automatically format CSO creations as `<name>@cso`.
+- **Frontend Views & Architecture (`CSODashboard.jsx`)**:
+  - Obsidian Glass top navigation bar with teal role badge (`Compass` icon, `border-teal-500/40`), golden hairline, live pulse status indicator, single-row `xl+` Apple UI spring tabs, and responsive `md:xl` tray.
+  - 4 Executive Modules:
+    1. **CSO Strategy Overview**: Under-construction intelligence center matching CCO layout with developer preview/lock toggle.
+    2. **Invoicing & Records**: Fully connected `<InvoicingModule currentUser={user} />` showing live DB quotations, proformas, tax invoices, and payment receipts.
+    3. **Central Visit Logs**: Fully connected `<FieldVisitRegistry currentUser={user} />` displaying all visits recorded across Tamil Nadu districts.
+    4. **Team Leaderboard**: Fully connected `<CanvasserLeaderboard currentUser={user} />` rendering active canvasser rankings, orders won, and commission payouts.
+
 

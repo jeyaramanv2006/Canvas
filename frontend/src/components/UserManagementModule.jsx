@@ -60,10 +60,10 @@ export default function UserManagementModule({ currentUser }) {
     loadUsers();
   }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = async (force = false) => {
     setLoading(true);
     try {
-      const data = await mockApi.getUsers();
+      const data = await mockApi.getUsers({ forceRefresh: force });
       setUsers(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to load users", e);
@@ -387,13 +387,25 @@ export default function UserManagementModule({ currentUser }) {
             </div>
           </div>
 
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap self-start sm:self-auto cursor-pointer active:scale-95"
-          >
-            <UserPlus className="w-4 h-4 stroke-[3]" />
-            <span>{isCEO ? "Add New User" : "Request New User"}</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+            <button
+              onClick={() => loadUsers(true)}
+              disabled={loading}
+              className="px-3.5 py-2.5 bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white font-bold text-xs rounded-xl flex items-center gap-2 border border-white/[0.1] hover:border-amber-400/30 transition shadow-sm cursor-pointer disabled:opacity-50"
+              title="Sync and pull latest team members from database"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
+              <span>{loading ? "Syncing..." : "Sync Team"}</span>
+            </button>
+
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap cursor-pointer active:scale-95"
+            >
+              <UserPlus className="w-4 h-4 stroke-[3]" />
+              <span>{isCEO ? "Add New User" : "Request New User"}</span>
+            </button>
+          </div>
         </div>
 
         {/* 3 Metrics Grid */}

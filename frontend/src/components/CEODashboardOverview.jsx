@@ -52,15 +52,15 @@ export default function CEODashboardOverview({ currentUser, onOpenApprovals, onN
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
+  const loadDashboardData = async (force = false) => {
+    if (!force) setLoading(true);
     try {
       const [hubData, invoices, visits, quotations, payments] = await Promise.all([
-        mockApi.getCEODashboardHubData(),
-        mockApi.getInvoices().catch(() => []),
-        mockApi.getVisits().catch(() => []),
-        mockApi.getQuotations().catch(() => []),
-        mockApi.getPayments().catch(() => [])
+        mockApi.getCEODashboardHubData({ forceRefresh: force }),
+        mockApi.getInvoices({ forceRefresh: force }).catch(() => []),
+        mockApi.getVisits({ forceRefresh: force }).catch(() => []),
+        mockApi.getQuotations({ forceRefresh: force }).catch(() => []),
+        mockApi.getPayments({ forceRefresh: force }).catch(() => [])
       ]);
       setData(hubData);
       setRawEntities({
@@ -79,7 +79,7 @@ export default function CEODashboardOverview({ currentUser, onOpenApprovals, onN
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadDashboardData();
+    loadDashboardData(true);
   };
 
   // Dynamically compute time-scoped data across all KPIs and domain hubs

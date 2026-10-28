@@ -412,6 +412,7 @@ function seedDefaultData() {
       { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
       { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
       { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
+      { id: 13, username: 'shamita@cso', email: 'shamita@murugan.com', name: 'Shamita', role: 'cso', role_title: 'Chief Strategy Officer' },
       { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
       { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' }
     ];
@@ -426,7 +427,8 @@ function seedDefaultData() {
     // Ensure essential management accounts exist if missing
     const essentialUsers = [
       { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
-      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' }
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
+      { id: 13, username: 'shamita@cso', email: 'shamita@murugan.com', name: 'Shamita', role: 'cso', role_title: 'Chief Strategy Officer' }
     ];
     for (const u of essentialUsers) {
       const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);

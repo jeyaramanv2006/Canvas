@@ -17,6 +17,16 @@ import { cn } from '../lib/utils';
 export default function ManagerDashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('schools'); // 'schools', 'followups', 'users', 'invoicing', 'logs', 'team'
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['schools']));
+
+  React.useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   const roleConfig = getRoleConfig(user);
 
@@ -111,41 +121,56 @@ export default function ManagerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6 pb-28 md:pb-8">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-          >
-            <ErrorBoundary>
-              {activeTab === 'followups' && (
+        {/* Main Content with Instant Keep-Alive & Silky Smooth Fade Transition */}
+        <div className="relative w-full">
+          {visitedTabs.has('followups') && (
+            <div className={activeTab === 'followups' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <FollowUpsPipelineModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {activeTab === 'schools' && (
+          {visitedTabs.has('schools') && (
+            <div className={activeTab === 'schools' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <MasterSchoolsDirectoryModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {activeTab === 'users' && (
+          {visitedTabs.has('users') && (
+            <div className={activeTab === 'users' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <UserManagementModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {activeTab === 'invoicing' && (
+          {visitedTabs.has('invoicing') && (
+            <div className={activeTab === 'invoicing' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <InvoicingModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {activeTab === 'logs' && (
+          {visitedTabs.has('logs') && (
+            <div className={activeTab === 'logs' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <FieldVisitRegistry currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {activeTab === 'team' && (
+          {visitedTabs.has('team') && (
+            <div className={activeTab === 'team' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <CanvasserLeaderboard currentUser={user} />
-              )}
-            </ErrorBoundary>
-          </motion.div>
-        </AnimatePresence>
+              </ErrorBoundary>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}

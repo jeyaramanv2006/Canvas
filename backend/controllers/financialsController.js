@@ -766,9 +766,8 @@ export async function getPayments(req, res) {
 // ── CFO Executive Financial Analytics Aggregator ─────────────────────────────
 export async function getCFOAnalytics(req, res) {
   try {
-    const invoices = (await db.prepare('SELECT * FROM invoices ORDER BY created_at DESC').all()) || [];
-    const payments = (await db.prepare('SELECT * FROM payments ORDER BY recorded_at DESC').all()) || [];
-    const quotations = (await db.prepare('SELECT * FROM quotations').all()) || [];
+    const invoices = (await db.prepare('SELECT id, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices ORDER BY created_at DESC').all()) || [];
+    const payments = (await db.prepare('SELECT id, amount, recorded_at FROM payments ORDER BY recorded_at DESC').all()) || [];
 
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
     const totalCollected = invoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);

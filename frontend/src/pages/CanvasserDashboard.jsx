@@ -39,6 +39,16 @@ const CANVASSER_OUTCOME_STATUSES = ["Open", "Sample Sent", "Not Interested"];
 export default function CanvasserDashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'new', 'list', 'leaderboard'
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['dashboard']));
+
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
   const [visits, setVisits] = useState([]);
   const [availableProducts, setAvailableProducts] = useState(DEFAULT_PRODUCTS);
   const [loading, setLoading] = useState(true);
@@ -385,16 +395,10 @@ export default function CanvasserDashboard() {
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 md:pb-8 space-y-6">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-          >
-            {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
-            {activeTab === 'dashboard' && (
+        <div className="relative w-full">
+          {/* ================= TAB 1: DEDICATED DASHBOARD OVERVIEW ================= */}
+          {visitedTabs.has('dashboard') && (
+            <div className={activeTab === 'dashboard' ? "tab-pane-active block" : "hidden"}>
               <div className="space-y-6">
                 {/* Quick Action Banner */}
                 <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#161420]/90 via-[#0e1017]/90 to-[#0c0d15]/90 border border-amber-500/30 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
@@ -615,14 +619,16 @@ export default function CanvasserDashboard() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* ================= TAB 2: CLEAN NEW VISIT FORM ================= */}
-          {activeTab === 'new' && (
-            <form 
-              onSubmit={handleSubmit} 
-              className="space-y-6 bg-[#0c0d15]/85 border border-white/[0.08] p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl"
-            >
+          {visitedTabs.has('new') && (
+            <div className={activeTab === 'new' ? "tab-pane-active block" : "hidden"}>
+              <form 
+                onSubmit={handleSubmit} 
+                className="space-y-6 bg-[#0c0d15]/85 border border-white/[0.08] p-6 sm:p-7 rounded-3xl shadow-2xl backdrop-blur-2xl"
+              >
               <div className="flex justify-between items-center pb-4 border-b border-white/[0.08]">
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">Log School Visit</h2>
@@ -904,10 +910,12 @@ export default function CanvasserDashboard() {
                 {submitting ? 'Saving School Visit...' : 'Submit School Visit'}
               </motion.button>
             </form>
-          )}
+          </div>
+        )}
 
-          {/* ================= TAB 3: MY VISITS LIST & EDIT ================= */}
-          {activeTab === 'list' && (
+        {/* ================= TAB 3: MY VISITS LIST & EDIT ================= */}
+        {visitedTabs.has('list') && (
+          <div className={activeTab === 'list' ? "tab-pane-active block" : "hidden"}>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -1164,24 +1172,28 @@ export default function CanvasserDashboard() {
                   );
                 })
               )}
+              </div>
             </div>
           )}
 
           {/* ================= TAB: PRIORITY FOLLOW-UPS ================= */}
-          {activeTab === 'followups' && (
-            <ErrorBoundary>
-              <FollowUpsPipelineModule currentUser={user} canvasserScoped={true} />
-            </ErrorBoundary>
+          {visitedTabs.has('followups') && (
+            <div className={activeTab === 'followups' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
+                <FollowUpsPipelineModule currentUser={user} canvasserScoped={true} />
+              </ErrorBoundary>
+            </div>
           )}
 
           {/* ================= TAB 4: CANVASSER PERFORMANCE LEADERBOARD ================= */}
-          {activeTab === 'leaderboard' && (
-            <ErrorBoundary>
-              <CanvasserLeaderboard currentUser={user} />
-            </ErrorBoundary>
+          {visitedTabs.has('leaderboard') && (
+            <div className={activeTab === 'leaderboard' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
+                <CanvasserLeaderboard currentUser={user} />
+              </ErrorBoundary>
+            </div>
           )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </main>
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}

@@ -54,11 +54,11 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
     loadVisits();
   }, [currentUser, isCanvasser]);
 
-  const loadVisits = async () => {
+  const loadVisits = async (force = false) => {
     setLoading(true);
     try {
       const params = isCanvasser && currentUser?.id ? { canvasser_id: currentUser.id } : {};
-      const data = await mockApi.getVisits(params);
+      const data = await mockApi.getVisits(params, { forceRefresh: force });
       let list = Array.isArray(data) ? data : [];
       if (isCanvasser && currentUser) {
         list = list.filter(v => 
@@ -302,11 +302,12 @@ export default function FollowUpsPipelineModule({ currentUser, canvasserScoped =
         </div>
 
         <button
-          onClick={loadVisits}
-          className="self-start md:self-auto px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white border border-white/[0.1] hover:border-amber-400/30 text-xs font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer backdrop-blur-md relative z-10 shadow-sm"
+          onClick={() => loadVisits(true)}
+          disabled={loading}
+          className="self-start md:self-auto px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white border border-white/[0.1] hover:border-amber-400/30 text-xs font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer backdrop-blur-md relative z-10 shadow-sm disabled:opacity-50"
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin text-amber-400")} />
-          <span>Sync Pipeline</span>
+          <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
+          <span>{loading ? "Syncing..." : "Sync Pipeline"}</span>
         </button>
       </div>
 

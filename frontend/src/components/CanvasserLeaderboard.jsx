@@ -53,7 +53,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
     loadLeaderboard();
   }, [currentUser, sortBy, sortOrder, selectedMonth]);
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = async (force = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -61,7 +61,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
         sort_by: sortBy, 
         order: sortOrder,
         month: selectedMonth 
-      });
+      }, { forceRefresh: force });
 
       if (res && res.availableMonths && Array.isArray(res.availableMonths)) {
         setDynamicMonths(res.availableMonths);
@@ -384,6 +384,15 @@ export default function CanvasserLeaderboard({ currentUser }) {
             )}
           >
             All-Time
+          </button>
+
+          <button
+            onClick={() => loadLeaderboard(true)}
+            disabled={loading}
+            className="p-2 bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white rounded-2xl border border-white/[0.1] hover:border-amber-400/30 transition shadow-sm cursor-pointer disabled:opacity-50"
+            title="Sync and refresh leaderboard"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
           </button>
         </div>
       </div>

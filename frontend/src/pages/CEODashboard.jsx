@@ -29,6 +29,16 @@ export default function CEODashboard() {
 
   // Top Functional Navigation Tabs
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['dashboard']));
+
+  React.useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Governance Drawer State
   const [approvalsDrawerOpen, setApprovalsDrawerOpen] = useState(false);
@@ -142,57 +152,75 @@ export default function CEODashboard() {
           </div>
         </div>
 
-        {/* Tab Content with Seamless Animation */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-          >
-            <ErrorBoundary>
-              {/* TAB 1: CEO DASHBOARD COMMAND CENTER */}
-              {(activeTab === 'dashboard' || activeTab === 'overview') && (
+        {/* Tab Content with Instant Keep-Alive & Silky Smooth Fade Transition */}
+        <div className="relative w-full">
+          {/* TAB 1: CEO DASHBOARD COMMAND CENTER */}
+          {(visitedTabs.has('dashboard') || visitedTabs.has('overview')) && (
+            <div className={(activeTab === 'dashboard' || activeTab === 'overview') ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <CEODashboardOverview
                   currentUser={user}
                   onOpenApprovals={() => setApprovalsDrawerOpen(true)}
                   onNavigateTab={(tabId) => setActiveTab(tabId)}
                 />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB: PRIORITY FOLLOW-UPS */}
-              {activeTab === 'followups' && (
+          {/* TAB: PRIORITY FOLLOW-UPS */}
+          {visitedTabs.has('followups') && (
+            <div className={activeTab === 'followups' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <FollowUpsPipelineModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB 2: MASTER SCHOOLS DATABASE */}
-              {activeTab === 'schools' && (
+          {/* TAB 2: MASTER SCHOOLS DATABASE */}
+          {visitedTabs.has('schools') && (
+            <div className={activeTab === 'schools' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <MasterSchoolsDirectoryModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB 3: INVOICING & FINANCIAL RECORDS */}
-              {activeTab === 'invoicing' && (
+          {/* TAB 3: INVOICING & FINANCIAL RECORDS */}
+          {visitedTabs.has('invoicing') && (
+            <div className={activeTab === 'invoicing' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <InvoicingModule currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB 4: CENTRAL VISIT LOGS */}
-              {activeTab === 'logs' && (
+          {/* TAB 4: CENTRAL VISIT LOGS */}
+          {visitedTabs.has('logs') && (
+            <div className={activeTab === 'logs' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <FieldVisitRegistry currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB 5: TEAM LEADERBOARD */}
-              {activeTab === 'team' && (
+          {/* TAB 5: TEAM LEADERBOARD */}
+          {visitedTabs.has('team') && (
+            <div className={activeTab === 'team' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <CanvasserLeaderboard currentUser={user} />
-              )}
+              </ErrorBoundary>
+            </div>
+          )}
 
-              {/* TAB 6: USER DIRECTORY & ROLES */}
-              {activeTab === 'users' && (
+          {/* TAB 6: USER DIRECTORY & ROLES */}
+          {visitedTabs.has('users') && (
+            <div className={activeTab === 'users' ? "tab-pane-active block" : "hidden"}>
+              <ErrorBoundary>
                 <UserManagementModule currentUser={user} />
-              )}
-            </ErrorBoundary>
-          </motion.div>
-        </AnimatePresence>
+              </ErrorBoundary>
+            </div>
+          )}
+        </div>
 
       </main>
 

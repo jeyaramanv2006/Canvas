@@ -57,12 +57,12 @@ export default function FieldVisitRegistry({ currentUser }) {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  const loadData = async () => {
+  const loadData = async (force = false) => {
     setLoading(true);
     try {
       const [statsData, visitsData] = await Promise.all([
-        mockApi.getDashboardStats().catch(() => null),
-        mockApi.getVisits().catch(() => [])
+        mockApi.getDashboardStats({ forceRefresh: force }).catch(() => null),
+        mockApi.getVisits({}, { forceRefresh: force }).catch(() => [])
       ]);
       setStats(statsData);
       setVisits(Array.isArray(visitsData) ? visitsData : []);
@@ -77,13 +77,13 @@ export default function FieldVisitRegistry({ currentUser }) {
   const handleUpdateVisit = async (id, updatedData) => {
     await mockApi.updateVisit(id, updatedData, currentUser);
     showToast("Visit updated successfully!");
-    await loadData();
+    await loadData(true);
   };
 
   const handleDeleteVisit = async (id) => {
     await mockApi.deleteVisit(id);
     showToast("Visit deleted successfully!");
-    await loadData();
+    await loadData(true);
   };
 
   const filteredVisits = useMemo(() => {
@@ -222,14 +222,26 @@ export default function FieldVisitRegistry({ currentUser }) {
             </div>
           </div>
 
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap self-start sm:self-auto cursor-pointer active:scale-95"
-            title="Export filtered visits to CSV"
-          >
-            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Export CSV</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+            <button
+              onClick={() => loadData(true)}
+              disabled={loading}
+              className="px-3.5 py-2.5 bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white font-bold text-xs rounded-xl flex items-center gap-2 border border-white/[0.1] hover:border-amber-400/30 transition shadow-sm cursor-pointer disabled:opacity-50"
+              title="Sync and pull latest visits from live database"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
+              <span>{loading ? "Syncing..." : "Sync Visits"}</span>
+            </button>
+
+            <button
+              onClick={handleExportCSV}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xs rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 transition whitespace-nowrap cursor-pointer active:scale-95"
+              title="Export filtered visits to CSV"
+            >
+              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 

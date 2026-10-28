@@ -275,29 +275,32 @@ export async function initPgDB() {
 
   await seedPgData(p);
   try {
-    const { seedRefrensData } = await import('./seedRefrens.js');
-    await seedRefrensData(pgDb);
+    const existingQuotes = await p.query('SELECT 1 FROM quotations LIMIT 1');
+    if (existingQuotes.rows.length === 0) {
+      const { seedRefrensData } = await import('./seedRefrens.js');
+      await seedRefrensData(pgDb);
 
-    // Unlink Gokul from historical Refrens records in Postgres
-    try {
-      const sysUserRes = await p.query('SELECT id FROM users WHERE id = 99');
-      if (sysUserRes.rows.length === 0) {
-        await p.query(`
-          INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
-          VALUES (99, 'refrens@system', 'refrens@murugan.com', 'SYSTEM_ACCOUNT', 'Refrens Import', 'system', 'Historical Refrens Data', 'ACTIVE')
-          ON CONFLICT (id) DO NOTHING
-        `);
+      // Unlink Gokul from historical Refrens records in Postgres
+      try {
+        const sysUserRes = await p.query('SELECT id FROM users WHERE id = 99');
+        if (sysUserRes.rows.length === 0) {
+          await p.query(`
+            INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
+            VALUES (99, 'refrens@system', 'refrens@murugan.com', 'SYSTEM_ACCOUNT', 'Refrens Import', 'system', 'Historical Refrens Data', 'ACTIVE')
+            ON CONFLICT (id) DO NOTHING
+          `);
+        }
+        for (const tbl of ['quotations', 'proforma_invoices', 'invoices']) {
+          await p.query(`
+            UPDATE ${tbl} 
+            SET canvasser_id = 99, canvasser_name = 'Refrens Import' 
+            WHERE (id LIKE 'A%' OR tags LIKE '%Refrens Import%') 
+              AND (canvasser_id = 1 OR canvasser_name = 'Gokul')
+          `);
+        }
+      } catch (ulErr) {
+        console.warn('Postgres Refrens Gokul unlink notice:', ulErr.message);
       }
-      for (const tbl of ['quotations', 'proforma_invoices', 'invoices']) {
-        await p.query(`
-          UPDATE ${tbl} 
-          SET canvasser_id = 99, canvasser_name = 'Refrens Import' 
-          WHERE (id LIKE 'A%' OR tags LIKE '%Refrens Import%') 
-            AND (canvasser_id = 1 OR canvasser_name = 'Gokul')
-        `);
-      }
-    } catch (ulErr) {
-      console.warn('Postgres Refrens Gokul unlink notice:', ulErr.message);
     }
   } catch (err) {
     console.warn('Refrens seed on Postgres skipped/errored:', err.message);
@@ -326,6 +329,7 @@ async function seedPgData(p) {
       { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
       { id: 11, username: 'abhishek@cfo', email: 'abhishek@murugan.com', name: 'Abhishek', role: 'cfo', role_title: 'Chief Financial Officer' },
       { id: 12, username: 'varshini@cco', email: 'varshini@murugan.com', name: 'Varshini', role: 'cco', role_title: 'Chief Coordinating Officer' },
+      { id: 13, username: 'shamita@cso', email: 'shamita@murugan.com', name: 'Shamita', role: 'cso', role_title: 'Chief Strategy Officer' },
       { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
       { id: 1, username: 'gokul@cvs', email: 'gokul@murugan.com', name: 'Gokul', role: 'cvs', role_title: 'Senior Canvasser' }
     ];
@@ -342,16 +346,17 @@ async function seedPgData(p) {
     // Ensure essential management accounts exist if missing
     const essentialUsers = [
       { id: 10, username: 'sudhan@ceo', email: 'sudhan@murugan.com', name: 'Sudhan', role: 'ceo', role_title: 'Chief Executive Officer' },
-      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' }
+      { id: 4, username: 'admin@admin', email: 'admin@murugan.com', name: 'Admin', role: 'admin', role_title: 'Admin Executive' },
+      { id: 13, username: 'shamita@cso', email: 'shamita@murugan.com', name: 'Shamita', role: 'cso', role_title: 'Chief Strategy Officer' }
     ];
     for (const u of essentialUsers) {
       const existing = await p.query('SELECT id FROM users WHERE username = $1', [u.username]);
       if (existing.rows.length === 0) {
         await p.query(
-          `INSERT INTO users (id, username, email, password_hash, name, role, role_title, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
-           ON CONFLICT (id) DO NOTHING`,
-          [u.id, u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title]
+          `INSERT INTO users (username, email, password_hash, name, role, role_title, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+           ON CONFLICT DO NOTHING`,
+          [u.username, u.email, defaultPasswordHash, u.name, u.role, u.role_title]
         );
       }
     }

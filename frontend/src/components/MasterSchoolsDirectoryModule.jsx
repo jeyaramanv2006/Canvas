@@ -61,10 +61,10 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
     loadSchools();
   }, []);
 
-  const loadSchools = async () => {
+  const loadSchools = async (force = false) => {
     setLoading(true);
     try {
-      const data = await mockApi.getAllMasterSchools();
+      const data = await mockApi.getAllMasterSchools({}, { forceRefresh: force });
       const list = Array.isArray(data) ? data : (data?.schools && Array.isArray(data.schools) ? data.schools : []);
       setSchools(list);
     } catch (e) {
@@ -367,6 +367,16 @@ export default function MasterSchoolsDirectoryModule({ currentUser }) {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => loadSchools(true)}
+              disabled={loading}
+              className="px-3.5 py-2.5 bg-white/[0.04] hover:bg-white/[0.09] text-white/80 hover:text-white font-bold text-xs rounded-xl flex items-center gap-2 border border-white/[0.1] hover:border-amber-400/30 transition shadow-sm cursor-pointer disabled:opacity-50"
+              title="Sync and pull latest school catalog from database"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-amber-400", loading && "animate-spin")} />
+              <span>{loading ? "Syncing..." : "Sync Directory"}</span>
+            </button>
+
             <button
               onClick={handleExportCSV}
               disabled={exporting}

@@ -17,7 +17,8 @@ export function formatUsername(name, role) {
     'admin': 'admin',
     'ceo': 'ceo',
     'cfo': 'cfo',
-    'cco': 'cco'
+    'cco': 'cco',
+    'cso': 'cso'
   };
 
   const cleanRole = roleMap[rawRole] || rawRole;

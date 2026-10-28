@@ -52,6 +52,17 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function CFODashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('cfo_overview'); // 'cfo_overview', 'invoicing', 'logs', 'team'
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['cfo_overview']));
+
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
   const [showAlertsDrawer, setShowAlertsDrawer] = useState(false);
 
   // Lock body scroll when alerts drawer is open
@@ -75,9 +86,10 @@ export default function CFODashboard() {
     loadCFOData();
   }, []);
 
-  const loadCFOData = async () => {
+  const loadCFOData = async (force = false) => {
+    if (!force) setLoading(true);
     try {
-      const data = await mockApi.getCFOAnalytics();
+      const data = await mockApi.getCFOAnalytics({ forceRefresh: force });
       setLiveData(data);
     } catch (err) {
       console.error('Failed to load live CFO analytics:', err);
@@ -89,7 +101,7 @@ export default function CFODashboard() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadCFOData();
+    loadCFOData(true);
   };
 
   // Live aggregations with modeled defaults as fallback
@@ -350,15 +362,9 @@ export default function CFODashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6 pb-28 md:pb-8">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-          >
-            {activeTab === 'cfo_overview' && (
+        <div className="relative w-full">
+          {visitedTabs.has('cfo_overview') && (
+            <div className={activeTab === 'cfo_overview' ? "tab-pane-active block" : "hidden"}>
               <div className="space-y-6">
 
                 {/* ── CFO STRATEGY HEADER & DATA INTEGRITY BANNER ────────────────── */}
@@ -966,25 +972,30 @@ export default function CFODashboard() {
 
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Operational Modules (Inherited from Admin) */}
-            {activeTab === 'invoicing' && (
+          {/* Operational Modules (Inherited from Admin) */}
+          {visitedTabs.has('invoicing') && (
+            <div className={activeTab === 'invoicing' ? "tab-pane-active block" : "hidden"}>
               <InvoicingModule currentUser={user} />
-            )}
+            </div>
+          )}
 
-            {activeTab === 'logs' && (
+          {visitedTabs.has('logs') && (
+            <div className={activeTab === 'logs' ? "tab-pane-active block" : "hidden"}>
               <FieldVisitRegistry currentUser={user} />
-            )}
+            </div>
+          )}
 
-            {activeTab === 'team' && (
+          {visitedTabs.has('team') && (
+            <div className={activeTab === 'team' ? "tab-pane-active block" : "hidden"}>
               <ErrorBoundary>
                 <CanvasserLeaderboard currentUser={user} />
               </ErrorBoundary>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Interactive Hierarchical Drill-down Modal */}

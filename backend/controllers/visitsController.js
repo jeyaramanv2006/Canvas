@@ -78,12 +78,16 @@ export async function getVisits(req, res) {
 
     const rows = await db.prepare(query).all(...params);
 
-    // Fetch audit logs for all visits
-    const allAuditLogs = await db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC').all();
+    // Fetch audit logs ONLY for matching visits returned
     const auditMap = {};
-    for (const log of (allAuditLogs || [])) {
-      if (!auditMap[log.visit_id]) auditMap[log.visit_id] = [];
-      auditMap[log.visit_id].push(log);
+    if (rows && rows.length > 0) {
+      const visitIds = rows.map(r => r.id);
+      const placeholders = visitIds.map(() => '?').join(',');
+      const logs = await db.prepare(`SELECT * FROM audit_logs WHERE visit_id IN (${placeholders}) ORDER BY timestamp DESC`).all(...visitIds);
+      for (const log of (logs || [])) {
+        if (!auditMap[log.visit_id]) auditMap[log.visit_id] = [];
+        auditMap[log.visit_id].push(log);
+      }
     }
 
     const visits = (rows || []).map(r => formatVisitRow(r, auditMap[r.id] || []));

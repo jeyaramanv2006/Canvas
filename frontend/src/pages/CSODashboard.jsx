@@ -24,6 +24,16 @@ const PLANNED_PANELS = [
 export default function CSODashboard() {
   const { user, setUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('cso_overview'); // 'cso_overview', 'invoicing', 'logs', 'team'
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['cso_overview']));
+
+  React.useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Under Construction Overlay State
   // Set to true by default to hide the workspace from viewers while developing underneath.
@@ -159,15 +169,9 @@ export default function CSODashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6 pb-28 md:pb-8">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-          >
-            {activeTab === 'cso_overview' && (
+        <div className="relative w-full">
+          {visitedTabs.has('cso_overview') && (
+            <div className={activeTab === 'cso_overview' ? "tab-pane-active block" : "hidden"}>
               <div className="relative">
 
                 {/* UNDER CONSTRUCTION OVERLAY CONTAINER */}
@@ -299,23 +303,29 @@ export default function CSODashboard() {
                 </div>
 
               </div>
-            )}
+            </div>
+          )}
 
-            {activeTab === 'invoicing' && (
+          {visitedTabs.has('invoicing') && (
+            <div className={activeTab === 'invoicing' ? "tab-pane-active block" : "hidden"}>
               <InvoicingModule currentUser={user} />
-            )}
+            </div>
+          )}
 
-            {activeTab === 'logs' && (
+          {visitedTabs.has('logs') && (
+            <div className={activeTab === 'logs' ? "tab-pane-active block" : "hidden"}>
               <FieldVisitRegistry currentUser={user} />
-            )}
+            </div>
+          )}
 
-            {activeTab === 'team' && (
+          {visitedTabs.has('team') && (
+            <div className={activeTab === 'team' ? "tab-pane-active block" : "hidden"}>
               <ErrorBoundary>
                 <CanvasserLeaderboard currentUser={user} />
               </ErrorBoundary>
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Mobile-Only Fixed Bottom Navigation Bar */}
