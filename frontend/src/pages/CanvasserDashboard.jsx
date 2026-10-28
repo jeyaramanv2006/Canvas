@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Plus, List, LogOut, CheckCircle2, TrendingUp, Calendar, 
   MapPin, Building2, User, Phone, Users, Edit3, Trash2, Search, Filter, History,
   ChevronRight, Sparkles, Target, Award, ArrowUpRight, Trophy, Image, Camera,
-  FileText, X, AlertCircle, CalendarClock, Clock
+  FileText, X, AlertCircle, CalendarClock, Clock, Eye, Loader2
 } from 'lucide-react';
 import { mockApi, calculateCommissionSlab } from '../mockApi';
 import { AuthContext } from '../App';
@@ -62,6 +62,7 @@ export default function CanvasserDashboard() {
     is_from_master_db: false, master_school_id: null, cluster_or_block: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
 
   // Lock body scroll when image preview is open
@@ -182,17 +183,37 @@ export default function CanvasserDashboard() {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
+    setIsUploadingPhoto(true);
     for (const file of files) {
       try {
         const compressedUrl = await compressImage(file);
         if (!compressedUrl) continue;
-        const newAttachment = {
-          id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-          name: file.name,
-          url: compressedUrl,
-          type: file.type || 'image/jpeg',
-          timestamp: new Date().toISOString()
-        };
+
+        let newAttachment = null;
+        try {
+          const res = await mockApi.uploadImage({
+            image: compressedUrl,
+            fileName: file.name,
+            schoolName: formData.school_name || 'visit'
+          });
+          if (res && res.attachment) {
+            newAttachment = res.attachment;
+          }
+        } catch (uploadErr) {
+          console.warn('Cloud upload failed, falling back to local compressed:', uploadErr);
+        }
+
+        if (!newAttachment) {
+          newAttachment = {
+            id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            name: file.name,
+            url: compressedUrl,
+            type: file.type || 'image/jpeg',
+            size: file.size,
+            timestamp: new Date().toISOString()
+          };
+        }
+
         setFormData(prev => ({
           ...prev,
           attachments: [...(prev.attachments || []), newAttachment]
@@ -201,6 +222,7 @@ export default function CanvasserDashboard() {
         console.warn('Image processing warning:', err);
       }
     }
+    setIsUploadingPhoto(false);
     e.target.value = '';
   };
 
@@ -761,6 +783,12 @@ export default function CanvasserDashboard() {
                       onChange={handleImageUpload} 
                     />
                   </label>
+                  {isUploadingPhoto && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-semibold bg-amber-400/10 px-3 py-1.5 rounded-xl border border-amber-400/20 animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                      Uploading to Cloud...
+                    </span>
+                  )}
                   <span className="text-[11px] text-white/40">Attach photos of school uniforms, socks, or design samples</span>
                 </div>
 
@@ -1113,22 +1141,30 @@ export default function CanvasserDashboard() {
                         </div>
                       )}
 
-                      {/* Photo Thumbnails */}
+                      {/* Photo Attachments - Click to Load on-demand to preserve bandwidth */}
                       {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
-                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
                           <span className="text-[10px] uppercase text-white/40 flex items-center gap-1 mr-1 font-semibold">
                             <Camera className="w-3 h-3 text-amber-400" />
                             Photos ({visit.attachments.length}):
                           </span>
                           {visit.attachments.map((att, i) => (
-                            <div 
+                            <button 
                               key={att.id || i} 
+                              type="button"
                               onClick={() => setPreviewImage(att.url)}
-                              className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-amber-400 hover:scale-105 transition-all shadow-md bg-black"
-                              title="Click to view full photo"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] hover:bg-amber-400/15 text-white/80 hover:text-amber-300 border border-white/10 hover:border-amber-400/30 transition-all cursor-pointer shadow-sm group active:scale-95"
+                              title={`Click to load from cloud: ${att.name || 'Photo'}`}
                             >
-                              <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
-                            </div>
+                              <Camera className="w-3 h-3 text-amber-400/80 group-hover:text-amber-400" />
+                              <span className="truncate max-w-[120px]">{att.name || `Photo ${i + 1}`}</span>
+                              {att.size && (
+                                <span className="text-[10px] text-white/40 group-hover:text-amber-300/60 font-mono">
+                                  ({Math.round(att.size / 1024)} KB)
+                                </span>
+                              )}
+                              <Eye className="w-3 h-3 text-white/40 group-hover:text-amber-300 ml-0.5" />
+                            </button>
                           ))}
                         </div>
                       )}
@@ -1253,26 +1289,24 @@ export default function CanvasserDashboard() {
       />
 
       {/* Image Lightbox Modal */}
-      <AnimatePresence>
-        {previewImage && createPortal(
-          <div 
-            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
-            onClick={() => setPreviewImage(null)}
-          >
-            <div className="relative max-w-xl max-h-[85vh] p-2 bg-murugan-card border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setPreviewImage(null)}
-                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
-            </div>
-          </div>,
-          document.body
-        )}
-      </AnimatePresence>
+      {previewImage && createPortal(
+        <div 
+          className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-xl max-h-[85vh] p-2 bg-[#16171d] border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Toast Notification */}
       <AnimatePresence>

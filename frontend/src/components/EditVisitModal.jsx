@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image, AlertCircle } from 'lucide-react';
+import { X, Save, Building2, MapPin, User, Phone, Users, Calendar, CheckCircle2, Trash2, History, FileText, Camera, Image, AlertCircle, Loader2, Eye } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
@@ -28,6 +28,8 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,17 +69,38 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
+    setIsUploadingPhoto(true);
     for (const file of files) {
       try {
         const compressedUrl = await compressImage(file);
         if (!compressedUrl) continue;
-        const newAttachment = {
-          id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-          name: file.name,
-          url: compressedUrl,
-          type: file.type || 'image/jpeg',
-          timestamp: new Date().toISOString()
-        };
+
+        let newAttachment = null;
+        try {
+          const res = await mockApi.uploadImage({
+            image: compressedUrl,
+            fileName: file.name,
+            schoolName: formData.school_name || 'visit',
+            visitId: visit?.id
+          });
+          if (res && res.attachment) {
+            newAttachment = res.attachment;
+          }
+        } catch (uploadErr) {
+          console.warn('Cloud upload failed, falling back to local compressed:', uploadErr);
+        }
+
+        if (!newAttachment) {
+          newAttachment = {
+            id: 'att-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            name: file.name,
+            url: compressedUrl,
+            type: file.type || 'image/jpeg',
+            size: file.size,
+            timestamp: new Date().toISOString()
+          };
+        }
+
         setFormData(prev => ({
           ...prev,
           attachments: [...(prev.attachments || []), newAttachment]
@@ -86,6 +109,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
         console.warn('Image processing warning:', err);
       }
     }
+    setIsUploadingPhoto(false);
     e.target.value = '';
   };
 
@@ -315,6 +339,12 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                     onChange={handleImageUpload}
                   />
                 </label>
+                {isUploadingPhoto && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-semibold bg-amber-400/10 px-3 py-1.5 rounded-xl border border-amber-400/20 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    Uploading to Cloud...
+                  </span>
+                )}
                 <span className="text-xs text-white/40">Upload sample reference photos</span>
               </div>
 
@@ -322,11 +352,17 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
                 <div className="flex flex-wrap gap-2.5 pt-1">
                   {formData.attachments.map(att => (
                     <div key={att.id} className="relative group w-20 h-20 rounded-2xl overflow-hidden border border-white/20 bg-black shadow-md">
-                      <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                      <img 
+                        src={att.url} 
+                        alt={att.name} 
+                        onClick={() => setPreviewImage(att.url)}
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" 
+                        title="Click to view full photo"
+                      />
                       <button
                         type="button"
                         onClick={() => handleRemoveAttachment(att.id)}
-                        className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors cursor-pointer"
+                        className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-red-600 text-white rounded-full transition-colors cursor-pointer z-10"
                         title="Remove"
                       >
                         <X className="w-3 h-3" />
@@ -509,6 +545,25 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSave, onDelet
           onClose={() => setHistoryOpen(false)}
           visit={formData}
         />
+
+        {/* Image Lightbox Modal */}
+        {previewImage && (
+          <div 
+            className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setPreviewImage(null)}
+          >
+            <div className="relative max-w-xl max-h-[85vh] p-2 bg-[#16171d] border border-white/20 rounded-3xl shadow-2xl overflow-hidden my-auto" onClick={e => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-white/20 text-white rounded-full transition-colors z-10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img src={previewImage} alt="Sample Preview" className="max-w-full max-h-[75vh] object-contain rounded-2xl mx-auto" />
+            </div>
+          </div>
+        )}
       </div>
     </AnimatePresence>
   );

@@ -1272,6 +1272,10 @@ export const mockApi = {
       { id: 2, title: 'Fabric Quality Test & Durability Certification', type: 'Certificate PDF', size: '1.8 MB' },
       { id: 3, title: 'Custom Embroidered Sock Sample Specs Sheet', type: 'Product Sheet', size: '850 KB' }
     ];
+  },
+
+  async uploadImage({ image, fileName, schoolName, visitId }) {
+    return await api.post('/upload/image', { image, fileName, schoolName, visitId });
   }
 };
 

@@ -344,7 +344,7 @@ export default function SchoolPortfolioModal({ isOpen, onClose, schoolId, school
                           </p>
                         )}
 
-                        {/* Reference photos */}
+                        {/* Reference photos - Click to Load on-demand to preserve bandwidth */}
                         {Array.isArray(v.attachments) && v.attachments.length > 0 && (
                           <div className="space-y-1">
                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -353,13 +353,22 @@ export default function SchoolPortfolioModal({ isOpen, onClose, schoolId, school
                             </span>
                             <div className="flex items-center gap-2 flex-wrap">
                               {v.attachments.map((att, i) => (
-                                <div
+                                <button
                                   key={att.id || i}
+                                  type="button"
                                   onClick={() => setPreviewImage(att.url)}
-                                  className="w-14 h-14 rounded-xl overflow-hidden border border-white/15 cursor-pointer hover:border-amber-400 hover:scale-105 transition shadow-sm bg-black"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] hover:bg-amber-400/15 text-white/80 hover:text-amber-300 border border-white/10 hover:border-amber-400/30 transition-all cursor-pointer shadow-sm group active:scale-95"
+                                  title={`Click to load from cloud: ${att.name || 'Photo'}`}
                                 >
-                                  <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
-                                </div>
+                                  <Camera className="w-3 h-3 text-amber-400/80 group-hover:text-amber-400" />
+                                  <span className="truncate max-w-[120px]">{att.name || `Photo ${i + 1}`}</span>
+                                  {att.size && (
+                                    <span className="text-[10px] text-white/40 group-hover:text-amber-300/60 font-mono">
+                                      ({Math.round(att.size / 1024)} KB)
+                                    </span>
+                                  )}
+                                  <Eye className="w-3 h-3 text-white/40 group-hover:text-amber-300 ml-0.5" />
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -602,19 +611,31 @@ export default function SchoolPortfolioModal({ isOpen, onClose, schoolId, school
                 </div>
               )}
 
-              {/* Photos */}
+              {/* Photos - Click to Load on-demand to preserve bandwidth */}
               {Array.isArray(selectedVisitForDetails.attachments) && selectedVisitForDetails.attachments.length > 0 && (
                 <div className="space-y-1.5">
-                  <span className="text-xs font-bold text-gray-300">Photos Attached:</span>
+                  <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-amber-400" />
+                    Photos Attached ({selectedVisitForDetails.attachments.length}):
+                  </span>
                   <div className="flex items-center gap-2 flex-wrap">
                     {selectedVisitForDetails.attachments.map((att, i) => (
-                      <img
+                      <button
                         key={i}
-                        src={att.url}
-                        alt="Visit photo"
-                        className="w-16 h-16 rounded-xl object-cover border border-white/20 cursor-pointer"
+                        type="button"
                         onClick={() => setPreviewImage(att.url)}
-                      />
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 hover:bg-amber-400/15 text-white/90 hover:text-amber-300 border border-white/10 hover:border-amber-400/30 transition-all cursor-pointer shadow-sm group active:scale-95"
+                        title={`Click to load from cloud: ${att.name || 'Photo'}`}
+                      >
+                        <Camera className="w-3.5 h-3.5 text-amber-400/80 group-hover:text-amber-400" />
+                        <span className="truncate max-w-[140px]">{att.name || `Photo ${i + 1}`}</span>
+                        {att.size && (
+                          <span className="text-[10px] text-white/40 group-hover:text-amber-300/60 font-mono">
+                            ({Math.round(att.size / 1024)} KB)
+                          </span>
+                        )}
+                        <Eye className="w-3.5 h-3.5 text-white/40 group-hover:text-amber-300 ml-1" />
+                      </button>
                     ))}
                   </div>
                 </div>

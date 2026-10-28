@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Download, Users, Search, Filter, Edit3, Trash2, Phone, MapPin, 
   CheckCircle2, Receipt, History, FileText, Camera, X, RefreshCw,
-  Calendar, User, Clock, RotateCcw, Sparkles, AlertCircle
+  Calendar, User, Clock, RotateCcw, Sparkles, AlertCircle, Eye
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 import EditVisitModal from './EditVisitModal';
@@ -549,22 +549,30 @@ export default function FieldVisitRegistry({ currentUser }) {
                   </div>
                 )}
 
-                {/* 5. Reference Photo Thumbnails */}
+                {/* 5. Reference Photo Attachments - Click to Load on-demand to preserve bandwidth */}
                 {Array.isArray(visit.attachments) && visit.attachments.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <div className="flex items-center gap-2 flex-wrap pt-1">
                     <span className="text-[10px] uppercase text-white/40 flex items-center gap-1 mr-1 font-semibold">
                       <Camera className="w-3 h-3 text-amber-400" />
                       PHOTOS ({visit.attachments.length}):
                     </span>
                     {visit.attachments.map((att, i) => (
-                      <div 
+                      <button 
                         key={att.id || i} 
+                        type="button"
                         onClick={() => setPreviewImage(att.url)}
-                        className="w-11 h-11 rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-amber-400 hover:scale-105 transition-all shadow-md bg-black"
-                        title="Click to view full photo"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/[0.04] hover:bg-amber-400/15 text-white/80 hover:text-amber-300 border border-white/10 hover:border-amber-400/30 transition-all cursor-pointer shadow-sm group active:scale-95"
+                        title={`Click to load from cloud: ${att.name || 'Photo'}`}
                       >
-                        <img src={att.url} alt={att.name || 'Sample'} className="w-full h-full object-cover" />
-                      </div>
+                        <Camera className="w-3 h-3 text-amber-400/80 group-hover:text-amber-400" />
+                        <span className="truncate max-w-[120px]">{att.name || `Photo ${i + 1}`}</span>
+                        {att.size && (
+                          <span className="text-[10px] text-white/40 group-hover:text-amber-300/60 font-mono">
+                            ({Math.round(att.size / 1024)} KB)
+                          </span>
+                        )}
+                        <Eye className="w-3 h-3 text-white/40 group-hover:text-amber-300 ml-0.5" />
+                      </button>
                     ))}
                   </div>
                 )}

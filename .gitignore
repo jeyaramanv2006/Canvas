@@ -6,6 +6,9 @@ frontend/dist/
 *.log
 .env
 .env.local
+backend/.env
+frontend/.env
+frontend/.env.local
 
 # Local media extractions & production DB dumps (kept on disk, excluded from repository)
 Visit_120_Bharat_Vidya_Mandir_photo.jpg

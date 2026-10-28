@@ -10,6 +10,7 @@ import * as dashboardController from './controllers/dashboardController.js';
 import * as financialsController from './controllers/financialsController.js';
 import * as userManagementController from './controllers/userManagementController.js';
 import * as masterSchoolsController from './controllers/masterSchoolsController.js';
+import * as uploadController from './controllers/uploadController.js';
 
 dotenv.config();
 
@@ -67,6 +68,9 @@ app.get('/api/admin/visits', authenticateToken, requireAdmin, visitsController.g
 app.put('/api/admin/visits/:id', authenticateToken, requireAdmin, visitsController.updateVisit);
 app.delete('/api/admin/visits/:id', authenticateToken, requireAdmin, visitsController.deleteVisit);
 app.post('/api/admin/visits/:id/verify-discovery', authenticateToken, requireAdmin, visitsController.verifySchoolDiscovery);
+
+// ── Cloud Image & Attachment Upload (ImageKit.io) ────────────────────────────
+app.post('/api/upload/image', authenticateToken, uploadController.uploadImage);
 
 // ── Audit Logs Endpoints (Admin Access) ───────────────────────────────────────
 app.get('/api/audit-logs', authenticateToken, auditController.getAuditLogs);
