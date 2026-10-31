@@ -20,6 +20,7 @@ import {
   Check,
   AlertCircle,
   Receipt,
+  CreditCard,
   UserCheck,
   Percent,
   HelpCircle,
@@ -76,7 +77,8 @@ export default function InvoiceDocumentModal({
   type = "invoice", // "invoice" | "quote" | "quotation" | "Tax Invoice" | "Proforma Invoice" | "Quotation"
   mode = "view", // "view" | "create" | "edit"
   currentUser,
-  onSaveSuccess
+  onSaveSuccess,
+  onOpenPaymentModal
 }) {
   const printRef = useRef(null);
   const schoolDropdownRef = useRef(null);
@@ -627,6 +629,18 @@ export default function InvoiceDocumentModal({
             >
               <Receipt className="w-3.5 h-3.5" />
               <span>Tax Invoice</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (onOpenPaymentModal) onOpenPaymentModal();
+              }}
+              className="px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-xs whitespace-nowrap text-emerald-400/90 hover:text-emerald-300 hover:bg-emerald-500/10 shadow-none"
+              title="Record / Create Payment Receipt"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Payment Receipt</span>
             </button>
           </div>
 

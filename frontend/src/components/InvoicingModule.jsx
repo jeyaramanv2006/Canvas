@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ResponsiveContainer,
   LineChart,
@@ -314,6 +314,43 @@ function RefrensFinancialGraph({
   );
 }
 
+// ── Indian Number to Words Helper ─────────────────────────────────────────────
+function numberToWordsIndian(num) {
+  const n = Math.round(Number(num) || 0);
+  if (n <= 0) return 'Zero Rupees Only';
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function convertTwoDigits(val) {
+    if (val < 20) return ones[val];
+    const unit = val % 10;
+    return tens[Math.floor(val / 10)] + (unit ? ' ' + ones[unit] : '');
+  }
+
+  function convertThreeDigits(val) {
+    const hundred = Math.floor(val / 100);
+    const rest = val % 100;
+    let res = '';
+    if (hundred > 0) res += ones[hundred] + ' Hundred';
+    if (rest > 0) res += (res ? ' ' : '') + convertTwoDigits(rest);
+    return res;
+  }
+
+  const crore = Math.floor(n / 10000000);
+  const lakh = Math.floor((n % 10000000) / 100000);
+  const thousand = Math.floor((n % 100000) / 1000);
+  const remainder = n % 1000;
+
+  const parts = [];
+  if (crore > 0) parts.push(convertThreeDigits(crore) + ' Crore');
+  if (lakh > 0) parts.push(convertTwoDigits(lakh) + ' Lakh');
+  if (thousand > 0) parts.push(convertTwoDigits(thousand) + ' Thousand');
+  if (remainder > 0) parts.push(convertThreeDigits(remainder));
+
+  return (parts.join(' ') + ' Rupees Only').trim();
+}
+
 const PAY_MODE_OPTIONS = [
   { value: 'Bank Transfer (NEFT)', label: 'Bank Transfer / NEFT / RTGS' },
   { value: 'UPI (GPay / PhonePe)', label: 'UPI (GPay / PhonePe)' },
@@ -358,11 +395,19 @@ export default function InvoicingModule({ currentUser }) {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [selectedInvoiceForPay, setSelectedInvoiceForPay] = useState(null);
   const [payAmount, setPayAmount] = useState('');
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [payMode, setPayMode] = useState('Bank Transfer (NEFT)');
   const [payRef, setPayRef] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState(null);
+
+  // Payment Receipt Viewer State
+  const [viewingReceipt, setViewingReceipt] = useState(null);
+
+  // Create menu popover state
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const createMenuRef = useRef(null);
 
   // Delete Confirmation Modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -373,15 +418,46 @@ export default function InvoicingModule({ currentUser }) {
   const [tagInputDocId, setTagInputDocId] = useState(null);
   const [tagInputValue, setTagInputValue] = useState('');
 
+  // Invoice options for Payment Recording dropdown
+  const invoiceOptions = useMemo(() => {
+    return (invoices || []).map(inv => {
+      const bal = Number(inv.outstanding_balance ?? 0);
+      const isUnpaid = bal > 0;
+      return {
+        value: String(inv.id),
+        label: `${inv.id} — ${inv.school_name} (${isUnpaid ? `₹${bal.toLocaleString('en-IN')} Due` : 'Fully Paid'})`,
+        isUnpaid
+      };
+    }).sort((a, b) => (b.isUnpaid ? 1 : 0) - (a.isUnpaid ? 1 : 0));
+  }, [invoices]);
+
+  const unpaidInvoicesCount = useMemo(() => {
+    return (invoices || []).filter(i => Number(i.outstanding_balance || 0) > 0).length;
+  }, [invoices]);
+
+  // Close create menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target)) {
+        setCreateMenuOpen(false);
+      }
+    };
+    if (createMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [createMenuOpen]);
+
   // Lock body scroll when modals are open & handle Escape key
   useEffect(() => {
-    if (payModalOpen || deleteModalOpen) {
+    if (payModalOpen || deleteModalOpen || viewingReceipt) {
       const orig = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
           setPayModalOpen(false);
           setDeleteModalOpen(false);
+          setViewingReceipt(null);
         }
       };
       window.addEventListener('keydown', handleKeyDown);
@@ -390,7 +466,7 @@ export default function InvoicingModule({ currentUser }) {
         window.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [payModalOpen, deleteModalOpen]);
+  }, [payModalOpen, deleteModalOpen, viewingReceipt]);
 
   useEffect(() => {
     loadAllFinancialData();
@@ -467,6 +543,10 @@ export default function InvoicingModule({ currentUser }) {
   // Document Modal Triggers
   const handleCreateDocument = (type) => {
     setSelectedDoc(null);
+    if (type === 'payment' || type === 'payments' || type === 'receipt') {
+      handleOpenPayModal(null);
+      return;
+    }
     const normalized = (type === 'quote' || type === 'quotes' || type === 'quotation') ? 'quote' :
       (type === 'proforma' || type === 'proforma_invoice') ? 'proforma' : 'invoice';
     setDocModalType(normalized);
@@ -518,9 +598,10 @@ export default function InvoicingModule({ currentUser }) {
   };
 
   // Payment Recording
-  const handleOpenPayModal = (inv) => {
+  const handleOpenPayModal = (inv = null) => {
     setSelectedInvoiceForPay(inv);
-    setPayAmount(inv.outstanding_balance || inv.pending_balance || '');
+    setPayAmount(inv ? (inv.outstanding_balance ?? inv.pending_balance ?? '') : '');
+    setPayDate(new Date().toISOString().slice(0, 10));
     setPayMode('Bank Transfer (NEFT)');
     setPayRef('');
     setPayNotes('');
@@ -530,7 +611,14 @@ export default function InvoicingModule({ currentUser }) {
 
   const handleRecordPaymentSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedInvoiceForPay || !payAmount || Number(payAmount) <= 0) return;
+    if (!selectedInvoiceForPay) {
+      setPayError("Please select a Tax Invoice to record payment against.");
+      return;
+    }
+    if (!payAmount || Number(payAmount) <= 0) {
+      setPayError("Please enter a valid payment amount greater than zero.");
+      return;
+    }
 
     setPaySubmitting(true);
     setPayError(null);
@@ -540,10 +628,12 @@ export default function InvoicingModule({ currentUser }) {
         payment_method: payMode,
         reference_number: payRef,
         notes: payNotes,
-        date: new Date().toISOString()
+        date: payDate ? new Date(payDate).toISOString() : new Date().toISOString()
       });
       setPayModalOpen(false);
-      await loadAllFinancialData();
+      setSelectedInvoiceForPay(null);
+      await loadAllFinancialData(true);
+      setActiveTab('payments');
     } catch (err) {
       setPayError(err.message || "Failed to record payment");
     } finally {
@@ -686,10 +776,13 @@ export default function InvoicingModule({ currentUser }) {
   }).sort(sortComparator);
 
   const filteredPayments = payments.filter(p => {
-    return !searchTerm ||
+    const matchesSearch = !searchTerm ||
       p.school_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    if (statusFilter === 'All') return true;
+    return (p.status || 'Received').toLowerCase() === statusFilter.toLowerCase();
   }).sort(sortComparator);
 
   // Status options per tab
@@ -718,6 +811,15 @@ export default function InvoicingModule({ currentUser }) {
         { id: 'Partially Paid', label: 'Partially Paid' },
         { id: 'Fully Paid', label: 'Fully Paid' },
         { id: 'Overdue', label: 'Overdue' }
+      ];
+    } else if (activeTab === 'payments') {
+      return [
+        { id: 'All', label: 'All Statuses' },
+        { id: 'Received', label: 'Received' },
+        { id: 'Cleared', label: 'Cleared' },
+        { id: 'Pending Clearance', label: 'Pending Clearance' },
+        { id: 'Draft', label: 'Draft' },
+        { id: 'Bounced', label: 'Bounced' }
       ];
     }
     return [
@@ -748,7 +850,7 @@ export default function InvoicingModule({ currentUser }) {
     <div className="space-y-6 selection:bg-amber-400 selection:text-black">
 
       {/* ── 1. Clean Neat Navigation Bar ───────────────────────────────────── */}
-      <div className="bg-[#0e1017]/90 border border-white/[0.08] p-1.5 sm:p-2 rounded-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
+      <div className="relative z-50 bg-[#0e1017]/90 border border-white/[0.08] p-1.5 sm:p-2 rounded-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
         {/* Navigation Tabs with Seamless Apple UI Pill Transition */}
         <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5">
           {[
@@ -765,6 +867,7 @@ export default function InvoicingModule({ currentUser }) {
                 type="button"
                 onClick={() => {
                   setActiveTab(tab.id);
+                  setDocModalType(tab.id === 'invoices' ? 'invoice' : tab.id === 'proforma' ? 'proforma' : 'quote');
                   setExpandedRows(new Set());
                   setExpandAll(false);
                   setStatusFilter('All');
@@ -809,15 +912,140 @@ export default function InvoicingModule({ currentUser }) {
             <span>{loading ? "Syncing..." : "Sync"}</span>
           </button>
 
-          {/* Create new button */}
-          <button
-            type="button"
-            onClick={() => handleCreateDocument(activeTab === 'invoices' ? 'invoice' : activeTab === 'proforma' ? 'proforma' : 'quote')}
-            className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer bg-white/[0.06] hover:bg-white/[0.12] text-white hover:text-amber-300 border border-white/15 hover:border-amber-400/40 active:scale-95 shadow-none"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5] text-amber-400" />
-            <span>Create new</span>
-          </button>
+          {/* Create new button with multi-document dropdown */}
+          <div className="relative z-50" ref={createMenuRef}>
+            <div className="inline-flex rounded-xl bg-white/[0.06] border border-white/15 hover:border-amber-400/40 shadow-none transition-all">
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'payments') {
+                    handleOpenPayModal(null);
+                  } else if (activeTab === 'quotes') {
+                    handleCreateDocument('quote');
+                  } else if (activeTab === 'proforma') {
+                    handleCreateDocument('proforma');
+                  } else {
+                    handleCreateDocument('invoice');
+                  }
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white hover:text-amber-300 transition-colors flex items-center gap-2 cursor-pointer active:scale-95"
+                title={`Create new ${activeTab === 'payments' ? 'Payment Receipt' : activeTab === 'invoices' ? 'Tax Invoice' : activeTab === 'proforma' ? 'Proforma Invoice' : 'Quotation'}`}
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5] text-amber-400" />
+                <span>
+                  {activeTab === 'payments' ? 'Create Receipt' :
+                   activeTab === 'invoices' ? 'Create Tax Invoice' :
+                   activeTab === 'proforma' ? 'Create Proforma' : 'Create Quotation'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMenuOpen(prev => !prev)}
+                className="px-2 py-2 border-l border-white/10 text-white/60 hover:text-white hover:bg-white/[0.06] rounded-r-xl transition-colors cursor-pointer"
+                title="Select document type to create"
+              >
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", createMenuOpen && "rotate-180 text-amber-400")} />
+              </button>
+            </div>
+
+            {/* Dropdown Options */}
+            <AnimatePresence>
+              {createMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-64 bg-[#12131c] border border-white/20 rounded-2xl shadow-2xl shadow-black/90 p-1.5 z-[100] backdrop-blur-2xl text-left"
+                >
+                  <div className="text-[10px] font-bold text-white/40 px-3 py-1.5 uppercase tracking-wider">
+                    Create New Document
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMenuOpen(false);
+                      handleCreateDocument('quote');
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer",
+                      activeTab === 'quotes' ? "bg-amber-400/20 text-amber-300 border border-amber-400/30" : "text-white/80 hover:text-amber-300 hover:bg-amber-400/10"
+                    )}
+                  >
+                    <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>Quotation</span>
+                        {activeTab === 'quotes' && <span className="text-[9px] bg-amber-400/30 text-amber-200 px-1 rounded font-normal">Active</span>}
+                      </div>
+                      <div className="text-[10px] text-white/40 font-normal">Price estimate &amp; institutional proposal</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMenuOpen(false);
+                      handleCreateDocument('proforma');
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer",
+                      activeTab === 'proforma' ? "bg-purple-600/20 text-purple-300 border border-purple-500/30" : "text-white/80 hover:text-purple-300 hover:bg-purple-600/15"
+                    )}
+                  >
+                    <Layers className="w-4 h-4 text-purple-400 shrink-0" />
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>Proforma Invoice</span>
+                        {activeTab === 'proforma' && <span className="text-[9px] bg-purple-500/30 text-purple-200 px-1 rounded font-normal">Active</span>}
+                      </div>
+                      <div className="text-[10px] text-white/40 font-normal">Preliminary bill for advance payment</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMenuOpen(false);
+                      handleCreateDocument('invoice');
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer",
+                      activeTab === 'invoices' ? "bg-blue-600/20 text-blue-300 border border-blue-500/30" : "text-white/80 hover:text-blue-300 hover:bg-blue-600/15"
+                    )}
+                  >
+                    <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>Tax Invoice</span>
+                        {activeTab === 'invoices' && <span className="text-[9px] bg-blue-500/30 text-blue-200 px-1 rounded font-normal">Active</span>}
+                      </div>
+                      <div className="text-[10px] text-white/40 font-normal">Official GST Tax Invoice for order</div>
+                    </div>
+                  </button>
+                  <div className="my-1 border-t border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateMenuOpen(false);
+                      handleOpenPayModal(null);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer",
+                      activeTab === 'payments' ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-white/80 hover:text-emerald-300 hover:bg-emerald-500/15"
+                    )}
+                  >
+                    <CreditCard className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-emerald-300 font-black flex items-center gap-1.5">
+                        <span>Payment Receipt</span>
+                        {activeTab === 'payments' && <span className="text-[9px] bg-emerald-500/30 text-emerald-200 px-1 rounded font-normal">Active</span>}
+                      </div>
+                      <div className="text-[10px] text-white/40 font-normal">Record receipt against an invoice</div>
+                    </div>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -1664,8 +1892,14 @@ export default function InvoicingModule({ currentUser }) {
                         <td className="py-3 px-3 text-right font-mono text-gray-400">{p.payment_method || 'Bank Transfer'}</td>
                         <td className="py-3 px-3 text-right font-mono font-black text-emerald-400">{formatINR(p.amount)}</td>
                         <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
-                            Received
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                            (p.status === 'Received' || p.status === 'Cleared' || !p.status) && "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+                            p.status === 'Pending Clearance' && "bg-amber-500/15 text-amber-300 border-amber-500/30",
+                            p.status === 'Draft' && "bg-gray-500/15 text-gray-300 border-gray-500/30",
+                            p.status === 'Bounced' && "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                          )}>
+                            {p.status || 'Received'}
                           </span>
                         </td>
                         <td className="py-3 px-3">
@@ -1710,9 +1944,16 @@ export default function InvoicingModule({ currentUser }) {
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1 text-gray-400">
                             <button
+                              onClick={() => setViewingReceipt(p)}
+                              title="View & Print Payment Receipt"
+                              className="p-1.5 rounded-lg hover:bg-emerald-500/20 hover:text-emerald-400 transition-colors cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => { setItemToDelete({ id: p.id, type: 'payment', name: p.school_name }); setDeleteModalOpen(true); }}
                               title="Delete Receipt & Adjust Numbering"
-                              className="p-1.5 rounded-lg hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-rose-500/20 hover:text-rose-400 transition-colors cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1729,7 +1970,7 @@ export default function InvoicingModule({ currentUser }) {
       </div>
 
       {/* ── 5. Payment Recording Modal ───────────────────────────────────────── */}
-      {payModalOpen && selectedInvoiceForPay && createPortal(
+      {payModalOpen && createPortal(
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setPayModalOpen(false)}
@@ -1744,8 +1985,10 @@ export default function InvoicingModule({ currentUser }) {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white tracking-tight">Record Payment</h3>
-                  <p className="text-xs text-emerald-400/90 font-mono font-semibold">Invoice: {selectedInvoiceForPay.id}</p>
+                  <h3 className="text-base font-black text-white tracking-tight">Record Payment Receipt</h3>
+                  <p className="text-xs text-emerald-400/90 font-mono font-semibold">
+                    {selectedInvoiceForPay ? `Invoice: ${selectedInvoiceForPay.id}` : 'Select an Invoice below'}
+                  </p>
                 </div>
               </div>
               <button 
@@ -1756,16 +1999,54 @@ export default function InvoicingModule({ currentUser }) {
               </button>
             </div>
 
-            <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl space-y-2">
-              <div className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Billed To Client</div>
-              <div className="text-sm font-bold text-white">{selectedInvoiceForPay.school_name}</div>
-              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs font-mono">
-                <span className="text-gray-400">Total: {formatINR(selectedInvoiceForPay.grand_total)}</span>
-                <span className="text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
-                  Outstanding: {formatINR(selectedInvoiceForPay.outstanding_balance)}
-                </span>
+            {/* If no invoice pre-selected, provide selector */}
+            {!selectedInvoiceForPay ? (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-300">
+                  Select Tax Invoice to Issue Receipt *
+                </label>
+                <AestheticSelect
+                  value=""
+                  onChange={(val) => {
+                    const found = (invoices || []).find(inv => String(inv.id) === String(val));
+                    if (found) {
+                      setSelectedInvoiceForPay(found);
+                      setPayAmount(String(found.outstanding_balance > 0 ? found.outstanding_balance : ''));
+                      setPayError(null);
+                    }
+                  }}
+                  options={invoiceOptions}
+                  size="md"
+                  placeholder={`Choose from ${invoiceOptions.length} invoices (${unpaidInvoicesCount} unpaid)...`}
+                />
+                <p className="text-[11px] text-gray-400">
+                  Payment receipts are officially mapped to Tax Invoices for balance reconciliation.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="bg-black/40 border border-white/5 p-3.5 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Billed To Client</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedInvoiceForPay(null);
+                      setPayAmount('');
+                    }}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 hover:underline cursor-pointer"
+                  >
+                    Change Invoice
+                  </button>
+                </div>
+                <div className="text-sm font-bold text-white">{selectedInvoiceForPay.school_name}</div>
+                <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs font-mono">
+                  <span className="text-gray-400">Total: {formatINR(selectedInvoiceForPay.grand_total)}</span>
+                  <span className="text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                    Outstanding: {formatINR(selectedInvoiceForPay.outstanding_balance)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {payError && (
               <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
@@ -1775,27 +2056,41 @@ export default function InvoicingModule({ currentUser }) {
             )}
 
             <form onSubmit={handleRecordPaymentSubmit} className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-gray-300">Payment Amount (₹) *</label>
-                  <button
-                    type="button"
-                    onClick={() => setPayAmount(String(selectedInvoiceForPay.outstanding_balance))}
-                    className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-2 py-0.5 rounded-md border border-amber-400/20 transition-all cursor-pointer"
-                  >
-                    Pay Full Balance (₹{Number(selectedInvoiceForPay.outstanding_balance || 0).toLocaleString('en-IN')})
-                  </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 sm:col-span-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-gray-300">Amount (₹) *</label>
+                    {selectedInvoiceForPay && Number(selectedInvoiceForPay.outstanding_balance || 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPayAmount(String(selectedInvoiceForPay.outstanding_balance))}
+                        className="text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/20 transition-all cursor-pointer"
+                      >
+                        Full
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    max={selectedInvoiceForPay ? selectedInvoiceForPay.outstanding_balance : undefined}
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white font-mono font-bold text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-all"
+                    placeholder="0.00"
+                  />
                 </div>
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  max={selectedInvoiceForPay.outstanding_balance}
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
-                  placeholder="0.00"
-                />
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5">Receipt Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={payDate}
+                    onChange={(e) => setPayDate(e.target.value)}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-all"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1805,7 +2100,7 @@ export default function InvoicingModule({ currentUser }) {
                   onChange={setPayMode}
                   options={PAY_MODE_OPTIONS}
                   size="md"
-                  placeholder="Select payment mode..."
+                  placeholder="Select mode..."
                 />
               </div>
 
@@ -1816,7 +2111,7 @@ export default function InvoicingModule({ currentUser }) {
                   placeholder="e.g. UTR192830192 / CHQ-1029"
                   value={payRef}
                   onChange={(e) => setPayRef(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-all"
                 />
               </div>
 
@@ -1827,7 +2122,7 @@ export default function InvoicingModule({ currentUser }) {
                   placeholder="Payment receipt remarks..."
                   value={payNotes}
                   onChange={(e) => setPayNotes(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all resize-none"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-all resize-none"
                 />
               </div>
 
@@ -1841,14 +2136,138 @@ export default function InvoicingModule({ currentUser }) {
                 </button>
                 <button
                   type="submit"
-                  disabled={paySubmitting}
+                  disabled={paySubmitting || !selectedInvoiceForPay}
                   className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {paySubmitting ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  <span>Confirm Payment</span>
+                  <span>Generate Receipt</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── 5B. Payment Receipt View & Print Modal ────────────────────────────── */}
+      {viewingReceipt && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <div
+            className="bg-[#0e1017]/95 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 my-auto relative z-10 transition-all backdrop-blur-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
+                  <Receipt className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-white tracking-tight">Payment Receipt</h3>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-black uppercase border",
+                      (viewingReceipt.status === 'Received' || viewingReceipt.status === 'Cleared' || !viewingReceipt.status) && "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+                      viewingReceipt.status === 'Pending Clearance' && "bg-amber-500/15 text-amber-300 border-amber-500/30",
+                      viewingReceipt.status === 'Draft' && "bg-gray-500/15 text-gray-300 border-gray-500/30",
+                      viewingReceipt.status === 'Bounced' && "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                    )}>
+                      {viewingReceipt.status || 'Received'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-400/90 font-mono font-semibold">
+                    {viewingReceipt.id || viewingReceipt.receipt_number || 'RECEIPT'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingReceipt(null)} 
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Receipt Body Card */}
+            <div className="bg-black/60 border border-white/10 rounded-2xl p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-xs pb-4 border-b border-white/10">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Date Received</div>
+                  <div className="text-white font-mono font-semibold mt-0.5">
+                    {formatDate(viewingReceipt.recorded_at || viewingReceipt.date || viewingReceipt.payment_date)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Against Invoice</div>
+                  <div className="text-amber-400 font-mono font-bold mt-0.5">
+                    {viewingReceipt.invoice_id || 'Direct'}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Received From</div>
+                <div className="text-sm font-bold text-white mt-0.5">{viewingReceipt.school_name || 'Client'}</div>
+              </div>
+
+              {/* Amount Highlight */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 flex flex-col items-start gap-1">
+                <span className="text-[10px] uppercase font-black text-emerald-400/80 tracking-wider">Amount Received</span>
+                <span className="text-2xl font-black text-white font-mono tracking-tight">
+                  {formatINR(viewingReceipt.amount)}
+                </span>
+                <span className="text-[11px] text-white/70 italic capitalize">
+                  {numberToWordsIndian(viewingReceipt.amount)}
+                </span>
+              </div>
+
+              {/* Metadata */}
+              <div className="grid grid-cols-2 gap-3 text-xs pt-2">
+                <div>
+                  <span className="text-[10px] uppercase text-white/40 font-bold block">Payment Method</span>
+                  <span className="text-white/90 font-medium">{viewingReceipt.payment_method || viewingReceipt.mode || 'Direct'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-white/40 font-bold block">Transaction / Ref #</span>
+                  <span className="text-white/90 font-mono">{viewingReceipt.reference_number || viewingReceipt.reference || '—'}</span>
+                </div>
+              </div>
+
+              {viewingReceipt.notes && (
+                <div className="pt-2 text-xs">
+                  <span className="text-[10px] uppercase text-white/40 font-bold block">Notes</span>
+                  <p className="text-white/70 italic text-[11px] mt-0.5">{viewingReceipt.notes}</p>
+                </div>
+              )}
+
+              {viewingReceipt.recorded_by_name && (
+                <div className="pt-2 border-t border-white/5 text-[10px] text-white/40 flex justify-between">
+                  <span>Recorded By: <strong className="text-white/70">{viewingReceipt.recorded_by_name}</strong></span>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setViewingReceipt(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl border border-white/10 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-emerald-400" />
+                <span>Print / Save PDF</span>
+              </button>
+            </div>
           </div>
         </div>,
         document.body
@@ -1906,22 +2325,29 @@ export default function InvoicingModule({ currentUser }) {
       )}
 
       {/* ── 7. Document Creation/Viewer Modal ─────────────────────────────────── */}
-      <InvoiceDocumentModal
-        key={`doc-modal-${docModalType}-${docModalMode}-${selectedDoc?.id || 'new'}-${docModalOpen ? '1' : '0'}`}
-        isOpen={docModalOpen}
-        onClose={() => {
-          setDocModalOpen(false);
-          setSelectedDoc(null);
-        }}
-        documentData={selectedDoc}
-        type={
-          (docModalType === 'quote' || docModalType === 'quotes' || docModalType === 'quotation') ? 'Quotation' :
-          (docModalType === 'proforma' || docModalType === 'proforma_invoice') ? 'Proforma Invoice' : 'Tax Invoice'
-        }
-        mode={docModalMode}
-        currentUser={currentUser}
-        onSaveSuccess={loadAllFinancialData}
-      />
+      {docModalOpen && (
+        <InvoiceDocumentModal
+          key={`doc-modal-${docModalType}-${docModalMode}-${selectedDoc?.id || 'new'}`}
+          isOpen={docModalOpen}
+          onClose={() => {
+            setDocModalOpen(false);
+            setSelectedDoc(null);
+          }}
+          documentData={selectedDoc}
+          type={
+            (docModalType === 'quote' || docModalType === 'quotes' || docModalType === 'quotation') ? 'Quotation' :
+            (docModalType === 'proforma' || docModalType === 'proforma_invoice') ? 'Proforma Invoice' : 'Tax Invoice'
+          }
+          mode={docModalMode}
+          currentUser={currentUser}
+          onSaveSuccess={loadAllFinancialData}
+          onOpenPaymentModal={() => {
+            setDocModalOpen(false);
+            setSelectedDoc(null);
+            handleOpenPayModal(null);
+          }}
+        />
+      )}
 
     </div>
   );

@@ -423,6 +423,7 @@ export async function updateProformaInvoice(req, res) {
     if (body.grand_total !== undefined) { updates.push('grand_total = ?'); params.push(Number(body.grand_total)); }
     if (body.status !== undefined) { updates.push('status = ?'); params.push(body.status); }
     if (body.payment_status !== undefined) { updates.push('payment_status = ?'); params.push(body.payment_status); }
+    else if (body.status !== undefined) { updates.push('payment_status = ?'); params.push(body.status); }
     if (body.due_date !== undefined) { updates.push('due_date = ?'); params.push(body.due_date); }
     if (body.tags !== undefined) { updates.push('tags = ?'); params.push(typeof body.tags === 'string' ? body.tags : JSON.stringify(body.tags)); }
 
@@ -490,7 +491,7 @@ export async function createInvoice(req, res) {
     const grandTotal = Number(body.grand_total || 0);
     const paidAmount = Number(body.paid_amount || 0);
     const outstanding = Math.max(0, grandTotal - paidAmount);
-    const paymentStatus = outstanding === 0 ? 'Fully Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid';
+    const paymentStatus = body.status || body.payment_status || (outstanding === 0 ? 'Fully Paid' : paidAmount > 0 ? 'Partially Paid' : 'Unpaid');
 
     const canvasserId = (body.canvasser_id !== undefined && body.canvasser_id !== null && body.canvasser_id !== '') ? Number(body.canvasser_id) : user.id;
     const canvasserName = body.canvasser_name || user.name || 'Sales Representative';
@@ -578,6 +579,7 @@ export async function updateInvoice(req, res) {
     if (body.paid_amount !== undefined) { updates.push('paid_amount = ?'); params.push(Number(body.paid_amount)); }
     if (body.outstanding_balance !== undefined) { updates.push('outstanding_balance = ?'); params.push(Number(body.outstanding_balance)); }
     if (body.payment_status !== undefined) { updates.push('payment_status = ?'); params.push(body.payment_status); }
+    else if (body.status !== undefined) { updates.push('payment_status = ?'); params.push(body.status); }
     if (body.due_date !== undefined) { updates.push('due_date = ?'); params.push(body.due_date); }
     if (body.tags !== undefined) { updates.push('tags = ?'); params.push(typeof body.tags === 'string' ? body.tags : JSON.stringify(body.tags)); }
 
