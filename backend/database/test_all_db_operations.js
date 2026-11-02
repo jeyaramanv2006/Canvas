@@ -1,7 +1,14 @@
 import pg from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const { Pool } = pg;
-const newUrl = 'postgresql://neondb_owner:npg_FWjHf6zT0LEG@ep-winter-butterfly-b8k2ib0q.c-14.us-east-1.aws.neon.tech/neondb?sslmode=require';
+const newUrl = process.env.DATABASE_URL;
+if (!newUrl) {
+  console.error('DATABASE_URL environment variable is required.');
+  process.exit(1);
+}
 
 async function runFullDiagnostics() {
   console.log('🩺 Starting Comprehensive Database Operations Diagnostic on New Neon DB...\n');

@@ -38,16 +38,28 @@ export default function CanvasserLeaderboard({ currentUser }) {
     return mKey === currentMonthKey ? `${monthName} (Current Month)` : monthName;
   };
 
+  // Generate recent 12 calendar months dynamically as clean fallback
+  const fallbackMonths = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.toISOString().slice(0, 7));
+    }
+    return months;
+  }, []);
+
   const monthOptions = useMemo(() => {
-    const list = dynamicMonths.length > 0 ? [...dynamicMonths] : [currentMonthKey, '2026-09', '2026-08', '2026-07'];
+    const list = dynamicMonths.length > 0 ? [...dynamicMonths] : fallbackMonths;
     if (!list.includes(currentMonthKey)) {
       list.unshift(currentMonthKey);
     }
     const unique = Array.from(new Set(list));
+    unique.sort((a, b) => b.localeCompare(a));
     const opts = unique.map(m => ({ id: m, label: formatMonthLabel(m) }));
     opts.push({ id: 'all', label: 'All-Time Cumulative' });
     return opts;
-  }, [dynamicMonths, currentMonthKey]);
+  }, [dynamicMonths, fallbackMonths, currentMonthKey]);
 
   useEffect(() => {
     loadLeaderboard();
@@ -154,7 +166,7 @@ export default function CanvasserLeaderboard({ currentUser }) {
     { id: 'conversion', label: 'Conversion Rate (%)', icon: Target, metric: 'Win Rate %' }
   ];
 
-  const isCurrentActiveCycle = selectedMonth === '2026-09' || selectedMonth === currentMonthKey;
+  const isCurrentActiveCycle = selectedMonth === currentMonthKey;
 
   return (
     <div className="space-y-5 selection:bg-amber-400 selection:text-black">

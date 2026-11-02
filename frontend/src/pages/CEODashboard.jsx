@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { AuthContext } from '../App';
+import { mockApi } from '../mockApi';
 import InvoicingModule from '../components/InvoicingModule';
 import FieldVisitRegistry from '../components/FieldVisitRegistry';
 import CanvasserLeaderboard from '../components/CanvasserLeaderboard';
@@ -43,6 +44,35 @@ export default function CEODashboard() {
   // Governance Drawer State
   const [approvalsDrawerOpen, setApprovalsDrawerOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+
+  const updatePendingCount = React.useCallback(async () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
+      const localCount = Array.isArray(stored) ? stored.filter(a => a.status === 'PENDING').length : 0;
+
+      let apiCount = 0;
+      try {
+        const backend = await mockApi.getPendingApprovals();
+        if (Array.isArray(backend)) {
+          apiCount = backend.filter(a => a.status === 'PENDING').length;
+        }
+      } catch {}
+
+      setPendingCount(Math.max(localCount, apiCount));
+    } catch {
+      setPendingCount(0);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    updatePendingCount();
+    window.addEventListener('storage', updatePendingCount);
+    const interval = setInterval(updatePendingCount, 4000);
+    return () => {
+      window.removeEventListener('storage', updatePendingCount);
+      clearInterval(interval);
+    };
+  }, [updatePendingCount]);
 
   const navTabs = [
     { id: 'dashboard', label: 'Dashboard', mobileLabel: 'Overview', icon: LayoutDashboard },
@@ -94,13 +124,14 @@ export default function CEODashboard() {
             {/* Approvals Badge Trigger */}
             <button
               onClick={() => setApprovalsDrawerOpen(true)}
-              className="px-3 py-1.5 sm:py-2 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              className="relative px-3 py-1.5 sm:py-2 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              title={pendingCount > 0 ? `${pendingCount} approvals pending` : 'Approvals queue'}
             >
               <Bell className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">Approvals</span>
               {pendingCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-amber-400 text-black text-[10px] font-black flex items-center justify-center">
-                  {pendingCount}
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-[#0c0d15] shadow-lg shadow-red-600/50 animate-pulse">
+                  {pendingCount > 99 ? '99+' : pendingCount}
                 </span>
               )}
             </button>
@@ -261,8 +292,12 @@ export default function CEODashboard() {
       {/* Pending Approvals Governance Drawer */}
       <PendingApprovalsDrawer
         isOpen={approvalsDrawerOpen}
-        onClose={() => setApprovalsDrawerOpen(false)}
+        onClose={() => {
+          setApprovalsDrawerOpen(false);
+          updatePendingCount();
+        }}
         currentUser={user}
+        onApprovalUpdated={updatePendingCount}
         onCountChange={(newCount) => setPendingCount(newCount)}
       />
 

@@ -10,6 +10,7 @@ import CSODashboard from './pages/CSODashboard';
 import ForcePasswordResetModal from './components/ForcePasswordResetModal';
 import TopographicBackground from './components/TopographicBackground';
 import DynamicDotGridBackground from './components/DynamicDotGridBackground';
+import GeminiChatAssistant from './components/GeminiChatAssistant';
 import { getHomeRoute } from './lib/rbac';
 import { getToken, setToken } from './api/client';
 import { mockApi } from './mockApi';
@@ -75,6 +76,9 @@ function App() {
         <div className="min-h-screen bg-transparent text-white font-sans selection:bg-amber-400 selection:text-black relative isolate">
           {!user ? <TopographicBackground /> : <DynamicDotGridBackground />}
           <ForcePasswordResetModal />
+          {user && !['cvs', 'canvasser'].includes((user.role || '').toLowerCase()) && (
+            <GeminiChatAssistant />
+          )}
           <Routes>
             {/* Root — redirect based on role */}
             <Route

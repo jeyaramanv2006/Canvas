@@ -2,11 +2,18 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const connectionString = 'postgresql://neondb_owner:npg_RFihgNEb02tS@ep-frosty-salad-aeoooo64.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL environment variable is required.');
+  process.exit(1);
+}
 
 async function performBackup() {
   console.log('🔗 Connecting to Hosted Neon Production Database (READ-ONLY MODE)...');

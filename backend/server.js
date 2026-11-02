@@ -11,6 +11,7 @@ import * as financialsController from './controllers/financialsController.js';
 import * as userManagementController from './controllers/userManagementController.js';
 import * as masterSchoolsController from './controllers/masterSchoolsController.js';
 import * as uploadController from './controllers/uploadController.js';
+import * as assistantController from './controllers/assistantController.js';
 
 dotenv.config();
 
@@ -124,6 +125,9 @@ app.put(['/api/payments/:id', '/api/payments/*'], authenticateToken, financialsC
 app.delete(['/api/payments/:id', '/api/payments/*'], authenticateToken, financialsController.deletePayment);
 app.get('/api/payments', authenticateToken, financialsController.getPayments);
 app.get('/api/cfo/analytics', authenticateToken, financialsController.getCFOAnalytics);
+
+// ── AI Assistant (Gemini Streaming & Text-to-SQL) ───────────────────────────
+app.post('/api/assistant/chat-stream', authenticateToken, assistantController.streamChat);
 
 // ── Error Handling Middleware ────────────────────────────────────────────────
 app.use((err, req, res, next) => {

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { mockApi } from '../mockApi';
 
-export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, onApprovalUpdated }) {
+export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, onApprovalUpdated, onCountChange }) {
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
@@ -43,6 +43,8 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
     try {
       const storedApprovals = JSON.parse(localStorage.getItem('mg_pending_approvals') || '[]');
       setApprovals(storedApprovals);
+      const count = storedApprovals.filter(a => a.status === 'PENDING').length;
+      if (onCountChange) onCountChange(count);
     } catch (e) {
       console.error("Failed to load approvals", e);
     } finally {
@@ -96,6 +98,8 @@ export default function PendingApprovalsDrawer({ isOpen, onClose, currentUser, o
       });
       localStorage.setItem('mg_pending_approvals', JSON.stringify(updated));
       setApprovals(updated);
+      const count = updated.filter(a => a.status === 'PENDING').length;
+      if (onCountChange) onCountChange(count);
       if (onApprovalUpdated) onApprovalUpdated();
     } catch (e) {
       setDrawerError("Failed to process approval: " + e.message);

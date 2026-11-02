@@ -719,7 +719,9 @@ export const mockApi = {
 
       return {
         rankings: safeRankings,
-        teamStats
+        teamStats,
+        availableMonths: rankings?.availableMonths || [],
+        selectedMonth: rankings?.selectedMonth || ''
       };
     }, forceRefresh);
   },
