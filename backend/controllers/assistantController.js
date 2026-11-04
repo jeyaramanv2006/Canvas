@@ -536,13 +536,6 @@ Generate the JSON with read-only SQL query or direct answer.`;
         const stmt = db.prepare(cleanSQL);
         const rows = await (stmt.all ? stmt.all() : stmt);
         retrievedData = Array.isArray(rows) ? rows : (rows ? [rows] : []);
-        // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
-        retrievedData = retrievedData.filter(r => {
-          if (!r) return false;
-          const name = String(r.canvasser_name || '').toLowerCase();
-          const idStr = String(r.id || r.invoice_id || '');
-          return !name.includes('refrens') && !idStr.startsWith('A');
-        });
       } catch (dbErr) {
         console.warn('[Assistant] Initial SQL execution error:', dbErr.message);
         retrievedData = [];
