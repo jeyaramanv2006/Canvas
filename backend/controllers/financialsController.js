@@ -1,5 +1,8 @@
 import { db } from '../database/db.js';
 
+// [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+export const HIDE_REFRENS_FOR_PRESENTATION = true;
+
 function extractDocumentId(req) {
   const rawId = req.params.id || req.params[0] || req.body?.id || req.query?.id || '';
   try {
@@ -190,11 +193,15 @@ export async function resequenceDocumentTable(tableName, prefix = 'A') {
 export async function getQuotations(req, res) {
   try {
     const user = req.user;
-    let query = 'SELECT * FROM quotations';
+    let query = 'SELECT * FROM quotations WHERE 1=1';
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    if (HIDE_REFRENS_FOR_PRESENTATION) {
+      query += " AND canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'";
+    }
     const params = [];
 
     if (['canvasser', 'cvs'].includes(user.role)) {
-      query += ' WHERE canvasser_id = ?';
+      query += ' AND canvasser_id = ?';
       params.push(user.id);
     }
     query += ' ORDER BY created_at ASC, id ASC';
@@ -331,7 +338,11 @@ export async function deleteQuotation(req, res) {
 export async function getProformaInvoices(req, res) {
   try {
     const user = req.user;
-    let query = 'SELECT * FROM proforma_invoices';
+    let query = 'SELECT * FROM proforma_invoices WHERE 1=1';
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    if (HIDE_REFRENS_FOR_PRESENTATION) {
+      query += " AND canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'";
+    }
     const params = [];
 
     if (['canvasser', 'cvs'].includes(user.role)) {
@@ -461,7 +472,11 @@ export async function deleteProformaInvoice(req, res) {
 export async function getInvoices(req, res) {
   try {
     const user = req.user;
-    let query = 'SELECT * FROM invoices';
+    let query = 'SELECT * FROM invoices WHERE 1=1';
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    if (HIDE_REFRENS_FOR_PRESENTATION) {
+      query += " AND canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'";
+    }
     const params = [];
 
     if (['canvasser', 'cvs'].includes(user.role)) {
@@ -755,7 +770,13 @@ export async function deletePayment(req, res) {
 
 export async function getPayments(req, res) {
   try {
-    const payments = await db.prepare('SELECT * FROM payments ORDER BY recorded_at ASC, id ASC').all();
+    let query = 'SELECT * FROM payments WHERE 1=1';
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    if (HIDE_REFRENS_FOR_PRESENTATION) {
+      query += " AND invoice_id NOT LIKE 'A%' AND notes NOT LIKE '%Refrens%'";
+    }
+    query += ' ORDER BY recorded_at ASC, id ASC';
+    const payments = await db.prepare(query).all();
     return res.json((payments || []).map(p => ({
       ...p,
       tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || [])
@@ -768,8 +789,18 @@ export async function getPayments(req, res) {
 // ── CFO Executive Financial Analytics Aggregator ─────────────────────────────
 export async function getCFOAnalytics(req, res) {
   try {
-    const invoices = (await db.prepare('SELECT id, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices ORDER BY created_at DESC').all()) || [];
-    const payments = (await db.prepare('SELECT id, amount, recorded_at FROM payments ORDER BY recorded_at DESC').all()) || [];
+    let invSql = 'SELECT id, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices WHERE 1=1';
+    let paySql = 'SELECT id, amount, recorded_at FROM payments WHERE 1=1';
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    if (HIDE_REFRENS_FOR_PRESENTATION) {
+      invSql += " AND canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'";
+      paySql += " AND invoice_id NOT LIKE 'A%' AND notes NOT LIKE '%Refrens%'";
+    }
+    invSql += ' ORDER BY created_at DESC';
+    paySql += ' ORDER BY recorded_at DESC';
+
+    const invoices = (await db.prepare(invSql).all()) || [];
+    const payments = (await db.prepare(paySql).all()) || [];
 
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.grand_total) || 0), 0);
     const totalCollected = invoices.reduce((sum, i) => sum + (Number(i.paid_amount) || 0), 0);
