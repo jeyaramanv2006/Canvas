@@ -1,5 +1,8 @@
 import { db } from '../database/db.js';
 
+// [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+export const HIDE_REFRENS_FOR_PRESENTATION = true;
+
 export function calculateCommissionSlab(amount, newSchoolsCount = 0) {
   const invoiced = Number(amount) || 0;
   let rate = 2.0;
@@ -396,9 +399,21 @@ export async function getCanvasserLeaderboard(req, res) {
 export async function getCEOExecutiveMIS(req, res) {
   try {
     const visits = (await db.prepare('SELECT id, school_name, district, outcome_status, interest_level, product_interests, canvasser_id, canvasser_name, follow_up_date, contact_person, phone, created_at FROM visits').all()) || [];
-    const invoices = (await db.prepare('SELECT id, school_name, district, canvasser_name, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices').all()) || [];
-    const quotations = (await db.prepare('SELECT id, status, grand_total FROM quotations').all()) || [];
-    const payments = (await db.prepare('SELECT id, amount, recorded_at FROM payments').all()) || [];
+    
+    // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+    const invSql = HIDE_REFRENS_FOR_PRESENTATION
+      ? "SELECT id, school_name, district, canvasser_name, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices WHERE canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'"
+      : "SELECT id, school_name, district, canvasser_name, grand_total, paid_amount, outstanding_balance, due_date, created_at FROM invoices";
+    const qtnSql = HIDE_REFRENS_FOR_PRESENTATION
+      ? "SELECT id, status, grand_total FROM quotations WHERE canvasser_name != 'Refrens Import' AND id NOT LIKE 'A%'"
+      : "SELECT id, status, grand_total FROM quotations";
+    const paySql = HIDE_REFRENS_FOR_PRESENTATION
+      ? "SELECT id, amount, recorded_at FROM payments WHERE invoice_id NOT LIKE 'A%' AND notes NOT LIKE '%Refrens%'"
+      : "SELECT id, amount, recorded_at FROM payments";
+
+    const invoices = (await db.prepare(invSql).all()) || [];
+    const quotations = (await db.prepare(qtnSql).all()) || [];
+    const payments = (await db.prepare(paySql).all()) || [];
     const users = (await db.prepare("SELECT id, name, role, role_title, status FROM users WHERE status != 'DELETED'").all()) || [];
     const products = (await db.prepare('SELECT id, name, category, unit_price FROM products').all()) || [];
     const pendingApprovals = (await db.prepare("SELECT id, action_type, status, requested_by_name, created_at FROM pending_user_actions WHERE status = 'PENDING'").all()) || [];

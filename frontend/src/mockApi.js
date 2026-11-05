@@ -1,6 +1,20 @@
 import { isAdmin, isCanvasser, getRoleConfig } from './lib/rbac';
 import { api, setToken, getToken, BASE_URL } from './api/client';
 
+// [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+export const HIDE_REFRENS_FOR_PRESENTATION = true;
+
+export const isRefrensRecord = (item) => {
+  if (!item) return false;
+  const name = String(item.canvasser_name || item.actor_name || '').toLowerCase();
+  const idStr = String(item.id || item.invoice_id || '');
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  return name.includes('refrens') ||
+    Number(item.canvasser_id) === 99 ||
+    idStr.startsWith('A') ||
+    tags.some(t => String(t).toLowerCase().includes('refrens'));
+};
+
 export function calculateCommissionSlab(amount, newSchoolsCount = 0) {
   const invoiced = Number(amount) || 0;
   let rate = 2.0;
@@ -465,7 +479,8 @@ export const mockApi = {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('quotations', async () => {
       const res = await api.get('/quotations');
-      const list = Array.isArray(res) ? res : (res?.quotations || []);
+      const rawList = Array.isArray(res) ? res : (res?.quotations || []);
+      const list = HIDE_REFRENS_FOR_PRESENTATION ? rawList.filter(q => !isRefrensRecord(q)) : rawList;
       return list.map(q => ({
         ...q,
         date: q.date || (q.created_at ? q.created_at.split('T')[0] : ''),
@@ -516,7 +531,8 @@ export const mockApi = {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('proforma', async () => {
       const res = await api.get('/proforma-invoices');
-      const list = Array.isArray(res) ? res : (res?.proforma_invoices || []);
+      const rawList = Array.isArray(res) ? res : (res?.proforma_invoices || []);
+      const list = HIDE_REFRENS_FOR_PRESENTATION ? rawList.filter(p => !isRefrensRecord(p)) : rawList;
       return list.map(p => ({
         ...p,
         date: p.date || (p.created_at ? p.created_at.split('T')[0] : ''),
@@ -562,7 +578,8 @@ export const mockApi = {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('invoices', async () => {
       const res = await api.get('/invoices');
-      const list = Array.isArray(res) ? res : (res?.invoices || []);
+      const rawList = Array.isArray(res) ? res : (res?.invoices || []);
+      const list = HIDE_REFRENS_FOR_PRESENTATION ? rawList.filter(inv => !isRefrensRecord(inv)) : rawList;
       return list.map(inv => {
         const grandTotal = Number(inv.grand_total || 0);
         const paidAmount = Number(inv.paid_amount || 0);
@@ -669,7 +686,8 @@ export const mockApi = {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('payments', async () => {
       const res = await api.get('/payments');
-      const list = Array.isArray(res) ? res : (res?.payments || []);
+      const rawList = Array.isArray(res) ? res : (res?.payments || []);
+      const list = HIDE_REFRENS_FOR_PRESENTATION ? rawList.filter(p => !isRefrensRecord(p)) : rawList;
       return list.map(p => ({
         ...p,
         amount: Number(p.amount || 0),
@@ -736,15 +754,19 @@ export const mockApi = {
   async getCFOAnalytics(options = {}) {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('cfo_analytics', async () => {
-      try {
-        return await api.get('/cfo/analytics');
-      } catch (err) {
-        console.warn('Backend /cfo/analytics endpoint unreachable, calculating from active entities:', err);
-        const [invoices, payments, quotations] = await Promise.all([
-          this.getInvoices().catch(() => []),
-          this.getPayments().catch(() => []),
-          this.getQuotations().catch(() => [])
-        ]);
+      // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+      if (!HIDE_REFRENS_FOR_PRESENTATION) {
+        try {
+          return await api.get('/cfo/analytics');
+        } catch (err) {
+          console.warn('Backend /cfo/analytics endpoint unreachable, calculating from active entities:', err);
+        }
+      }
+      const [invoices, payments, quotations] = await Promise.all([
+        this.getInvoices().catch(() => []),
+        this.getPayments().catch(() => []),
+        this.getQuotations().catch(() => [])
+      ]);
 
         const safeInvoices = Array.isArray(invoices) ? invoices : [];
         const safePayments = Array.isArray(payments) ? payments : [];
@@ -845,24 +867,27 @@ export const mockApi = {
           agingBuckets,
           monthlyTrend
         };
-      }
     }, forceRefresh);
   },
 
   async getCEODashboardHubData(options = {}) {
     const forceRefresh = Boolean(options?.forceRefresh);
     return cachedGet('ceo_mis', async () => {
-      try {
-        return await api.get('/ceo/mis');
-      } catch (err) {
-        console.warn('Backend /ceo/mis endpoint unreachable, calculating from active entities:', err);
-        const [invoices, visits, quotations, payments, users] = await Promise.all([
-          this.getInvoices().catch(() => []),
-          this.getVisits().catch(() => []),
-          this.getQuotations().catch(() => []),
-          this.getPayments().catch(() => []),
-          this.getUsers().catch(() => [])
-        ]);
+      // [TEMPORARY PRESENTATION HIDE - TO BE REVERTED AFTER 1 HR]
+      if (!HIDE_REFRENS_FOR_PRESENTATION) {
+        try {
+          return await api.get('/ceo/mis');
+        } catch (err) {
+          console.warn('Backend /ceo/mis endpoint unreachable, calculating from active entities:', err);
+        }
+      }
+      const [invoices, visits, quotations, payments, users] = await Promise.all([
+        this.getInvoices().catch(() => []),
+        this.getVisits().catch(() => []),
+        this.getQuotations().catch(() => []),
+        this.getPayments().catch(() => []),
+        this.getUsers().catch(() => [])
+      ]);
 
         const safeInvoices = Array.isArray(invoices) ? invoices : [];
         const safeVisits = Array.isArray(visits) ? visits : [];
@@ -1009,7 +1034,6 @@ export const mockApi = {
             }
           }
         };
-      }
     }, forceRefresh);
   },
 
